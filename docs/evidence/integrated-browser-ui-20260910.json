@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase1/t02-bootstrap",
-    "revision": "83eba775c91de52812948d9fb86dc43e244eebae"
+    "revision": "06c74f61571adc389a7aa27477d4db04bd8b7c26"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:44429",
+  "base_url": "http://127.0.0.1:33981",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,13 +46,13 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:44429/web/",
-    "http://127.0.0.1:44429/web/styles.css",
-    "http://127.0.0.1:44429/web/app.js",
-    "http://127.0.0.1:44429/offline-bundle.json",
-    "http://127.0.0.1:44429/demo/snapshot",
-    "http://127.0.0.1:44429/demo/events",
-    "http://127.0.0.1:44429/demo/comparison"
+    "http://127.0.0.1:33981/web/",
+    "http://127.0.0.1:33981/web/styles.css",
+    "http://127.0.0.1:33981/web/app.js",
+    "http://127.0.0.1:33981/offline-bundle.json",
+    "http://127.0.0.1:33981/demo/snapshot",
+    "http://127.0.0.1:33981/demo/events",
+    "http://127.0.0.1:33981/demo/comparison"
   ],
   "external_requests": [],
   "fixture_requests": [],
