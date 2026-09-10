@@ -18,6 +18,17 @@
         "status": "interrupted",
         "phase2_preflight": "requested",
         "child_spawn": "unavailable"
+      },
+      {
+        "name": "phase2_completion_lead",
+        "thread_id": "01a08cdc-408c-73c0-adc5-fedbdcd16a53",
+        "path": "/root/phase2_completion_lead",
+        "depth": 1,
+        "model": "gpt-5.6-luna",
+        "effort": "max",
+        "status": "completed",
+        "phase2_preflight": "completed",
+        "child_spawn": "unavailable"
       }
     ]
   },
