@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3). Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60). The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3) at `772d16da40b335d62ae982ea671800281ba920ce`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4c79e83c60545684771a1d6084179ef9bec0d84c`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane never calls a provider or game; the companion seam proves prepared bytes through fake Exo/Astra/Ollama peers. Real provider, host, deployment and soak evidence is not claimed.
 
@@ -11,9 +11,10 @@ The implementation is disabled outside the synthetic management fixture. The tar
 The target and companion each passed `cargo fmt --all -- --check`, strict repository policy, `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`, `cargo test --workspace --all-targets --all-features --locked`, and locked cargo metadata. The target `phase2-demo` passed with `provider_calls=0` and `game_launches=0`; its prepared manifest is `734b79c24a125e465e72be6004193345bc2aa3f6e290e18df88e49a19d316f9b`. Loopback API probes passed capabilities/state, CSRF rejection, duplicate-key rejection, and a valid write. The package verifier, schema fixtures (15 schemas, 17 valid vectors, 28 rejected vectors), and bounded reference model passed.
 
 The Phase 2 browser audit now passes with the bounded Chromium/Playwright environment: it exercises
-draft save, note/objective entry, exploratory and applicable previews, pause, commit-while-paused,
-explicit resume, control events, zero provider/game effects, storage, network, keyboard and narrow
-layout assertions. Native depth-2/3 Luna/max descendants and reservation metadata remain unavailable;
+draft save, note/objective entry, typed pinning and restore, exploratory and applicable previews,
+pause, commit-while-paused, explicit resume, control events, authorization denial probes, zero
+provider/game effects, storage, network, keyboard and narrow-layout assertions. Native depth-2/3
+Luna/max descendants and reservation metadata remain unavailable;
 see `docs/evidence/phase2-native-preflight-20260910.json`.
 
 ## Requirement index
@@ -36,9 +37,9 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R012 | executed | Bounded control types, strict JSON, duplicate-key and contract tests pass. |
 | P2-R013 | executed | Versioned notes are attributed in target state and rendered harness context. |
 | P2-R014 | executed | `objective_authorization_and_restore_alone_are_enforced`. |
-| P2-R015 | executed | Restore is exclusive and creates a new draft configuration. |
+| P2-R015 | executed | Restore is exclusive and creates a new draft configuration; target test and browser flow pass. |
 | P2-R016 | source-reviewed | Edit-time and preview-time immutable scope/digest/expiry checks are implemented. |
-| P2-R017 | source-reviewed | Pins remain subject to item and aggregate component bounds. |
+| P2-R017 | executed | Pins remain subject to selection, item, and aggregate component bounds; target test and browser flow pass. |
 | P2-R018 | executed | Exploratory/applicable preview distinction and provider-free test pass. |
 | P2-R019 | executed | Prepared renderer and dispatch seam tests pass. |
 | P2-R020 | source-reviewed | Boundary, revision, adapter, model/configuration and manifest fields are bound in code. |
@@ -71,7 +72,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R047 | source-reviewed | Finite limits cover commands, notes, items, components, previews, events and journal. |
 | P2-R048 | source-reviewed | Phase1 memory capture remains explicitly separate from durable control journal. |
 | P2-R049 | executed | Receipt effects distinguish pause, commit, resume and preview state. |
-| P2-R050 | executed | Phase 2 Playwright audit covers disabled/control/error UI and same-origin security assertions. |
+| P2-R050 | executed | Phase 2 Playwright audit covers control/error UI, typed restore, and same-origin security assertions; disabled/disconnected live state remains outside the fixture. |
 | P2-R051 | source-reviewed | CLI demo uses the same typed control reducer; a separate remote CLI is not claimed. |
 | P2-R052 | executed | Relations bind revision, preview, snapshot, execution, attempt and intervention IDs. |
 | P2-R053 | source-reviewed | Intervention lineage is retained on revisions and relations after restore. |
@@ -89,6 +90,17 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 
 ## Failure and recovery coverage
 
-The target Phase 2 integration tests cover protected edits, draft CAS, objective authorization, restore exclusivity, exploratory/applicable preview, pause/commit/resume, stale boundaries, idempotent receipts, changed-body conflicts, journal recovery, disabled mode, and stop dominance. The companion tests cover prepared Exo bytes, legacy parity, control recovery, and actual serialized Ollama/Astra bridge inputs. The package’s bounded reference model additionally checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate Rust storage, authentication, provider behavior, game effects, or native topology.
+The 13 target Phase 2 integration tests cover protected edits, draft CAS, objective authorization,
+typed pin/exclude/restore, protected identity aliases, exploratory/applicable preview,
+pause/commit/resume, stale boundaries, idempotent receipts, command-window expiry, changed-body
+conflicts, journal tamper/recovery, disabled mode, and stop dominance. The companion tests cover
+prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, and
+actual serialized Ollama/Astra bridge inputs. The package’s bounded reference model additionally
+checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
+Rust storage, authentication, provider behavior, game effects, or native topology.
 
-No production migration or rollback claim is made because this fixture uses bounded in-memory state. A maintainer should review the two draft PRs, rerun the documented gates, install `jsonschema` for schema fixtures, and provide the missing browser/native environment before treating those rows as verified.
+No production migration or rollback claim is made because this fixture uses bounded in-memory state;
+the additive journal recovery and safe deactivation behavior are tested, while a native encrypted
+store migration and old-binary refusal still require implementation. Schema fixtures were executed
+with `jsonschema`; native depth/reservation controls remain unavailable in this environment. A
+maintainer should review the two draft PRs and rerun the documented gates before release work.

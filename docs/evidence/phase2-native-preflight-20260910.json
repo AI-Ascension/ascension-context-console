@@ -6,14 +6,24 @@
   "requested_effort": "max",
   "root_role": "integration orchestrator",
   "observed": {
-    "descendant": "phase1_lead",
-    "status": "completed",
-    "phase1_merge": "confirmed",
-    "phase2_preflight": "completed"
+    "descendants": [
+      {
+        "name": "phase1_lead",
+        "status": "completed",
+        "phase1_merge": "confirmed",
+        "phase2_preflight": "completed"
+      },
+      {
+        "name": "phase2_lead",
+        "status": "interrupted",
+        "phase2_preflight": "requested",
+        "child_spawn": "unavailable"
+      }
+    ]
   },
   "native_capacity_result": {
     "status": "unavailable",
-    "reason": "The lead did not receive native child-agent spawn or messaging controls, so coordinator and specialist descendants could not be created.",
+    "reason": "Native lead attempts did not receive child-agent spawn or messaging controls, so coordinator and specialist descendants could not be created.",
     "action": "No fabricated ancestry, model setting, or effort setting is claimed; root completed the bounded implementation and recorded the limitation."
   },
   "evidence_class": [

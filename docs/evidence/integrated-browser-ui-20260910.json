@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "ed3b2d7f23517712add51e01dbc85e52b3508a5a"
+    "revision": "772d16da40b335d62ae982ea671800281ba920ce"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:42331",
+  "base_url": "http://127.0.0.1:42881",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,16 +46,17 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:42331/web/",
-    "http://127.0.0.1:42331/web/styles.css",
-    "http://127.0.0.1:42331/web/app.js",
-    "http://127.0.0.1:42331/offline-bundle.json",
-    "http://127.0.0.1:42331/demo/snapshot",
-    "http://127.0.0.1:42331/demo/events",
-    "http://127.0.0.1:42331/demo/comparison",
-    "http://127.0.0.1:42331/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:42331/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:42331/v2/runs/fixture-run/context-control/eligible-items"
+    "http://127.0.0.1:42881/web/",
+    "http://127.0.0.1:42881/web/styles.css",
+    "http://127.0.0.1:42881/web/app.js",
+    "http://127.0.0.1:42881/offline-bundle.json",
+    "http://127.0.0.1:42881/demo/snapshot",
+    "http://127.0.0.1:42881/demo/events",
+    "http://127.0.0.1:42881/demo/comparison",
+    "http://127.0.0.1:42881/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:42881/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:42881/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:42881/v2/runs/fixture-run/context-control/revisions"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -86,8 +87,8 @@
     "rejected_before_fetch": true
   },
   "integration_metrics": {
-    "api_requests": 12,
-    "browser_requests": 25,
+    "api_requests": 14,
+    "browser_requests": 27,
     "capture_records": 2,
     "control_events": 0,
     "control_status": "running",
@@ -111,7 +112,7 @@
     },
     {
       "path": "web/app.js",
-      "sha256": "ce407a37e13ab91b14c4a4879eac0df849bf7df7c318f9bcb2b897b3ad527925"
+      "sha256": "dde392b6b4ad6b7c24881603856f3f7495485f93a4ffe1fae0402d1804ea25c3"
     },
     {
       "path": "fixtures/valid/snapshot-metadata.json",
@@ -153,11 +154,11 @@
   "artifacts": [
     {
       "path": "docs/evidence/integrated-browser-desktop-20260910.png",
-      "sha256": "842718bde6fd81c7a736b30b3701c3c283c2d3f130ba4d22f3cfcb2c9dd89e5b"
+      "sha256": "09e15a5554d3bef9d76c50aee48cac23350b9fee4cc4a936218526388e04a800"
     },
     {
       "path": "docs/evidence/integrated-browser-narrow-20260910.png",
-      "sha256": "e3882438c9f57277295fdc40a8350b095967a49d4794796ff8ae60fd9e779534"
+      "sha256": "93b0755eb3a2f98cea277b2180f616001e99547375cc575148640437bb2d1dd4"
     }
   ]
 }

@@ -5,6 +5,8 @@
     "P2-R010",
     "P2-R013",
     "P2-R014",
+    "P2-R015",
+    "P2-R017",
     "P2-R018",
     "P2-R036",
     "P2-R038",
@@ -24,7 +26,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "ed3b2d7f23517712add51e01dbc85e52b3508a5a"
+    "revision": "772d16da40b335d62ae982ea671800281ba920ce"
   },
   "command": {
     "server": "cargo run --locked --package context-service --bin context-console -- integrated-demo 0",
@@ -38,7 +40,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:45407",
+  "base_url": "http://127.0.0.1:43375",
   "workflow": [
     "draft_created",
     "draft_saved",
@@ -46,7 +48,8 @@
     "pause_ready",
     "applicable_preview",
     "commit_paused",
-    "explicit_resume"
+    "explicit_resume",
+    "restore_as_draft"
   ],
   "event_types": [
     "draft.updated",
@@ -59,38 +62,86 @@
     "plan.retired",
     "resume.accepted",
     "input.claimed",
-    "input.submitted"
+    "input.submitted",
+    "draft.updated"
   ],
+  "security": {
+    "readOnly": {
+      "status": 403,
+      "value": {
+        "error": {
+          "code": "authentication_failed",
+          "message": "management capability is invalid"
+        }
+      }
+    },
+    "missingCsrf": {
+      "status": 403,
+      "value": {
+        "error": {
+          "code": "csrf_rejected",
+          "message": "write origin proof is required"
+        }
+      }
+    },
+    "duplicate": {
+      "status": 422,
+      "value": {
+        "error": {
+          "code": "duplicate_json_key",
+          "message": "duplicate JSON keys are rejected"
+        }
+      }
+    },
+    "otherRun": {
+      "status": 404,
+      "value": {
+        "error": {
+          "code": "route_not_found",
+          "message": "management route is unavailable"
+        }
+      }
+    }
+  },
   "requests": [
-    "http://127.0.0.1:45407/web/",
-    "http://127.0.0.1:45407/web/styles.css",
-    "http://127.0.0.1:45407/web/app.js",
-    "http://127.0.0.1:45407/offline-bundle.json",
-    "http://127.0.0.1:45407/demo/snapshot",
-    "http://127.0.0.1:45407/demo/events",
-    "http://127.0.0.1:45407/demo/comparison",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/drafts",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/previews",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/pause",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/previews",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/commits",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/resume",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/events",
-    "http://127.0.0.1:45407/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:45407/demo/metrics"
+    "http://127.0.0.1:43375/web/",
+    "http://127.0.0.1:43375/web/styles.css",
+    "http://127.0.0.1:43375/web/app.js",
+    "http://127.0.0.1:43375/offline-bundle.json",
+    "http://127.0.0.1:43375/demo/snapshot",
+    "http://127.0.0.1:43375/demo/events",
+    "http://127.0.0.1:43375/demo/comparison",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/previews",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/pause",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/previews",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/commits",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/resume",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:43375/v2/runs/other-run/context-control/state",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/events",
+    "http://127.0.0.1:43375/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:43375/demo/metrics"
   ],
   "storage": {
     "localStorageEntries": 0,
@@ -100,12 +151,18 @@
   },
   "horizontal_overflow_narrow": false,
   "console_errors": [],
+  "security_console_errors": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "Failed to load resource: the server responded with a status of 422 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
   "page_errors": [],
   "integration_metrics": {
-    "api_requests": 24,
-    "browser_requests": 29,
+    "api_requests": 34,
+    "browser_requests": 39,
     "capture_records": 2,
-    "control_events": 11,
+    "control_events": 12,
     "control_status": "running",
     "external_requests": 0,
     "game_launches": 0,
@@ -119,6 +176,7 @@
   "assertions": {
     "exact_control_workflow": true,
     "objective_and_note_delivered": true,
+    "pin_and_restore_are_typed_draft_operations": true,
     "applicable_preview_has_digest": true,
     "commit_remains_paused": true,
     "resume_is_explicit": true,
@@ -126,16 +184,21 @@
     "zero_game_launches": true,
     "zero_external_requests": true,
     "no_browser_persistence": true,
-    "no_horizontal_overflow_narrow": true
+    "no_horizontal_overflow_narrow": true,
+    "read_only_token_denied": true,
+    "cross_origin_write_denied": true,
+    "missing_csrf_denied": true,
+    "duplicate_json_rejected": true,
+    "cross_scope_route_concealed": true
   },
   "artifacts": [
     {
       "path": "docs/evidence/phase2-browser-desktop-20260910.png",
-      "sha256": "f47e91a30acd54c1dace2d6b3c21f185476ba1dee8e0e0810767bd44648d0022"
+      "sha256": "530b650eba3def00007d2cccf13d44f08b6ae67fbd8e0641a9d096cde39b3677"
     },
     {
       "path": "docs/evidence/phase2-browser-narrow-20260910.png",
-      "sha256": "767fd9848762963d471d76f6a83a132a2fc16fc41630cdd06800e65e25f76863"
+      "sha256": "834af5ff32b56aeb2de8eaeabdbe1344dfe3f95ab0523169fb8db6c1d42258cf"
     }
   ]
 }
