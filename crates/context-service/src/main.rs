@@ -44,7 +44,10 @@ fn error_exit_code(error: &str) -> i32 {
     {
         return 4;
     }
-    if error.contains("durable control store") || error.contains("database operation") {
+    if error.contains("durable control")
+        || error.contains("database operation")
+        || error.contains("journal is unavailable")
+    {
         return 5;
     }
     2

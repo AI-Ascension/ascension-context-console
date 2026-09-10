@@ -200,3 +200,12 @@ fn compiled_cli_rejects_duplicate_and_oversized_stdin_without_mutation() {
     assert_eq!(drafts["value"]["drafts"][0]["version"], 1);
     cleanup(&path);
 }
+
+#[test]
+fn compiled_cli_distinguishes_missing_durable_store() {
+    let path = path();
+    cleanup(&path);
+    let path_text = path.to_string_lossy().into_owned();
+    let result = cli_process(&["state", &path_text], None);
+    assert_eq!(result.status.code(), Some(5));
+}
