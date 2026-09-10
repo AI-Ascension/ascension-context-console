@@ -21,6 +21,6 @@ The copied files are immutable artifacts. Their SHA-256 values are:
     patch.schema.json          e3d4d9e8c7b1ceb6869f10c83df491483f15e02e0a477b6cfaec080457a2a251
     preview.schema.json        3f45a47bcf357f6825e4e9905dafe8a467d846f7f66ff51263af63d1af42bb8f
     receipt.schema.json        77ad67b6af1db42db8d41301c4201d9e2c5fe1839469880afc83111fd8578cd0
-    relation.schema.json       00166fd3f7aac5568a7749f203e8d57a759b75dfbcdfd9ecac1e156024bfe73d4
+    relation.schema.json       00166fd3f7aac5568a7749f203e8d57a759b75dfbcdfd9ecac1e156024bfe73d
     revision.schema.json       13f3ba52ba152ce7c5d0a0dcfa3ccb5d2b1a4947d475a55b585cbb4e14646ff1
     state.schema.json          e52f0d342f638bcab28f8aa665af45ccf046a031826e2dae21b0fad85d3ad463
