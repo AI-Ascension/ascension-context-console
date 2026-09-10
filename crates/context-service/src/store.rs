@@ -767,7 +767,7 @@ mod tests {
         store
             .ingest_content(
                 "blob-fixture-stdin",
-                bytes.strip_suffix(b"\n").unwrap_or(bytes),
+                bytes,
             )
             .expect("content");
         let grant = ReadGrant::issue(
@@ -799,7 +799,7 @@ mod tests {
                     NOW,
                 )
                 .expect("content"),
-            bytes.strip_suffix(b"\n").unwrap_or(bytes)
+            bytes
         );
     }
 }

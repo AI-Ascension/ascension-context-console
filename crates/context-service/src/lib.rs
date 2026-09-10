@@ -56,7 +56,6 @@ pub fn demo() -> Result<(), IngestError> {
             include_bytes!("../../../fixtures/blobs/fixture-http-body.json").as_slice(),
         ),
     ] {
-        let content = content.strip_suffix(b"\n").unwrap_or(content);
         store.ingest_content(content_ref, content)?;
     }
     let event_lines = include_bytes!("../../../fixtures/valid/events.jsonl");
