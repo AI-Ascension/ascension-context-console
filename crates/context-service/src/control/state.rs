@@ -191,11 +191,13 @@ impl ControlPlane {
                 kind: record.kind.clone(),
                 protected: record.protected,
                 scope: record.scope.clone(),
-                content_available: !record.content.is_empty() && !record.protected,
+                content_available: !record.content.is_empty()
+                    && !record.protected
+                    && record.expires_at > self.now,
                 bytes: record.content.len(),
                 expires_at: record.expires_text.clone(),
                 locked_reason: record.locked_reason.clone(),
-                content: (!record.protected)
+                content: (!record.protected && record.expires_at > self.now)
                     .then(|| String::from_utf8_lossy(&record.content).into_owned()),
             })
             .collect()
@@ -425,7 +427,7 @@ impl ControlPlane {
             blockers.push("run_not_held".to_owned());
         }
         let material = if blockers.is_empty() {
-            render(&preview_id, &self.boundary, &draft, &self.items).ok()
+            render(&preview_id, &self.boundary, &draft, &self.items, self.now).ok()
         } else {
             None
         };

@@ -32,6 +32,7 @@ pub(crate) fn render(
     boundary: &Boundary,
     draft: &Draft,
     registry: &BTreeMap<(String, u64), ItemRecord>,
+    now: u64,
 ) -> Result<PreparedMaterial, String> {
     let mut selected = Vec::with_capacity(draft.selected_items.len());
     for item in &draft.selected_items {
@@ -47,6 +48,9 @@ pub(crate) fn render(
                 item.item_id
             ));
         }
+        if record.expires_at <= now || record.content.is_empty() {
+            return Err(format!("item {} is expired or unavailable", item.item_id));
+        }
         let content = std::str::from_utf8(&record.content)
             .map_err(|_| format!("item {} is not UTF-8 text", item.item_id))?;
         selected.push(json!({
@@ -58,34 +62,42 @@ pub(crate) fn render(
         }));
     }
 
-    let objective = draft.objective_item.as_ref().map(|item| {
-        registry
-            .get(&(item.item_id.clone(), item.version))
-            .and_then(|record| std::str::from_utf8(&record.content).ok())
-            .unwrap_or("")
-            .to_owned()
-    });
-    if draft.objective_item.is_some() && objective.as_deref() == Some("") {
-        return Err("objective content is unavailable".to_owned());
-    }
+    let objective = draft
+        .objective_item
+        .as_ref()
+        .map(|item| {
+            let record = registry
+                .get(&(item.item_id.clone(), item.version))
+                .ok_or_else(|| "objective content is unavailable".to_owned())?;
+            if record.item != *item || record.protected || record.expires_at <= now {
+                return Err("objective content is unavailable".to_owned());
+            }
+            std::str::from_utf8(&record.content)
+                .map(str::to_owned)
+                .map_err(|_| "objective content is unavailable".to_owned())
+        })
+        .transpose()?;
     let notes = draft
         .note_items
         .iter()
-        .filter_map(|item| {
-            registry
+        .map(|item| {
+            let record = registry
                 .get(&(item.item_id.clone(), item.version))
-                .and_then(|record| std::str::from_utf8(&record.content).ok())
-                .map(|content| {
-                    json!({
-                        "item_id": item.item_id,
-                        "version": item.version,
-                        "sha256": item.sha256,
-                        "attributed_to": draft.author_ref,
-                        "content": content,
-                    })
-                })
+                .ok_or_else(|| "note content is unavailable".to_owned())?;
+            if record.item != *item || record.protected || record.expires_at <= now {
+                return Err("note content is unavailable".to_owned());
+            }
+            let content = std::str::from_utf8(&record.content)
+                .map_err(|_| "note content is unavailable".to_owned())?;
+            Ok(json!({
+                "item_id": item.item_id,
+                "version": item.version,
+                "sha256": item.sha256,
+                "attributed_to": draft.author_ref,
+                "content": content,
+            }))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
 
     let protected = json!({
         "state_id": boundary.state_id,
