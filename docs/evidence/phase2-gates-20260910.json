@@ -37,7 +37,7 @@
     }
   },
   "companion": {
-    "phase2_source_revision": "4c79e83c60545684771a1d6084179ef9bec0d84c",
+    "phase2_source_revision": "4c79e83d27691e265a4649b7361a111f617c3f79",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
