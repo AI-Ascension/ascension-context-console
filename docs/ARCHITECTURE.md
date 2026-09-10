@@ -30,6 +30,6 @@ localStorage, IndexedDB, cache storage, external resources, or credential-bearin
 The checked-in fixtures and `context-console demo` exercise producer → store → read API evidence
 without launching a provider or game. The companion harness branch supplies the actual Exo,
 generic-provider, Astra, and Ollama capture seams. Its bounded fake-process bridge oracle uses
-production source `316c8bd1814d9f9762a08c534898ec827365c91a` and is recorded on final evidence branch `7d57e5a` in
-`AI-Ascension/sts2-harness`; live provider receipts, game launches, and native storage behavior
-remain unverified.
+production source `316c8bd1814d9f9762a08c534898ec827365c91a` and is recorded on the companion
+evidence branch tracked by PR #51; live provider receipts, game launches, and native storage
+behavior remain unverified.
