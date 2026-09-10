@@ -765,10 +765,7 @@ mod tests {
         store.ingest(CLI_FIXTURE).expect("snapshot");
         let bytes = include_bytes!("../../../fixtures/blobs/fixture-stdin.txt");
         store
-            .ingest_content(
-                "blob-fixture-stdin",
-                bytes,
-            )
+            .ingest_content("blob-fixture-stdin", bytes)
             .expect("content");
         let grant = ReadGrant::issue(
             b"content-token",
