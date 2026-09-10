@@ -13,7 +13,10 @@ pub(super) const MAX_EVENTS: usize = 4096;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DurableStoreFailpoint {
     BeforeJournalWrite,
+    BeforeOutbox,
     BeforeCommit,
+    DiskFull,
+    AfterCommitBeforePublication,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

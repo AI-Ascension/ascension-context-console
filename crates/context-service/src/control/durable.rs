@@ -108,12 +108,26 @@ impl DurableControlStore {
                 ],
             )
             .map_err(|_| DurableStoreError::Sqlite)?;
-        insert_outbox(&transaction, &self.run_id, &plane.events())?;
-        if self.failpoint == Some(DurableStoreFailpoint::BeforeCommit) {
+        if self.failpoint == Some(DurableStoreFailpoint::BeforeOutbox) {
             self.failpoint = None;
             return Err(DurableStoreError::Failpoint);
         }
-        transaction.commit().map_err(|_| DurableStoreError::Sqlite)
+        insert_outbox(&transaction, &self.run_id, &plane.events())?;
+        if matches!(
+            self.failpoint,
+            Some(DurableStoreFailpoint::BeforeCommit | DurableStoreFailpoint::DiskFull)
+        ) {
+            self.failpoint = None;
+            return Err(DurableStoreError::Failpoint);
+        }
+        transaction
+            .commit()
+            .map_err(|_| DurableStoreError::Sqlite)?;
+        if self.failpoint == Some(DurableStoreFailpoint::AfterCommitBeforePublication) {
+            self.failpoint = None;
+            return Err(DurableStoreError::Failpoint);
+        }
+        Ok(())
     }
 
     pub fn load(&self) -> Result<ControlPlane, DurableStoreError> {
