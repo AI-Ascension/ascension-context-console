@@ -201,7 +201,6 @@ pub struct ReadApi<'a> {
     token: &'a [u8],
     expected_host: String,
     expected_origin: Option<String>,
-    now: SystemTime,
 }
 
 impl<'a> ReadApi<'a> {
@@ -211,7 +210,7 @@ impl<'a> ReadApi<'a> {
         token: &'a [u8],
         expected_host: impl Into<String>,
         expected_origin: Option<String>,
-        now: SystemTime,
+        _now: SystemTime,
     ) -> Self {
         Self {
             store,
@@ -219,11 +218,15 @@ impl<'a> ReadApi<'a> {
             token,
             expected_host: expected_host.into(),
             expected_origin,
-            now,
         }
     }
 
     pub fn handle(&self, request: &HttpRequest) -> HttpResponse {
+        self.handle_at(request, SystemTime::now())
+    }
+
+    /// Handles one request at an explicit time for deterministic callers and tests.
+    pub fn handle_at(&self, request: &HttpRequest, now: SystemTime) -> HttpResponse {
         if request.method != "GET" {
             return HttpResponse::json(405, json!({"error":"method_not_allowed","read_only":true}));
         }
@@ -259,7 +262,7 @@ impl<'a> ReadApi<'a> {
         if !self.authenticated(request) {
             return HttpResponse::json(401, json!({"error":"read_capability_required"}));
         }
-        match self.route(path, &query) {
+        match self.route(path, &query, now) {
             Ok(response) => response,
             Err(error) => error_response(error),
         }
@@ -312,7 +315,12 @@ impl<'a> ReadApi<'a> {
         token.as_bytes() == self.token
     }
 
-    fn route(&self, path: &str, query: &[(String, String)]) -> Result<HttpResponse, ApiError> {
+    fn route(
+        &self,
+        path: &str,
+        query: &[(String, String)],
+        now: SystemTime,
+    ) -> Result<HttpResponse, ApiError> {
         if path.contains("..") || path.contains('\\') || path.contains('%') {
             return Err(ApiError::BadRequest);
         }
@@ -321,13 +329,16 @@ impl<'a> ReadApi<'a> {
             .filter(|segment| !segment.is_empty())
             .collect();
         if segments == ["v1", "capabilities"] {
+            self.store
+                .authorize(self.token, self.grant, now)
+                .map_err(map_read_error)?;
             return Ok(HttpResponse::json(200, capabilities()));
         }
         if segments == ["v1", "runs"] {
             let limit = query_limit(query)?;
             let summaries = self
                 .store
-                .list(self.token, self.grant, self.now, limit)
+                .list(self.token, self.grant, now, limit)
                 .map_err(map_read_error)?;
             let mut runs = Vec::new();
             for summary in summaries {
@@ -348,7 +359,7 @@ impl<'a> ReadApi<'a> {
             let limit = query_limit(query)?;
             let summaries = self
                 .store
-                .list(self.token, self.grant, self.now, limit)
+                .list(self.token, self.grant, now, limit)
                 .map_err(map_read_error)?
                 .into_iter()
                 .filter(|summary| summary.run_id == run_id)
@@ -367,7 +378,7 @@ impl<'a> ReadApi<'a> {
             let snapshot_id = segments[4];
             let bytes = self
                 .store
-                .get(self.token, self.grant, snapshot_id, self.now)
+                .get(self.token, self.grant, snapshot_id, now)
                 .map_err(map_read_error)?;
             let snapshot: Value =
                 serde_json::from_slice(&bytes).map_err(|_| ApiError::BadRequest)?;
@@ -393,11 +404,11 @@ impl<'a> ReadApi<'a> {
             let component_id = segments[6];
             let summary = self
                 .store
-                .component(self.token, self.grant, snapshot_id, component_id, self.now)
+                .component(self.token, self.grant, snapshot_id, component_id, now)
                 .map_err(map_read_error)?;
             if !self
                 .store
-                .list(self.token, self.grant, self.now, 200)
+                .list(self.token, self.grant, now, 200)
                 .map_err(map_read_error)?
                 .iter()
                 .any(|item| item.snapshot_id == snapshot_id && item.run_id == run_id)
@@ -406,7 +417,7 @@ impl<'a> ReadApi<'a> {
             }
             let bytes = self
                 .store
-                .content(self.token, self.grant, snapshot_id, component_id, self.now)
+                .content(self.token, self.grant, snapshot_id, component_id, now)
                 .map_err(map_read_error)?;
             return Ok(HttpResponse::content(200, &summary.media_type, bytes));
         }
@@ -421,12 +432,12 @@ impl<'a> ReadApi<'a> {
             let component_id = segments[6];
             let summary = self
                 .store
-                .component(self.token, self.grant, snapshot_id, component_id, self.now)
+                .component(self.token, self.grant, snapshot_id, component_id, now)
                 .map_err(map_read_error)?;
             if summary.snapshot_id.is_empty()
                 || !self
                     .store
-                    .list(self.token, self.grant, self.now, 200)
+                    .list(self.token, self.grant, now, 200)
                     .map_err(map_read_error)?
                     .iter()
                     .any(|item| item.snapshot_id == snapshot_id && item.run_id == run_id)
@@ -462,7 +473,7 @@ impl<'a> ReadApi<'a> {
                     run_id,
                     after,
                     query_limit(query)?,
-                    self.now,
+                    now,
                 )
                 .map_err(map_read_error)?;
             let events: Vec<Value> = page
@@ -491,11 +502,12 @@ impl<'a> ReadApi<'a> {
             && segments[1] == "runs"
             && segments[3] == "compare"
         {
+            let run_id = segments[2];
             let left = query_value(query, "left")?;
             let right = query_value(query, "right")?;
             let result = self
                 .store
-                .compare(self.token, self.grant, left, right, self.now)
+                .compare_for_run(self.token, self.grant, run_id, left, right, now)
                 .map_err(map_read_error)?;
             return Ok(HttpResponse::json(
                 200,
@@ -653,22 +665,28 @@ mod tests {
             Some("http://127.0.0.1:0".to_owned()),
             UNIX_EPOCH,
         );
-        let health = api.handle(&HttpRequest {
-            method: "GET".to_owned(),
-            target: "/health".to_owned(),
-            headers: vec![
-                ("host".to_owned(), "127.0.0.1:0".to_owned()),
-                ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
-            ],
-            body: Vec::new(),
-        });
+        let health = api.handle_at(
+            &HttpRequest {
+                method: "GET".to_owned(),
+                target: "/health".to_owned(),
+                headers: vec![
+                    ("host".to_owned(), "127.0.0.1:0".to_owned()),
+                    ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
+                ],
+                body: Vec::new(),
+            },
+            UNIX_EPOCH,
+        );
         assert_eq!(health.status, 200);
-        let post = api.handle(&HttpRequest {
-            method: "POST".to_owned(),
-            target: "/v1/capabilities".to_owned(),
-            headers: vec![("host".to_owned(), "127.0.0.1:0".to_owned())],
-            body: Vec::new(),
-        });
+        let post = api.handle_at(
+            &HttpRequest {
+                method: "POST".to_owned(),
+                target: "/v1/capabilities".to_owned(),
+                headers: vec![("host".to_owned(), "127.0.0.1:0".to_owned())],
+                body: Vec::new(),
+            },
+            UNIX_EPOCH,
+        );
         assert_eq!(post.status, 405);
     }
 
@@ -683,27 +701,69 @@ mod tests {
             Some("http://127.0.0.1:0".to_owned()),
             UNIX_EPOCH,
         );
-        let response = api.handle(&HttpRequest {
+        let response = api.handle_at(
+            &HttpRequest {
+                method: "GET".to_owned(),
+                target: "/v1/capabilities?token=api-token".to_owned(),
+                headers: vec![
+                    ("host".to_owned(), "127.0.0.1:0".to_owned()),
+                    ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
+                    ("authorization".to_owned(), "Bearer api-token".to_owned()),
+                ],
+                body: Vec::new(),
+            },
+            UNIX_EPOCH,
+        );
+        assert_eq!(response.status, 400);
+        let response = api.handle_at(
+            &HttpRequest {
+                method: "GET".to_owned(),
+                target: "/v1/capabilities".to_owned(),
+                headers: vec![
+                    ("host".to_owned(), "127.0.0.1:0".to_owned()),
+                    ("origin".to_owned(), "https://evil.invalid".to_owned()),
+                    ("authorization".to_owned(), "Bearer api-token".to_owned()),
+                ],
+                body: Vec::new(),
+            },
+            UNIX_EPOCH,
+        );
+        assert_eq!(response.status, 403);
+    }
+
+    #[test]
+    fn reused_api_checks_capability_expiry_at_each_request() {
+        let (store, grant) = api();
+        let api = ReadApi::new(
+            &store,
+            &grant,
+            b"api-token",
+            "127.0.0.1:0",
+            Some("http://127.0.0.1:0".to_owned()),
+            UNIX_EPOCH,
+        );
+        let request = |target: &str| HttpRequest {
             method: "GET".to_owned(),
-            target: "/v1/capabilities?token=api-token".to_owned(),
+            target: target.to_owned(),
             headers: vec![
                 ("host".to_owned(), "127.0.0.1:0".to_owned()),
                 ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
                 ("authorization".to_owned(), "Bearer api-token".to_owned()),
             ],
             body: Vec::new(),
-        });
-        assert_eq!(response.status, 400);
-        let response = api.handle(&HttpRequest {
-            method: "GET".to_owned(),
-            target: "/v1/capabilities".to_owned(),
-            headers: vec![
-                ("host".to_owned(), "127.0.0.1:0".to_owned()),
-                ("origin".to_owned(), "https://evil.invalid".to_owned()),
-                ("authorization".to_owned(), "Bearer api-token".to_owned()),
-            ],
-            body: Vec::new(),
-        });
-        assert_eq!(response.status, 403);
+        };
+        assert_eq!(
+            api.handle_at(&request("/v1/capabilities"), UNIX_EPOCH)
+                .status,
+            200
+        );
+        assert_eq!(
+            api.handle_at(
+                &request("/v1/capabilities"),
+                UNIX_EPOCH + Duration::from_secs(60),
+            )
+            .status,
+            401
+        );
     }
 }

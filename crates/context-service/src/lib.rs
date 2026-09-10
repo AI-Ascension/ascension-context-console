@@ -84,19 +84,22 @@ pub fn demo() -> Result<(), IngestError> {
         Some("http://127.0.0.1:0".to_owned()),
         std::time::UNIX_EPOCH,
     );
-    let response = api.handle(&HttpRequest {
-        method: "GET".to_owned(),
-        target: "/v1/runs/run-fixture-001/snapshots".to_owned(),
-        headers: vec![
-            ("host".to_owned(), "127.0.0.1:0".to_owned()),
-            ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
-            (
-                "authorization".to_owned(),
-                "Bearer offline-demo-token".to_owned(),
-            ),
-        ],
-        body: Vec::new(),
-    });
+    let response = api.handle_at(
+        &HttpRequest {
+            method: "GET".to_owned(),
+            target: "/v1/runs/run-fixture-001/snapshots".to_owned(),
+            headers: vec![
+                ("host".to_owned(), "127.0.0.1:0".to_owned()),
+                ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
+                (
+                    "authorization".to_owned(),
+                    "Bearer offline-demo-token".to_owned(),
+                ),
+            ],
+            body: Vec::new(),
+        },
+        std::time::UNIX_EPOCH,
+    );
     println!("offline_demo=true");
     println!("provider_calls=0");
     println!("game_launches=0");

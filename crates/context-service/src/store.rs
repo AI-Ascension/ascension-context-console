@@ -60,10 +60,7 @@ impl ReadGrant {
         })
     }
 
-    fn permits(&self, token: &[u8], snapshot: &SnapshotProjection, now: SystemTime) -> bool {
-        if !self.valid_token(token, now) {
-            return false;
-        }
+    fn permits_scope(&self, snapshot: &SnapshotProjection) -> bool {
         self.project == snapshot.identity.agent_id
             && self
                 .run
@@ -182,6 +179,7 @@ pub enum IngestError {
     InvalidEvent(String),
     EventConflict,
     ContentConflict,
+    PrivateContentUnsupported,
 }
 
 impl std::fmt::Display for IngestError {
@@ -199,6 +197,8 @@ impl std::fmt::Display for IngestError {
             Self::ContentConflict => {
                 formatter.write_str("content reference already has different bytes")
             }
+            Self::PrivateContentUnsupported => formatter
+                .write_str("private snapshot content cannot be retained in the plaintext store"),
         }
     }
 }
@@ -281,6 +281,14 @@ impl Store {
         }
         let snapshot = Snapshot::parse(bytes)
             .map_err(|error| IngestError::InvalidSnapshot(error.to_string()))?;
+        if snapshot.projection().capture_mode == context_reader::CaptureMode::Private
+            && snapshot
+                .components()
+                .iter()
+                .any(|component| component.content_ref.is_some())
+        {
+            return Err(IngestError::PrivateContentUnsupported);
+        }
         let id = snapshot.projection().snapshot_id.clone();
         let digest: [u8; 32] = Sha256::digest(bytes).into();
         if let Some(existing) = self.entries.get(&id) {
@@ -371,23 +379,16 @@ impl Store {
         component_id: &str,
         now: SystemTime,
     ) -> Result<ComponentSummary, ReadError> {
-        let entry = self.entries.get(snapshot_id).ok_or(ReadError::NotFound)?;
-        if !grant.permits(token, entry.snapshot.projection(), now)
-            || self.revoked.contains_key(&grant.token_digest)
-        {
-            return Err(if epoch_seconds(now) >= grant.expires_at {
-                ReadError::Expired
-            } else {
-                ReadError::Forbidden
-            });
-        }
+        self.authorize(token, grant, now)?;
+        let entry = self.scoped_entry(grant, snapshot_id)?;
         let component = entry
             .snapshot
             .components()
             .iter()
             .find(|component| component.component_id == component_id)
             .ok_or(ReadError::NotFound)?;
-        let content_available = self.content_available(grant, component);
+        let content_available =
+            self.content_available(grant, entry.snapshot.projection().capture_mode, component);
         Ok(ComponentSummary {
             snapshot_id: snapshot_id.to_owned(),
             component_id: component.component_id.clone(),
@@ -411,16 +412,8 @@ impl Store {
         component_id: &str,
         now: SystemTime,
     ) -> Result<Vec<u8>, ReadError> {
-        let entry = self.entries.get(snapshot_id).ok_or(ReadError::NotFound)?;
-        if !grant.permits(token, entry.snapshot.projection(), now)
-            || self.revoked.contains_key(&grant.token_digest)
-        {
-            return Err(if epoch_seconds(now) >= grant.expires_at {
-                ReadError::Expired
-            } else {
-                ReadError::Forbidden
-            });
-        }
+        self.authorize(token, grant, now)?;
+        let entry = self.scoped_entry(grant, snapshot_id)?;
         if grant.privilege != CapturePrivilege::Content {
             return Err(ReadError::Forbidden);
         }
@@ -430,7 +423,7 @@ impl Store {
             .iter()
             .find(|component| component.component_id == component_id)
             .ok_or(ReadError::NotFound)?;
-        if !self.content_available(grant, component) {
+        if !self.content_available(grant, entry.snapshot.projection().capture_mode, component) {
             return Err(ReadError::NotFound);
         }
         let content_ref = component
@@ -455,13 +448,7 @@ impl Store {
         if !valid_id(run_id) || limit == 0 || limit > 200 {
             return Err(ReadError::TooLarge);
         }
-        if !grant.valid_token(token, now) || self.revoked.contains_key(&grant.token_digest) {
-            return Err(if epoch_seconds(now) >= grant.expires_at {
-                ReadError::Expired
-            } else {
-                ReadError::Forbidden
-            });
-        }
+        self.authorize(token, grant, now)?;
         let mut events: Vec<CaptureEvent> = self
             .events
             .values()
@@ -472,7 +459,8 @@ impl Store {
                     .as_deref()
                     .and_then(|id| self.entries.get(id))
                     .is_some_and(|snapshot| {
-                        snapshot.snapshot.projection().identity.run_id == run_id
+                        let projection = snapshot.snapshot.projection();
+                        projection.identity.run_id == run_id && grant.permits_scope(projection)
                     });
                 (snapshot_matches && after_sequence.is_none_or(|cursor| event.sequence > cursor))
                     .then_some(event.clone())
@@ -517,16 +505,10 @@ impl Store {
         if limit == 0 || limit > 200 {
             return Err(ReadError::TooLarge);
         }
-        if !grant.valid_token(token, now) || self.revoked.contains_key(&grant.token_digest) {
-            return Err(if epoch_seconds(now) >= grant.expires_at {
-                ReadError::Expired
-            } else {
-                ReadError::Forbidden
-            });
-        }
+        self.authorize(token, grant, now)?;
         let mut result = Vec::new();
         for entry in self.entries.values() {
-            if grant.permits(token, entry.snapshot.projection(), now) {
+            if grant.permits_scope(entry.snapshot.projection()) {
                 result.push(SnapshotSummary::from(&entry.snapshot));
                 if result.len() == limit {
                     break;
@@ -543,16 +525,8 @@ impl Store {
         snapshot_id: &str,
         now: SystemTime,
     ) -> Result<Vec<u8>, ReadError> {
-        let entry = self.entries.get(snapshot_id).ok_or(ReadError::NotFound)?;
-        if !grant.permits(token, entry.snapshot.projection(), now)
-            || self.revoked.contains_key(&grant.token_digest)
-        {
-            return Err(if epoch_seconds(now) >= grant.expires_at {
-                ReadError::Expired
-            } else {
-                ReadError::Forbidden
-            });
-        }
+        self.authorize(token, grant, now)?;
+        let entry = self.scoped_entry(grant, snapshot_id)?;
         if grant.privilege == CapturePrivilege::Metadata
             && entry
                 .snapshot
@@ -619,6 +593,29 @@ impl Store {
         })
     }
 
+    pub fn compare_for_run(
+        &self,
+        token: &[u8],
+        grant: &ReadGrant,
+        run_id: &str,
+        left: &str,
+        right: &str,
+        now: SystemTime,
+    ) -> Result<CompareResult, ReadError> {
+        if !valid_id(run_id) {
+            return Err(ReadError::InvalidScope);
+        }
+        self.authorize(token, grant, now)?;
+        let left_entry = self.scoped_entry(grant, left)?;
+        let right_entry = self.scoped_entry(grant, right)?;
+        if left_entry.snapshot.projection().identity.run_id != run_id
+            || right_entry.snapshot.projection().identity.run_id != run_id
+        {
+            return Err(ReadError::NotFound);
+        }
+        self.compare(token, grant, left, right, now)
+    }
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -635,7 +632,12 @@ impl Store {
         self.content.len()
     }
 
-    fn content_available(&self, grant: &ReadGrant, component: &context_reader::Component) -> bool {
+    fn content_available(
+        &self,
+        grant: &ReadGrant,
+        capture_mode: context_reader::CaptureMode,
+        component: &context_reader::Component,
+    ) -> bool {
         let (Some(content_ref), Some(expected_digest)) = (
             component.content_ref.as_deref(),
             component.sha256.as_deref(),
@@ -643,6 +645,7 @@ impl Store {
             return false;
         };
         if grant.privilege != CapturePrivilege::Content
+            || capture_mode == context_reader::CaptureMode::Private
             || matches!(
                 component.content_status,
                 context_reader::ComponentStatus::Expired
@@ -654,6 +657,35 @@ impl Store {
             let digest: [u8; 32] = Sha256::digest(bytes).into();
             hex_digest(&digest) == expected_digest
         })
+    }
+
+    pub fn authorize(
+        &self,
+        token: &[u8],
+        grant: &ReadGrant,
+        now: SystemTime,
+    ) -> Result<(), ReadError> {
+        if !grant.valid_token(token, now) || self.revoked.contains_key(&grant.token_digest) {
+            return Err(if epoch_seconds(now) >= grant.expires_at {
+                ReadError::Expired
+            } else {
+                ReadError::Forbidden
+            });
+        }
+        Ok(())
+    }
+
+    fn scoped_entry(
+        &self,
+        grant: &ReadGrant,
+        snapshot_id: &str,
+    ) -> Result<&StoredSnapshot, ReadError> {
+        let entry = self.entries.get(snapshot_id).ok_or(ReadError::NotFound)?;
+        if grant.permits_scope(entry.snapshot.projection()) {
+            Ok(entry)
+        } else {
+            Err(ReadError::NotFound)
+        }
     }
 }
 
@@ -798,5 +830,90 @@ mod tests {
                 .expect("content"),
             bytes
         );
+    }
+
+    #[test]
+    fn events_are_filtered_by_project_and_run_scope() {
+        let mut store = Store::default();
+        store.ingest(FIXTURE).expect("reader snapshot");
+        store.ingest(CLI_FIXTURE).expect("fixture snapshot");
+        for line in include_bytes!("../../../fixtures/valid/events.jsonl")
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+        {
+            store.append_event(line).expect("event");
+        }
+        let fixture_grant = ReadGrant::issue(
+            b"fixture-token",
+            "agent-fixture-001",
+            Some("run-fixture-001".to_owned()),
+            CapturePrivilege::Metadata,
+            Duration::from_secs(60),
+            NOW,
+        )
+        .expect("grant");
+        assert_eq!(
+            store
+                .events(
+                    b"fixture-token",
+                    &fixture_grant,
+                    "run-fixture-001",
+                    None,
+                    20,
+                    NOW,
+                )
+                .expect("events")
+                .events
+                .len(),
+            7
+        );
+        assert!(
+            store
+                .events(
+                    b"fixture-token",
+                    &fixture_grant,
+                    "run-t02-001",
+                    None,
+                    20,
+                    NOW,
+                )
+                .expect("scoped empty page")
+                .events
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn out_of_scope_ids_have_the_same_not_found_result_as_unknown_ids() {
+        let mut store = Store::default();
+        store.ingest(FIXTURE).expect("fixture");
+        let grant = grant(CapturePrivilege::Metadata);
+        assert_eq!(
+            store
+                .get(b"unit-test-token", &grant, "snapshot-fixture-cli-001", NOW,)
+                .expect_err("other project is hidden"),
+            ReadError::NotFound
+        );
+        assert_eq!(
+            store
+                .get(b"unit-test-token", &grant, "missing-snapshot", NOW)
+                .expect_err("missing snapshot"),
+            ReadError::NotFound
+        );
+    }
+
+    #[test]
+    fn plaintext_store_rejects_private_snapshots_with_content_refs() {
+        let private = String::from_utf8(CLI_FIXTURE.to_vec())
+            .expect("fixture utf8")
+            .replace(
+                "\"capture_mode\": \"memory\"",
+                "\"capture_mode\": \"private\"",
+            );
+        let mut store = Store::default();
+        assert!(matches!(
+            store.ingest(private.as_bytes()),
+            Err(IngestError::PrivateContentUnsupported)
+        ));
     }
 }

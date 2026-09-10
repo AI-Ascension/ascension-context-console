@@ -18,11 +18,12 @@ The supported capture vocabulary is explicit:
 | `off` | No capture work is started. The reader has no source to display. |
 | `metadata` | Bounded IDs, sizes, statuses and mappings; prompt bytes are unavailable. |
 | `memory` | Opt-in bounded content held by an application-owned memory ring; no disk fallback. |
-| `private` | Opt-in classified content in authenticated encrypted, access-restricted vault storage after policy approval. |
+| `private` | Classified content is accepted only through the separately approved encrypted vault; the plaintext store rejects private snapshots with content references. |
 
 The included fixtures cover memory and metadata projections. The service tests cover memory bounds
 and private authenticated encryption; the private vault itself is an in-memory primitive and does
-not claim a persistent filesystem writer.
+not claim a persistent filesystem writer. The read API never serves private content from its
+plaintext map.
 
 The console cannot submit a prompt, invoke a provider, mutate a game, edit a context, pause a run,
 or read arbitrary files or URLs. Provider-added context, hidden instructions and hidden reasoning

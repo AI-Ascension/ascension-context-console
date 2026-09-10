@@ -19,10 +19,13 @@ Supported GET resources are:
 | `/v1/runs/{run_id}/compare?left=A&right=B` | Bounded local comparison with no apply/preview action. |
 
 Requests with a body, unsafe methods, traversal or percent escapes, URL credentials, unknown
-routes, invalid limits, mismatched scope, expired grants, or revoked tokens are rejected. Responses
+routes, invalid limits, mismatched scope, expired grants, or revoked tokens are rejected. Capability
+expiry and revocation are checked against the current request time, including when one listener
+serves multiple requests. Responses
 carry `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. The API returns component
-metadata rather than reading an arbitrary content path; private content authorization is a separate
-policy-controlled primitive.
+metadata rather than reading an arbitrary content path. The plaintext store rejects private-mode
+snapshots that reference content; private retention requires the separately approved encrypted vault
+primitive and is not exposed by this API.
 
 The checked-in OpenAPI document is a proposed contract seed. The Rust route table is the executable
 Phase 1 implementation and intentionally has no ingest or management endpoint.

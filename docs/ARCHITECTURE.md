@@ -20,7 +20,9 @@ loopback binding; every response is `no-store`.
 Capture modes have separate contracts. Off mode uses a no-op sink and does not hash or copy input.
 Metadata mode retains bounded facts without content or digests. Memory mode retains bounded bytes
 in a process ring. Private mode requires policy approval and restricted authorization before
-XChaCha20-Poly1305 authenticated encryption; unsafe setup fails closed. The browser does not use
+XChaCha20-Poly1305 authenticated encryption with content-reference-bound associated data; unsafe
+setup fails closed. The plaintext store rejects private-mode content references rather than serving
+them as plaintext. The browser does not use
 localStorage, IndexedDB, cache storage, external resources, or credential-bearing URLs.
 
 The checked-in fixtures and `context-console demo` exercise producer → store → read API evidence

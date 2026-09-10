@@ -4,7 +4,7 @@
 //! store: callers provide an already-authorized opaque reference and never a filesystem path or
 //! URL.  It refuses unsafe policy setup instead of falling back to plaintext.
 
-use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -119,7 +119,13 @@ impl PrivateVault {
         let nonce = self.next_nonce(content_ref, plaintext);
         let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.key));
         let ciphertext = cipher
-            .encrypt(XNonce::from_slice(&nonce), plaintext)
+            .encrypt(
+                XNonce::from_slice(&nonce),
+                Payload {
+                    msg: plaintext,
+                    aad: content_ref.as_bytes(),
+                },
+            )
             .map_err(|_| PrivateStoreError::AuthenticationFailed)?;
         let plaintext_bytes = plaintext.len();
         self.used_bytes = self
@@ -157,7 +163,10 @@ impl PrivateVault {
         cipher
             .decrypt(
                 XNonce::from_slice(&object.nonce),
-                object.ciphertext.as_ref(),
+                Payload {
+                    msg: object.ciphertext.as_ref(),
+                    aad: content_ref.as_bytes(),
+                },
             )
             .map_err(|_| PrivateStoreError::AuthenticationFailed)
     }
@@ -257,6 +266,20 @@ mod tests {
         object.ciphertext[0] ^= 1;
         assert!(matches!(
             vault.get("blob-1", true),
+            Err(PrivateStoreError::AuthenticationFailed)
+        ));
+    }
+
+    #[test]
+    fn ciphertext_is_bound_to_its_content_reference() {
+        let mut vault = vault();
+        vault
+            .put("blob-1", b"private synthetic marker")
+            .expect("put");
+        let object = vault.objects.remove("blob-1").expect("object");
+        vault.objects.insert("blob-2".to_owned(), object);
+        assert!(matches!(
+            vault.get("blob-2", true),
             Err(PrivateStoreError::AuthenticationFailed)
         ));
     }
