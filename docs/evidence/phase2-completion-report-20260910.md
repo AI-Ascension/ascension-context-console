@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `08e6dafc569749edc8d8d2152ab9beee704789ea`, evidence handoff `f69c73202b592b986a8f46abc62c3a22f7fc028a`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `499f29018dbb4d7fe4bd80159bafb15781a2b90d`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `f1f8ac0d72b8d451e5d3b81b18233eb73a9675b6`, evidence handoff `f69c73202b592b986a8f46abc62c3a22f7fc028a`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `499f29018dbb4d7fe4bd80159bafb15781a2b90d`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -29,12 +29,12 @@ the 16 KiB input bound. The CLI emits the documented machine schema and makes ze
 or external requests.
 
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Thirty-two rows have executable evidence: the browser cases (`P2-F001`,
+failure rows. Thirty-three rows have executable evidence: the browser cases (`P2-F001`,
 `P2-F003`, `P2-F005`, `P2-F011`, `P2-F017`, `P2-F022`, and `P2-F031`) plus named Rust
 regressions for CAS, protected identity, restore, authorization, preview freshness/expiry,
 idempotency, plan fencing, stop dominance, safe deactivation, and the approved-resume guard, plus
 target durable-store regressions for transaction rollback, wrong-key/tamper rejection, additive
-schema repair with Phase 1 byte retention, and legacy active-state refusal. The other 48 remain
+schema repair with Phase 1 byte retention, and legacy active-state refusal. The other 47 remain
 explicitly marked `required_not_executed` because they require crash windows not injected here,
 live provider/game effects, native ownership controls, or other evidence outside this fixture.
 
@@ -121,8 +121,9 @@ immutable snapshot backup. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases documented
 in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/499f29018dbb4d7fe4bd80159bafb15781a2b90d/docs/evidence/context-control-store-20260910.md).
-The compiled target CLI suite adds five tests for durable command sequencing, explicit content
-permission, stdin parsing bounds, and no-mutation rejection paths.
+The compiled target CLI suite adds six tests for durable command sequencing, explicit content
+permission, stdin parsing bounds, unavailable-store exit classification, and no-mutation rejection
+paths.
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
