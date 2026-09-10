@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 38,
+  "executed_row_count": 39,
   "rows": [
     {
       "id": "P2-F001",
@@ -1148,10 +1148,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "replacement_owner_fences_the_old_live_handle",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/18c0682ab1218b71db2e76a80703e676caeddd2f/crates/harness/tests/context_control_migration.rs",
+      "observed": "companion migration test fences old reads and writes after replacement ownership is claimed"
     },
     {
       "id": "P2-F065",

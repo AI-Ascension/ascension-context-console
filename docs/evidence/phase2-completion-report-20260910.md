@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `46167a20b8d63d0b570c987a532fad1d05b88e69`, evidence handoff `7846a5b84342389e4a412806041655dec0ade8d7`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `499f29018dbb4d7fe4bd80159bafb15781a2b90d`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `46167a20b8d63d0b570c987a532fad1d05b88e69`, evidence handoff `7846a5b84342389e4a412806041655dec0ade8d7`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `18c0682ab1218b71db2e76a80703e676caeddd2f`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -29,13 +29,14 @@ the 16 KiB input bound. The CLI emits the documented machine schema and makes ze
 or external requests.
 
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Thirty-eight rows have executable evidence: the browser cases (`P2-F001`,
+failure rows. Thirty-nine rows have executable evidence: the browser cases (`P2-F001`,
 `P2-F003`, `P2-F004`, `P2-F005`, `P2-F007`, `P2-F010`, `P2-F011`, `P2-F017`,
 `P2-F022`, `P2-F031`, `P2-F073`, and `P2-F075`) plus named Rust
 regressions for CAS, protected identity, restore, authorization, preview freshness/expiry,
 idempotency, plan fencing, stop dominance, safe deactivation, and the approved-resume guard, plus
 target durable-store regressions for transaction rollback, wrong-key/tamper rejection, additive
-schema repair with Phase 1 byte retention, and legacy active-state refusal. The other 42 remain
+schema repair with Phase 1 byte retention, legacy active-state refusal, and companion owner fencing
+for `P2-F064`. The other 41 remain
 explicitly marked `required_not_executed` because they require crash windows not injected here,
 live provider/game effects, native ownership controls, or other evidence outside this fixture.
 
@@ -120,15 +121,15 @@ dominance. The six target durable-store tests cover encrypted reopen, wrong-key 
 rejection, transaction rollback with outbox atomicity, additive migration, legacy refusal, and
 immutable snapshot backup. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
-serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases documented
-in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/499f29018dbb4d7fe4bd80159bafb15781a2b90d/docs/evidence/context-control-store-20260910.md).
+serialized Ollama/Astra bridge inputs, and eight durable-store migration/integrity cases, including
+replacement-owner fencing for old live handles, documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/18c0682ab1218b71db2e76a80703e676caeddd2f/docs/evidence/context-control-store-20260910.md).
 The compiled target CLI suite adds six tests for durable command sequencing, explicit content
 permission, stdin parsing bounds, unavailable-store exit classification, and no-mutation rejection
 paths.
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records 38 executed cases and 42
+failure matrix has 80 rows. The row-level ledger records 39 executed cases and 41
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 

@@ -47,20 +47,20 @@
     "failure_matrix": {
       "evidence_artifact": "docs/evidence/phase2-failure-matrix-20260910.json",
       "rows": 80,
-      "executed": 38,
-      "required_not_executed": 42
+      "executed": 39,
+      "required_not_executed": 41
     }
   },
   "companion": {
-    "branch_head": "499f29018dbb4d7fe4bd80159bafb15781a2b90d",
-    "phase2_source_revision": "c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354",
+    "branch_head": "18c0682ab1218b71db2e76a80703e676caeddd2f",
+    "phase2_source_revision": "18c0682ab1218b71db2e76a80703e676caeddd2f",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
     "context_control_tests": 6,
-    "context_control_migration_tests": 7,
-    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/499f29018dbb4d7fe4bd80159bafb15781a2b90d/docs/evidence/context-control-store-20260910.md",
+    "context_control_migration_tests": 8,
+    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/18c0682ab1218b71db2e76a80703e676caeddd2f/docs/evidence/context-control-store-20260910.md",
     "exo_adapter_tests": 6,
     "ollama_bridge_tests": 8,
     "astra_bridge_tests": 4
