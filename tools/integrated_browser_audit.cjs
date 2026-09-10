@@ -246,7 +246,8 @@ async function run() {
         { path: 'fixtures/valid/snapshot-metadata.json', sha256: sha256(path.join(root, 'fixtures', 'valid', 'snapshot-metadata.json')) },
         { path: 'fixtures/valid/snapshot-cli.json', sha256: sha256(path.join(root, 'fixtures', 'valid', 'snapshot-cli.json')) },
         { path: 'fixtures/valid/events.jsonl', sha256: sha256(path.join(root, 'fixtures', 'valid', 'events.jsonl')) },
-        { path: 'offline-bundle.json', sha256: manifestSha256 },
+        { path: 'offline-bundle.json', sha256: sha256(path.join(root, 'offline-bundle.json')) },
+        { path: 'served:/offline-bundle.json', sha256: manifestSha256 },
       ],
       assertions: {
         producer_stage: metrics.producer_snapshots === 2,
