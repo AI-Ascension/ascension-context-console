@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 25,
+  "executed_row_count": 30,
   "rows": [
     {
       "id": "P2-F001",
@@ -1063,10 +1063,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "failed_commit_rolls_back_the_previous_projection",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite before-commit failpoint preserved the old projection and returned an explicit transaction failure"
     },
     {
       "id": "P2-F060",
@@ -1201,10 +1201,10 @@
         "P2-R047",
         "P2-R048"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "failed_commit_rolls_back_the_previous_projection",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite rollback left the prior journal and outbox count unchanged after the aborted encrypted write"
     },
     {
       "id": "P2-F068",
@@ -1220,10 +1220,10 @@
         "P2-R047",
         "P2-R048"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "wrong_key_and_tampering_fail_closed",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite rejected an invalid key, wrong key, and tampered envelope without plaintext fallback"
     },
     {
       "id": "P2-F069",
@@ -1371,10 +1371,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "partial_additive_schema_is_repaired_and_newer_schema_is_rejected",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite repaired the additive schema while retaining seeded Phase 1 bytes and refused a newer marker"
     },
     {
       "id": "P2-F078",
@@ -1388,10 +1388,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "legacy_open_refuses_management_active_and_allows_disabled_state",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target legacy opener refused active management and accepted only the explicitly disabled state"
     },
     {
       "id": "P2-F079",

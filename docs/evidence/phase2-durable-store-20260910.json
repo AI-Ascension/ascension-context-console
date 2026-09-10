@@ -1,0 +1,115 @@
+{
+  "schema": "ascension.phase2-durable-store-evidence.v1",
+  "evidence_id": "PHASE2-DURABLE-STORE-20260910",
+  "date": "2026-09-10",
+  "repository": "AI-Ascension/ascension-context-console",
+  "branch": "phase2/context-editing",
+  "source_revision": "f66283611d573f09e96276f43e5f22285e5d4c6b",
+  "command": "cargo test --locked --package context-service --test phase2_durable",
+  "result": "passed",
+  "tests": [
+    {
+      "test_id": "encrypted_journal_reopens_with_phase1_snapshots_and_outbox",
+      "status": "passed",
+      "assertions": [
+        "XChaCha20-Poly1305 journal envelope is not plaintext searchable",
+        "reopen preserves the pause latch and advances controller epoch",
+        "immutable Phase 1 snapshot and outbox digests are retained"
+      ]
+    },
+    {
+      "test_id": "wrong_key_and_tampering_fail_closed",
+      "status": "passed",
+      "assertions": [
+        "all-zero keys are rejected",
+        "wrong keys fail authentication",
+        "tampered envelope digests fail closed"
+      ]
+    },
+    {
+      "test_id": "failed_commit_rolls_back_the_previous_projection",
+      "status": "passed",
+      "assertions": [
+        "before-commit failpoint returns an explicit error",
+        "the previous pause projection remains after abort",
+        "the aborted event creates no orphaned outbox row"
+      ]
+    },
+    {
+      "test_id": "partial_additive_schema_is_repaired_and_newer_schema_is_rejected",
+      "status": "passed",
+      "assertions": [
+        "missing additive tables are repaired",
+        "missing journal data is not invented",
+        "a newer schema marker is refused"
+      ]
+    },
+    {
+      "test_id": "legacy_open_refuses_management_active_and_allows_disabled_state",
+      "status": "passed",
+      "assertions": [
+        "legacy read-only startup refuses an active management database",
+        "legacy read-only startup can inspect a disabled database",
+        "disabled mode remains represented in the durable journal"
+      ]
+    },
+    {
+      "test_id": "phase1_snapshot_identity_is_immutable_and_backup_reopens",
+      "status": "passed",
+      "assertions": [
+        "a snapshot identity cannot be overwritten with different bytes",
+        "WAL checkpoint and file-copy backup reopen successfully",
+        "the copied Phase 1 snapshot digest remains present"
+      ]
+    }
+  ],
+  "storage": {
+    "schema": "ascension.context-control.sqlite.v1",
+    "schema_version": 1,
+    "journal_encryption": "XChaCha20-Poly1305 with versioned AAD",
+    "sqlite": [
+      "WAL",
+      "synchronous=FULL",
+      "foreign_keys=ON",
+      "BEGIN IMMEDIATE"
+    ],
+    "bounds": {
+      "journal_bytes": 4194304,
+      "snapshot_bytes": 4194304,
+      "event_bytes": 65536,
+      "events": 4096
+    },
+    "phase1_bytes_rewritten": false,
+    "outbox_transactional": true,
+    "legacy_active_refusal": true,
+    "additive_schema_repair": true
+  },
+  "source_artifacts": [
+    {
+      "path": "crates/context-service/src/control/durable.rs",
+      "sha256": "68f2636ed7afd731ab41a83e6f65d40b62d2611c60d0edf8d37e92a59a0c1ad5"
+    },
+    {
+      "path": "crates/context-service/src/control/durable_ops.rs",
+      "sha256": "25c50eb4be429e0d8515effa369f17ae94c0dfaac24a9ebdcf723090c60e3811"
+    },
+    {
+      "path": "crates/context-service/src/control/durable_schema.rs",
+      "sha256": "20b38c612242182e2e9ea16bb608e62f4c93e4fec3295f9044c19ec17ec0ae9a"
+    },
+    {
+      "path": "crates/context-service/src/control/durable_types.rs",
+      "sha256": "6008a54808c9eadd8681bbb8705edc5c5dd7b8a93d4a19514efcc98dab6161bf"
+    },
+    {
+      "path": "tests/phase2_durable.rs",
+      "sha256": "f5cbf0ebb5158b05fb07f745089bce4c21a839db547ac9d446d7f03950a34a19"
+    }
+  ],
+  "limits": [
+    "local synthetic process only",
+    "deterministic transaction failpoint and reopen coverage, not an OS process-kill proof",
+    "no multi-process ownership fencing or native reservation evidence",
+    "no production key management, provider, game, deployment, or release rollback evidence"
+  ]
+}

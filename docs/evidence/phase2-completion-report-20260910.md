@@ -2,9 +2,14 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5772183da7854aee75676f01550a6436e7dc992a`, evidence handoff `db811faa369ea1d0d06edc159b7b27b7072ddf28`. The final branch head is the commit carrying this report and the reconciled gate metadata. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4047b5bd5f28e2fc847220bb5a97a90eb3929329`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `f66283611d573f09e96276f43e5f22285e5d4c6b`; the final evidence handoff commit is the commit carrying this report and the reconciled gate metadata. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4047b5bd5f28e2fc847220bb5a97a90eb3929329`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
-The implementation is disabled outside the synthetic management fixture. The target control plane never calls a provider or game; the companion seam proves prepared bytes through fake Exo/Astra/Ollama peers and exercises an opt-in encrypted SQLite journal with local migration, rollback, and deactivation tests. Real provider, host, deployment and soak evidence is not claimed.
+The implementation is disabled outside the synthetic management fixture. The target control plane
+never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
+journal, reopens it, and persists each successful management mutation before publishing the live
+projection. The companion seam proves prepared bytes through fake Exo/Astra/Ollama peers and
+exercises its own opt-in encrypted SQLite journal with local migration, rollback, and deactivation
+tests. Real provider, host, deployment and soak evidence is not claimed.
 
 ## Gates and demonstrations
 
@@ -13,18 +18,19 @@ The target and companion each passed `cargo fmt --all -- --check`, strict reposi
 The Phase 2 browser audit now passes with the bounded Chromium/Playwright environment: it exercises
 draft save, note/objective entry, typed pinning and restore, exploratory and applicable previews,
 pause, commit-while-paused, explicit resume, control events, authorization denial probes, zero
-provider/game effects, storage, network, keyboard and narrow-layout assertions. Native depth-2/3
+provider/game effects, the target durable-store capability, storage, network, keyboard and narrow-layout assertions. Native depth-2/3
 Luna/max descendants and reservation metadata remain unavailable;
 see `docs/evidence/phase2-native-preflight-20260910.json`.
 
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Twenty-five rows have executable evidence: the browser cases (`P2-F001`,
+failure rows. Thirty rows have executable evidence: the browser cases (`P2-F001`,
 `P2-F003`, `P2-F005`, `P2-F011`, `P2-F017`, `P2-F022`, and `P2-F031`) plus named Rust
 regressions for CAS, protected identity, restore, authorization, preview freshness/expiry,
-idempotency, plan fencing, stop dominance, safe deactivation, and the approved-resume guard;
-the other 55 remain explicitly marked
-`required_not_executed` because the fixture has no dedicated fault injection or live provider,
-storage, migration, and process-ownership harness for them.
+idempotency, plan fencing, stop dominance, safe deactivation, and the approved-resume guard, plus
+target durable-store regressions for transaction rollback, wrong-key/tamper rejection, additive
+schema repair with Phase 1 byte retention, and legacy active-state refusal. The other 50 remain
+explicitly marked `required_not_executed` because they require crash windows not injected here,
+live provider/game effects, native ownership controls, or other evidence outside this fixture.
 
 ## Requirement index
 
@@ -85,7 +91,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R051 | source-reviewed | CLI demo uses the same typed control reducer; a separate remote CLI is not claimed. |
 | P2-R052 | executed | Relations bind revision, preview, snapshot, execution, attempt and intervention IDs. |
 | P2-R053 | source-reviewed | Intervention lineage is retained on revisions and relations after restore. |
-| P2-R054 | unverified | The fixture is in-memory; no native storage migration rehearsal is claimed. |
+| P2-R054 | executed | `phase2_durable` repairs the additive schema while retaining seeded Phase 1 bytes; target evidence is in `docs/evidence/phase2-durable-store-20260910.json`. |
 | P2-R055 | executed | Safe deactivation preserves revision, pause, plan epoch and journal; writes fail closed. |
 | P2-R056 | executed | Target fault/state tests and bounded reference model cover ordering and rejection transitions. |
 | P2-R057 | executed | Compiled Astra/Ollama/Exo fake peers verify final serialized input. |
@@ -103,20 +109,23 @@ The 15 target control tests plus 17 row-level failure tests cover protected edit
 objective authorization, typed pin/exclude/restore, protected identity aliases,
 exploratory/applicable preview, pause/commit/resume, stale boundaries, idempotent receipts,
 command-window expiry, changed-body conflicts, journal tamper/recovery, disabled mode, and stop
-dominance. The companion tests cover
+dominance. The six target durable-store tests cover encrypted reopen, wrong-key and tamper
+rejection, transaction rollback with outbox atomicity, additive migration, legacy refusal, and
+immutable snapshot backup. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases documented
 in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/4047b5bd5f28e2fc847220bb5a97a90eb3929329/docs/evidence/context-control-store-20260910.md).
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records 25 executed cases and 55
+failure matrix has 80 rows. The row-level ledger records 30 executed cases and 50
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 
-No target production migration or rollback claim is made because this fixture uses bounded
-in-memory state; the companion’s additive encrypted journal recovery and safe deactivation behavior
-are local component evidence, while target integration, native filesystem behavior, and target
-old-binary refusal still require implementation. Schema fixtures were executed
+No target production migration or rollback claim is made. The target’s encrypted SQLite migration,
+rollback, backup, and legacy-active refusal are local component evidence in the integrated fixture;
+native filesystem behavior, multi-process ownership fencing, and production old-binary refusal still
+require implementation. The companion’s additive encrypted journal recovery and safe deactivation
+behavior are separate local component evidence. Schema fixtures were executed
 with `jsonschema`; native depth/reservation controls remain unavailable in this environment. A
 maintainer should review the two draft PRs and rerun the documented gates before release work.

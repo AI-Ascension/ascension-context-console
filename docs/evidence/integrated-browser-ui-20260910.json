@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "5772183da7854aee75676f01550a6436e7dc992a"
+    "revision": "f66283611d573f09e96276f43e5f22285e5d4c6b"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:42143",
+  "base_url": "http://127.0.0.1:40323",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,17 +46,17 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:42143/web/",
-    "http://127.0.0.1:42143/web/styles.css",
-    "http://127.0.0.1:42143/web/app.js",
-    "http://127.0.0.1:42143/offline-bundle.json",
-    "http://127.0.0.1:42143/demo/snapshot",
-    "http://127.0.0.1:42143/demo/events",
-    "http://127.0.0.1:42143/demo/comparison",
-    "http://127.0.0.1:42143/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:42143/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:42143/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:42143/v2/runs/fixture-run/context-control/revisions"
+    "http://127.0.0.1:40323/web/",
+    "http://127.0.0.1:40323/web/styles.css",
+    "http://127.0.0.1:40323/web/app.js",
+    "http://127.0.0.1:40323/offline-bundle.json",
+    "http://127.0.0.1:40323/demo/snapshot",
+    "http://127.0.0.1:40323/demo/events",
+    "http://127.0.0.1:40323/demo/comparison",
+    "http://127.0.0.1:40323/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:40323/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:40323/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:40323/v2/runs/fixture-run/context-control/revisions"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -92,6 +92,7 @@
     "capture_records": 2,
     "control_events": 0,
     "control_status": "running",
+    "durable_control_store": "supported",
     "external_requests": 0,
     "game_launches": 0,
     "management_enabled": true,
@@ -104,7 +105,7 @@
   "source_artifacts": [
     {
       "path": "crates/context-service/src/integrated_demo.rs",
-      "sha256": "908c803d4cc9a4b5d090defa86e4794cb452bba36023cbd2c57144532a8a64a8"
+      "sha256": "875ac8653c8ea50445ac1194954214c7b9cd8ef6e207346d632d54ee169a6c06"
     },
     {
       "path": "tools/integrated_browser_audit.cjs",
@@ -154,11 +155,11 @@
   "artifacts": [
     {
       "path": "docs/evidence/integrated-browser-desktop-20260910.png",
-      "sha256": "ab97b0cbf4e585d08531c412e802a9a2e0d804bf14d497b4e3295914856506c9"
+      "sha256": "718b9af5a379a5ee1ca4e6dc634852b5899f46989e6fb639265a9b859f38a4c6"
     },
     {
       "path": "docs/evidence/integrated-browser-narrow-20260910.png",
-      "sha256": "35bc902bbf210265267934aebe45f73b60c60e48b1e7f7be10f4f50cf96f58dc"
+      "sha256": "f9c9374e89fa39a369a7d75a4cd28b812298f83f4c09adca37374c476c30400b"
     }
   ]
 }
