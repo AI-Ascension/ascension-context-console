@@ -3,7 +3,8 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use context_service::{
-    ControlCommand, ControlPlane, DurableControlStore, DurableStoreError, DurableStoreFailpoint,
+    ControlCommand, ControlOperation, ControlPatch, ControlPlane, DurableControlStore,
+    DurableStoreError, DurableStoreFailpoint,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -156,6 +157,84 @@ fn failed_commit_rolls_back_the_previous_projection() {
     );
     store.persist(&paused).expect("retry");
     assert!(store.load().expect("new projection").state().pause_latched);
+    cleanup(&path);
+}
+
+#[test]
+fn durable_commit_replay_after_lost_reply_returns_original_receipt() {
+    let path = path("lost-reply");
+    let key = [19_u8; 32];
+    let mut plane = ControlPlane::synthetic();
+    let mut store = DurableControlStore::create(&path, key, &plane).expect("create");
+    let active_revision = plane.state().active_revision_id.clone();
+    let created = plane
+        .create_draft(
+            plane.scope().clone(),
+            &active_revision,
+            "operator-lost-reply",
+        )
+        .expect("draft");
+    let history = plane
+        .eligible_items()
+        .into_iter()
+        .find(|item| item.item.item_id == "history-1")
+        .expect("history item")
+        .item;
+    let edited = plane
+        .apply_patch(
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: plane.scope().clone(),
+                draft_id: created.draft_id.clone(),
+                expected_draft_version: created.version,
+                expected_active_revision_id: active_revision.clone(),
+                operations: vec![ControlOperation::IncludeItem { item: history }],
+            },
+            "operator-lost-reply",
+            false,
+        )
+        .expect("edit");
+    let pause = pause_command(&plane, "pause-lost-reply");
+    plane.pause(pause).expect("pause");
+    let preview = plane
+        .create_preview(
+            plane.scope().clone(),
+            &edited.draft_id,
+            edited.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("preview");
+    store.persist(&plane).expect("persist prepared preview");
+
+    let commit = ControlCommand {
+        schema: "ascension.context-control.command.v1".to_owned(),
+        scope: plane.scope().clone(),
+        idempotency_key: "commit-lost-reply".to_owned(),
+        command_window_id: plane.state().command_window_id.clone(),
+        expected_control_version: plane.state().control_version,
+        kind: "commit".to_owned(),
+        expected_active_revision_id: Some(plane.state().active_revision_id.clone()),
+        preview_id: Some(preview.preview_id.clone()),
+        approved_manifest_sha256: preview.prepared_manifest_sha256.clone(),
+        expected_preview_id: Some(preview.preview_id),
+    };
+    let mut committed = plane.clone();
+    let receipt = committed.commit(commit.clone()).expect("commit");
+    store.persist(&committed).expect("persist commit intent");
+    drop(store);
+
+    let reopened = DurableControlStore::open(&path, key, "fixture-run").expect("reopen");
+    let mut recovered = reopened
+        .load_for_operator()
+        .expect("recover committed journal");
+    let replay = recovered.commit(commit).expect("exact command replay");
+    assert_eq!(replay, receipt);
+    assert_eq!(
+        recovered.state().active_revision_id,
+        committed.state().active_revision_id
+    );
     cleanup(&path);
 }
 
