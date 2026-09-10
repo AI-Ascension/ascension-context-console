@@ -105,8 +105,9 @@ exploratory/applicable preview, pause/commit/resume, stale boundaries, idempoten
 command-window expiry, changed-body conflicts, journal tamper/recovery, disabled mode, and stop
 dominance. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
-serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases. The
-package’s bounded reference model additionally
+serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases documented
+in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/4047b5bd5f28e2fc847220bb5a97a90eb3929329/docs/evidence/context-control-store-20260910.md).
+The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
 failure matrix has 80 rows. The row-level ledger records 25 executed cases and 55

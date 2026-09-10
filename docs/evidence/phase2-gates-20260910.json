@@ -51,7 +51,7 @@
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
     "context_control_tests": 5,
     "context_control_migration_tests": 7,
-    "durable_store_evidence": "docs/evidence/context-control-store-20260910.md",
+    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/4047b5bd5f28e2fc847220bb5a97a90eb3929329/docs/evidence/context-control-store-20260910.md",
     "exo_adapter_tests": 6,
     "ollama_bridge_tests": 8,
     "astra_bridge_tests": 4
