@@ -24,6 +24,10 @@ stop dominance, deactivation, and journal tamper recovery. The companion harness
 legacy byte parity, enabled managed context, exact prepared bytes through Exo, enabled Ollama
 projection, controller recovery, and fail-closed invalid UTF-8/expiry/pin validation.
 
+The target `phase2_durable` tests cover encrypted journal reopen, wrong-key/tamper rejection,
+transaction rollback with outbox atomicity, additive schema repair with retained Phase 1 bytes,
+legacy active-state refusal, and immutable snapshot backup.
+
 The checked-in browser and CLI demo are offline synthetic evidence. A local Chromium run exercised
 the browser fixture at desktop (`1440x1000`) and narrow (`375x800`) viewports with reduced motion,
 keyboard comparison, same-origin-only requests, zero browser persistence, and no normal-flow
@@ -35,7 +39,8 @@ run covers the normal synthetic flow; filesystem spies and native storage enforc
 separate evidence limits.
 
 The integrated browser audit runs `context-console integrated-demo 0` as a loopback server and
-loads `/web/` from that process. The server creates the synthetic producer projection, passes the
+loads `/web/` from that process. The server creates and reopens the temporary durable control
+journal, creates the synthetic producer projection, passes the
 same bytes through `MemoryCapture`, retains them in `Store`, and routes the browser's declared
 `/demo/*` artifacts through `ReadApi`. The audit asserts seven events, two captured records, at
 least three API projections, zero provider/game/external calls, and the same adversarial,

@@ -53,8 +53,12 @@ the adjacent screenshots for the exact request, storage, keyboard, and compariso
 
 The additive journal recovery and safe deactivation procedure is in
 [`docs/MIGRATION.md`](MIGRATION.md). It preserves Phase 1 snapshots and keeps a deactivated
-management fixture read-only.
+management fixture read-only. The target's encrypted SQLite migration, rollback, backup, and
+legacy-active refusal checks are run with `cargo test --locked --package context-service --test
+phase2_durable` and recorded in
+[`docs/evidence/phase2-durable-store-20260910.json`](evidence/phase2-durable-store-20260910.json).
 
 The browser bundle is synthetic evidence. A successful parse, demo, or render does not prove a live
-capture, provider receipt, persistent encrypted storage, native-platform behavior, or target-game
-compatibility. Do not put credentials or raw private captures in fixtures.
+capture, provider receipt, production persistent storage, native-platform behavior, or target-game
+compatibility. The durable-store record is separate local component evidence. Do not put credentials
+or raw private captures in fixtures.

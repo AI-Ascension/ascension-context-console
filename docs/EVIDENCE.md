@@ -22,3 +22,8 @@ recorded in `docs/evidence/browser-ui-20260910.json` and
 `docs/evidence/integrated-browser-ui-20260910.json` with desktop and narrow screenshots. The
 integrated record additionally covers the synthetic producer, memory capture, authenticated API
 projection, and browser request counters; both runs use loopback requests only.
+
+The target's `phase2-durable-store-20260910.json` is local component evidence for the opt-in
+encrypted SQLite control journal: transaction rollback, authentication/tamper rejection, additive
+schema repair with retained Phase 1 bytes, backup, and legacy active-state refusal. It does not
+establish production key management, native ownership fencing, or crash/deployment behavior.

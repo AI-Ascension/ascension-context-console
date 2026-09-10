@@ -3,7 +3,7 @@
 Bounded Context Console inspector and controlled context editor for AI-Ascension decision paths.
 
 This checkout contains the Phase 1 snapshot/event reader and its Phase 2 extension. Phase 2 adds
-scoped drafts, immutable provider-specific previews, a bounded journal envelope with recovery, and explicit
+scoped drafts, immutable provider-specific previews, an opt-in encrypted durable journal with recovery, and explicit
 pause/commit/resume control. The console still invokes no provider or game and never edits host
 state or submits a game action; the harness owns those authorities.
 
@@ -19,6 +19,7 @@ cargo run --locked --package repo-policy -- --strict
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked
+cargo test --locked --package context-service --test phase2_durable
 cargo run --locked --package context-service --bin context-console -- demo
 cargo run --locked --package context-service --bin context-console -- phase2-demo
 ```
@@ -36,7 +37,9 @@ serves the browser and routes its declared `/demo/*` artifacts through the authe
 after producer and memory-capture stages. The browser audit script records process counters and
 terminates the local server after the run.
 
-The Phase 2 control API is served under /v2/runs/:run_id/context-control/. The fixture uses
+The Phase 2 control API is served under /v2/runs/:run_id/context-control/. The integrated fixture
+reopens an opt-in encrypted SQLite control journal before serving and persists successful mutations
+transactionally; the pure `phase2-demo` remains in memory. The fixture uses
 separate editor and objective capabilities, an exact loopback Origin/CSRF check, bounded strict
 JSON, draft CAS versions, immutable previews, and idempotent command receipts. phase2-demo
 exercises the same control plane without a provider call, game launch, or external request.

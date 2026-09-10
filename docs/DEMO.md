@@ -19,6 +19,17 @@ applicable preview, commits a revision while paused, and resumes explicitly. Its
 the prepared manifest digest, separate commit/resume effects, `provider_calls=0`, and
 `game_launches=0`.
 
+The integrated management fixture starts with an opt-in encrypted SQLite control journal, reopens
+it to exercise controller-epoch recovery, and persists successful draft/preview/pause/commit/resume
+mutations before publishing its live projection. Run the local migration and rollback checks with:
+
+```text
+cargo test --locked --package context-service --test phase2_durable
+```
+
+The six test results are recorded in
+[`docs/evidence/phase2-durable-store-20260910.json`](evidence/phase2-durable-store-20260910.json).
+
 For an integrated producer → capture → API → browser run, use the checked-in audit script. It starts
 the Rust demo server, which performs the producer and memory-capture stages, serves `/web/`, and
 adapts the browser's `/demo/snapshot`, `/demo/comparison`, and `/demo/events` requests through the
@@ -83,6 +94,6 @@ effects, narrow layout, and browser-storage/network assertions. The result and s
 and [`docs/evidence/phase2-browser-narrow-20260910.png`](evidence/phase2-browser-narrow-20260910.png).
 
 This is source/synthetic evidence plus a local browser observation over synthetic data. It does not
-claim a live provider receipt, actual game launch, native storage enforcement, or cross-platform
-browser compatibility. The companion harness repository records fake-only Astra/Ollama process
-fidelity against synthetic downstreams.
+claim a live provider receipt, actual game launch, production or native storage enforcement, or
+cross-platform browser compatibility. The companion harness repository records fake-only
+Astra/Ollama process fidelity against synthetic downstreams.
