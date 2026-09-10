@@ -12,6 +12,7 @@ let controlState;
 let controlCapabilities;
 let currentDraft;
 let currentPreview;
+let approvedContinuationPreviewId;
 let commandCounter = 0;
 
 function showText(selector, value) {
@@ -451,6 +452,7 @@ async function commitDraft() {
   if (!currentPreview || !currentPreview.applicable) return;
   try {
     const receipt = await controlJson("/commits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("commit", { expected_active_revision_id: controlState.active_revision_id, preview_id: currentPreview.preview_id, approved_manifest_sha256: currentPreview.prepared_manifest_sha256 })) });
+    approvedContinuationPreviewId = currentPreview.preview_id;
     currentPreview = null;
     await refreshControl();
     setDraftMessage(`Commit ${receipt.status}: revision ${receipt.active_revision_id} is committed while paused.`);
@@ -459,7 +461,8 @@ async function commitDraft() {
 
 async function resumeRun() {
   try {
-    const receipt = await controlJson("/resume", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("resume", { expected_active_revision_id: controlState.active_revision_id, expected_preview_id: currentPreview?.applicable ? currentPreview.preview_id : null })) });
+    const receipt = await controlJson("/resume", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("resume", { expected_active_revision_id: controlState.active_revision_id, expected_preview_id: approvedContinuationPreviewId || (currentPreview?.applicable ? currentPreview.preview_id : null) })) });
+    approvedContinuationPreviewId = null;
     await refreshControl();
     setDraftMessage(`Resume ${receipt.status}: no automatic provider or game call was made by the console.`);
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "resume failed", true); }
