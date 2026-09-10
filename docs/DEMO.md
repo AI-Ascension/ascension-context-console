@@ -4,6 +4,7 @@ Run:
 
 ```text
 cargo run --locked --package context-service --bin context-console -- demo
+cargo run --locked --package context-service --bin context-console -- phase2-demo
 ```
 
 The command uses only checked-in synthetic fixtures. It parses and stores one complete CLI-boundary
@@ -11,6 +12,12 @@ snapshot plus one metadata-only snapshot, appends seven allowlisted lifecycle ev
 short-lived in-memory read capability, and sends one authenticated GET through the in-process read
 API. It prints `offline_demo=true`, `provider_calls=0`, `game_launches=0`, the two snapshot IDs,
 `retained_events=7`, a successful API status, and `read_api_is_mutation_free=true`.
+
+`phase2-demo` runs the controlled-context state machine over the synthetic scope. It creates a
+draft, includes an editable history item, builds an exploratory preview, pauses, builds the
+applicable preview, commits a revision while paused, and resumes explicitly. Its output includes
+the prepared manifest digest, separate commit/resume effects, `provider_calls=0`, and
+`game_launches=0`.
 
 For an integrated producer → capture → API → browser run, use the checked-in audit script. It starts
 the Rust demo server, which performs the producer and memory-capture stages, serves `/web/`, and
@@ -56,7 +63,9 @@ The integrated result and screenshots are
 [`docs/evidence/integrated-browser-desktop-20260910.png`](evidence/integrated-browser-desktop-20260910.png),
 and [`docs/evidence/integrated-browser-narrow-20260910.png`](evidence/integrated-browser-narrow-20260910.png).
 
-This is source/synthetic evidence plus a local browser observation over synthetic data. It does not
+This is source/synthetic evidence plus a local browser observation over synthetic data. The local
+browser audit is currently unavailable in this environment because Playwright's browser binary
+cannot load the host GLib library; no browser pass is claimed here. The implementation does not
 claim a live provider receipt, actual game launch, native storage enforcement, or cross-platform
-browser compatibility. The companion harness repository separately records fake-only Astra/Ollama
-process fidelity against synthetic downstreams.
+browser compatibility. The companion harness repository records fake-only Astra/Ollama process
+fidelity against synthetic downstreams.

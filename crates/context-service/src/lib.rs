@@ -8,6 +8,7 @@
 //! primitives for end-to-end review.
 
 mod capture;
+mod control;
 mod integrated_demo;
 mod observability;
 mod private_store;
@@ -17,6 +18,14 @@ mod store;
 pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,
+};
+pub use control::{
+    Boundary as ControlBoundary, Capabilities as ControlCapabilities, Command as ControlCommand,
+    ControlError, ControlPlane, Draft as ControlDraft, EligibleItem as ControlEligibleItem,
+    Event as ControlEvent, ItemRef as ControlItemRef, Operation as ControlOperation,
+    Patch as ControlPatch, Preview as ControlPreview, PreviewComponent as ControlPreviewComponent,
+    Receipt as ControlReceipt, Relation as ControlRelation, Revision as ControlRevision,
+    Scope as ControlScope, State as ControlState,
 };
 pub use observability::{
     CaptureTelemetry, MemoryTelemetry, NoopTelemetry, TelemetryError, TelemetryExporter,

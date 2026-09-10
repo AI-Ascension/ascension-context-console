@@ -4,7 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Bounded local read-only Context Console store and API"
+description = "Bounded Context Console inspector and controlled context API"
 
 [dependencies]
 context-reader.workspace = true
@@ -26,3 +26,7 @@ workspace = true
 [[test]]
 name = "phase1_acceptance"
 path = "../../tests/phase1_acceptance.rs"
+
+[[test]]
+name = "phase2_control"
+path = "../../tests/phase2_control.rs"

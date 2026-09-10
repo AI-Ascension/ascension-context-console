@@ -1,4 +1,4 @@
-# Read API
+# Read and control API
 
 `context-service` exposes a small read-only HTTP surface through `ReadApi`. A caller must provide
 an in-memory bearer capability, an exact `Host`, and, when configured, the exact `Origin`. The
@@ -31,5 +31,23 @@ metadata rather than reading an arbitrary content path. The plaintext store reje
 snapshots that reference content; private retention requires the separately approved encrypted vault
 primitive and is not exposed by this API.
 
-The checked-in OpenAPI document is a proposed contract seed. The Rust route table is the executable
-Phase 1 implementation and intentionally has no ingest or management endpoint.
+The Phase 2 fixture adds a separate authenticated control surface. It is served by the integrated
+demo only and never shares read capabilities with writes:
+
+| Route | Result |
+| --- | --- |
+| `/v2/runs/{run_id}/context-control/capabilities` | Enabled profile, supported operations, and explicit non-goals. |
+| `/v2/runs/{run_id}/context-control/state` | Current pause latch, revision, plan epoch, and observed boundary. |
+| `/v2/runs/{run_id}/context-control/eligible-items` | Scoped editable items and locked-item explanations. |
+| `/v2/runs/{run_id}/context-control/drafts` | Create a versioned draft from the active revision. |
+| `/v2/runs/{run_id}/context-control/drafts/{draft_id}/operations` | Apply bounded include/exclude/pin/note/objective/restore operations with draft CAS. |
+| `/v2/runs/{run_id}/context-control/previews` | Build an exploratory or held-boundary immutable preview without inference. |
+| `/v2/runs/{run_id}/context-control/pause` | Latch the scheduler at a validated boundary. |
+| `/v2/runs/{run_id}/context-control/commits` | CAS-commit an approved preview while remaining paused. |
+| `/v2/runs/{run_id}/context-control/resume` | Explicitly release the approved continuation after revalidation. |
+
+Control writes require the fixture editor capability, exact loopback Origin, and the CSRF token.
+Objective overrides use the separate objective capability. Every command has a bounded idempotency
+key and command-window identity. The journal envelope preserves drafts, revisions, receipts,
+events, pause state, and selected bytes across a controller recovery; old boundary/plan epochs are
+fenced. The copied schemas are in `contracts/context-control`.

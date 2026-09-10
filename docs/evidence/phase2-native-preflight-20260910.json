@@ -1,0 +1,23 @@
+{
+  "schema": "ascension.phase2-native-preflight.v1",
+  "date": "2026-09-10",
+  "requested_topology": "root -> workstream lead -> delivery coordinator -> implementation specialist",
+  "requested_model": "gpt-5.6-luna",
+  "requested_effort": "max",
+  "root_role": "integration orchestrator",
+  "observed": {
+    "descendant": "phase1_lead",
+    "status": "completed",
+    "phase1_merge": "confirmed",
+    "phase2_preflight": "completed"
+  },
+  "native_capacity_result": {
+    "status": "unavailable",
+    "reason": "The lead did not receive native child-agent spawn or messaging controls, so coordinator and specialist descendants could not be created.",
+    "action": "No fabricated ancestry, model setting, or effort setting is claimed; root completed the bounded implementation and recorded the limitation."
+  },
+  "evidence_class": [
+    "local-observation",
+    "unverified-native-topology"
+  ]
+}

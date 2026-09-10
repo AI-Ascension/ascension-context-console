@@ -12,9 +12,9 @@
   <body>
     <main class="shell">
       <header class="hero">
-        <p class="eyebrow">Phase 1 · read-only inspector</p>
+        <p class="eyebrow">Phase 2 · controlled context console</p>
         <h1>Context Console</h1>
-        <p class="lede">A bounded, read-only view of application-controlled context at a named boundary.</p>
+        <p class="lede">Inspect the named boundary, prepare a bounded context draft, and apply it only after a verified pause, preview, commit, and explicit resume.</p>
         <p id="status" class="status" role="status" aria-live="polite">Loading offline bundle…</p>
       </header>
 
@@ -77,6 +77,70 @@
         <p id="comparison-result" class="callout">Comparison is a local view and cannot apply or submit context.</p>
       </section>
 
+      <section id="control-panel" class="panel" hidden aria-labelledby="control-title">
+        <div class="section-heading">
+          <h2 id="control-title">Run control</h2>
+          <span id="management-badge" class="badge"></span>
+        </div>
+        <dl class="facts">
+          <div><dt>Control status</dt><dd id="control-status"></dd></div>
+          <div><dt>Active revision</dt><dd id="active-revision"></dd></div>
+          <div><dt>Control version</dt><dd id="control-version"></dd></div>
+          <div><dt>Pause latch</dt><dd id="pause-latch"></dd></div>
+          <div><dt>Plan epoch</dt><dd id="plan-epoch"></dd></div>
+        </dl>
+        <p id="control-message" class="callout">Management reads are authenticated and do not call a provider or game.</p>
+      </section>
+
+      <section id="eligible" class="panel" hidden aria-labelledby="eligible-title">
+        <div class="section-heading">
+          <h2 id="eligible-title">Eligible context items</h2>
+          <span class="muted">Protected host state stays locked.</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Use</th><th scope="col">Item</th><th scope="col">Kind</th><th scope="col">Version</th><th scope="col">Access</th></tr></thead>
+            <tbody id="eligible-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="editor" class="panel" hidden aria-labelledby="editor-title">
+        <div class="section-heading">
+          <h2 id="editor-title">Draft editor</h2>
+          <span id="draft-version" class="muted">No draft saved</span>
+        </div>
+        <div class="editor-grid">
+          <label for="note-text">Attributed operator note (bounded)</label>
+          <textarea id="note-text" rows="3" maxlength="4096" placeholder="Optional note; it remains operator attributed."></textarea>
+          <label for="objective-text">Objective override (separate permission)</label>
+          <textarea id="objective-text" rows="2" maxlength="512" placeholder="Requires the objective scope."></textarea>
+        </div>
+        <div class="button-row">
+          <button id="create-draft" type="button">Start draft</button>
+          <button id="save-draft" type="button" disabled>Save draft</button>
+          <button id="preview-draft" type="button" disabled>Preview</button>
+          <button id="pause-run" type="button">Request pause</button>
+          <button id="commit-draft" type="button" disabled>Commit while paused</button>
+          <button id="resume-run" type="button">Explicit resume</button>
+        </div>
+        <p id="draft-message" class="callout">Nothing is written until an operator presses a control.</p>
+      </section>
+
+      <section id="preview" class="panel" hidden aria-labelledby="preview-title">
+        <div class="section-heading">
+          <h2 id="preview-title">Prepared input preview</h2>
+          <span id="preview-badge" class="badge"></span>
+        </div>
+        <dl class="facts">
+          <div><dt>Preview</dt><dd id="preview-id"></dd></div>
+          <div><dt>Prepared digest</dt><dd id="prepared-digest"></dd></div>
+          <div><dt>Components</dt><dd id="preview-components"></dd></div>
+          <div><dt>Budget</dt><dd id="preview-budget"></dd></div>
+        </dl>
+        <pre id="preview-diff" class="preview-diff" tabindex="0"></pre>
+      </section>
+
       <section id="states" class="panel" aria-labelledby="states-title">
         <h2 id="states-title">Disclosure states</h2>
         <p class="state-grid">
@@ -93,7 +157,7 @@
       </section>
 
       <footer>
-        Synthetic offline bundle · no provider or game call · read-only display
+        Synthetic fixture bundle · no real provider, game, or deployment · explicit control only
       </footer>
     </main>
   </body>

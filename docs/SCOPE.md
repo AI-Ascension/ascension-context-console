@@ -1,4 +1,4 @@
-# Phase 1 scope
+# Phase 1 and Phase 2 scope
 
 This delivery implements a truthful read-only Context Console. The Rust reader accepts bounded
 `ascension.context-snapshot.v1` manifests and `ascension.context-event.v1` lifecycle records,
@@ -25,8 +25,11 @@ and private authenticated encryption; the private vault itself is an in-memory p
 not claim a persistent filesystem writer. The read API never serves private content from its
 plaintext map.
 
-The console cannot submit a prompt, invoke a provider, mutate a game, edit a context, pause a run,
-or read arbitrary files or URLs. Provider-added context, hidden instructions and hidden reasoning
-remain `not_exposed`. The accepted harness commit and synthetic fixture provenance are recorded in
-the fixtures and `docs/PROVENANCE.md`. Native platform, live provider, and target-game evidence
-remains separate.
+Phase 1 remains read-only for snapshots and capture records. Phase 2 adds only the scoped control
+surface: editable eligible text items, attributed notes, separately authorized objective overrides,
+restore-as-new-draft, deterministic provider-specific preview, durable pause latch, CAS commit,
+explicit resume, revision lineage, and recovery fencing. It cannot submit a prompt directly, invoke
+a provider, mutate a game, edit host state, compact, retrieve, or read arbitrary files or URLs.
+Provider-added context, hidden instructions and hidden reasoning remain `not_exposed`. The accepted
+harness commit and synthetic fixture provenance are recorded in the fixtures and
+`docs/PROVENANCE.md`. Native platform, live provider, and target-game evidence remains separate.

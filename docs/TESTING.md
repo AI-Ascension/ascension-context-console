@@ -17,6 +17,12 @@ metadata-only telemetry. Harness tests cover the direct Exo session and generic 
 including prepared, completed, and indeterminate write states; bridge unit tests cover the final
 Astra and Ollama input component seams.
 
+Phase 2 control tests cover protected-item and draft-version rejection, objective authorization,
+restore exclusivity, exploratory versus applicable previews, pause/commit/resume ordering,
+idempotent receipts, obsolete-plan and changed-boundary fencing, stop dominance, and journal
+recovery. The companion harness tests cover legacy byte parity, enabled managed context, exact
+prepared bytes through Exo, enabled Ollama projection, and controller recovery.
+
 The checked-in browser and CLI demo are offline synthetic evidence. A local Chromium run exercised
 the browser fixture at desktop (`1440x1000`) and narrow (`375x800`) viewports with reduced motion,
 keyboard comparison, same-origin-only requests, zero browser persistence, and no console or page

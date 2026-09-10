@@ -1,0 +1,49 @@
+{
+  "schema": "ascension.phase2-gates.v1",
+  "date": "2026-09-10",
+  "phase1_source_pins": {
+    "target_main": "2e1bfe0d4e62ac7f1efcefe4b1cc940182146880",
+    "companion_main": "780f2d521508a2aadc76c4d779544d967955f102"
+  },
+  "target": {
+    "cargo_fmt_locked_check": "passed",
+    "repo_policy_strict": "passed",
+    "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
+    "cargo_test_workspace_all_targets_all_features_locked": "passed",
+    "phase2_control_tests": 7,
+    "phase2_demo": {
+      "status": "passed",
+      "provider_calls": 0,
+      "game_launches": 0,
+      "prepared_manifest_sha256": "734b79c24a125e465e72be6004193345bc2aa3f6e290e18df88e49a19d316f9b"
+    },
+    "manual_http_checks": {
+      "capabilities_and_state": "passed",
+      "missing_or_wrong_origin": "rejected_csrf_rejected",
+      "duplicate_json_keys": "rejected_duplicate_json_key",
+      "valid_loopback_write": "passed"
+    },
+    "browser_audit": {
+      "status": "unavailable",
+      "reason": "Playwright is not installed; the available module also cannot launch because libglib-2.0.so.0 is absent."
+    }
+  },
+  "companion": {
+    "cargo_fmt_locked_check": "passed",
+    "repo_policy_strict": "passed",
+    "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
+    "cargo_test_workspace_all_targets_all_features_locked": "passed",
+    "context_control_tests": 4,
+    "exo_adapter_tests": 6,
+    "ollama_bridge_tests": 8,
+    "astra_bridge_tests": 4
+  },
+  "package": {
+    "python3_tools_verify_package": "passed",
+    "bounded_reference_model": "passed_bounded_reference_only",
+    "schema_fixture_validation": {
+      "status": "unavailable",
+      "reason": "The jsonschema Python package is not installed."
+    }
+  }
+}

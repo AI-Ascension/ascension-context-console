@@ -1,13 +1,11 @@
 # Ascension Context Console
 
-Private Phase 1 read-only inspector for application-controlled context sent through AI-Ascension
-decision paths.
+Bounded Context Console inspector and controlled context editor for AI-Ascension decision paths.
 
-This checkout contains the Phase 1 source delivery: a bounded Rust snapshot/event reader, a
-scoped in-memory store and loopback read API, authenticated private-content vault primitives, an
-offline CLI demonstration, and a same-origin browser view. The console reports what the harness
-prepared at a named boundary. It does not invoke a provider or game and cannot edit, compact,
-retrieve, pause, resume, or submit context.
+This checkout contains the Phase 1 snapshot/event reader and its Phase 2 extension. Phase 2 adds
+scoped drafts, immutable provider-specific previews, a durable journal envelope, and explicit
+pause/commit/resume control. The console still invokes no provider or game and never edits host
+state or submits a game action; the harness owns those authorities.
 
 The companion capture seam lives in the accepted `AI-Ascension/sts2-harness` source tree. It
 captures the actual Exo session and generic provider bytes, and the Astra/Ollama bridge binaries
@@ -22,6 +20,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked
 cargo run --locked --package context-service --bin context-console -- demo
+cargo run --locked --package context-service --bin context-console -- phase2-demo
 ```
 
 The browser fixture can be served from the repository root with any static file server and opened
@@ -34,3 +33,9 @@ The integrated synthetic review is available through `context-console integrated
 serves the browser and routes its declared `/demo/*` artifacts through the authenticated read API
 after producer and memory-capture stages. The browser audit script records process counters and
 terminates the local server after the run.
+
+The Phase 2 control API is served under /v2/runs/:run_id/context-control/. The fixture uses
+separate editor and objective capabilities, an exact loopback Origin/CSRF check, bounded strict
+JSON, draft CAS versions, immutable previews, and idempotent command receipts. phase2-demo
+exercises the same control plane without a provider call, game launch, or external request.
+Contract schemas and their source pin are in contracts/context-control.

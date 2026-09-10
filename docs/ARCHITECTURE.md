@@ -1,9 +1,9 @@
 # Architecture
 
-The harness owns request construction, capture records, provider boundaries, and decision lineage.
-The console owns validation, bounded retention, scoped read projections, and presentation. There
-is no provider, game, gateway, MCP, credential, arbitrary URL, or arbitrary process dependency in
-this repository.
+The harness owns request construction, capture records, provider boundaries, control authority, and
+decision lineage. The console owns validation, bounded retention, scoped read projections, the
+typed Phase 2 draft/preview control surface, and presentation. There is no provider, game, gateway,
+MCP, credential, arbitrary URL, or arbitrary process dependency in this repository.
 
 `context-reader` parses immutable snapshot and lifecycle-event JSON with a small bounded parser. It
 rejects duplicate or unknown fields, invalid identity reuse, false completeness, unsupported
@@ -27,6 +27,13 @@ XChaCha20-Poly1305 authenticated encryption with project/snapshot/component/cont
 setup fails closed. The plaintext store rejects private-mode content references rather than serving
 them as plaintext. The browser does not use
 localStorage, IndexedDB, cache storage, external resources, or credential-bearing URLs.
+
+The Phase 2 control module is a separate authority boundary from the Phase 1 read store. It keeps
+immutable item references, versioned drafts, deterministic prepared components, preview manifests,
+CAS command receipts, revision lineage, and a bounded JSON journal envelope. It can latch pause,
+commit while held, and require an explicit resume; it never dispatches a provider request or game
+action. The companion harness supplies the provider-facing exact-byte dispatch seam and the
+controller owner epoch used during recovery.
 
 The checked-in fixtures and `context-console demo` exercise producer → store → read API evidence
 without launching a provider or game. `context-console integrated-demo` extends that synthetic

@@ -11,6 +11,7 @@ The service CLI provides a provider-free integrated demonstration and a bounded 
 
 ```text
 cargo run --locked --package context-service --bin context-console -- demo
+cargo run --locked --package context-service --bin context-console -- phase2-demo
 cargo run --locked --package context-service --bin context-console -- inspect fixtures/valid/snapshot-cli.json
 ```
 
@@ -18,6 +19,12 @@ cargo run --locked --package context-service --bin context-console -- inspect fi
 an in-memory content grant, and makes one authenticated read-only API request. Its output includes
 `provider_calls=0`, `game_launches=0`, the snapshot identities, event count, and mutation-free API
 status.
+
+`phase2-demo` is the bounded control proof. It uses the same typed control plane as the integrated
+API to create and edit a draft, distinguish exploratory from applicable preview, pause, commit
+while held, and resume explicitly. It never calls a provider or game. For HTTP review, run
+`integrated-demo 0` and use the `/v2/runs/fixture-run/context-control/` routes with the fixture
+editor capability and exact loopback Origin/CSRF headers.
 
 For the integrated synthetic browser path, run `tools/integrated_browser_audit.cjs` with the
 Playwright module and Chromium library environment shown in [DEMO.md](DEMO.md). It starts the

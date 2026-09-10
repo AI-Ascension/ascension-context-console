@@ -3,7 +3,15 @@
 const MAX_FIXTURE_BYTES = 1024 * 1024;
 const MAX_EVENTS = 256;
 const bundleManifestUrl = new URL("../offline-bundle.json", document.baseURI);
+const CONTROL_BASE = "/v2/runs/fixture-run/context-control";
+const CONTROL_TOKEN = "fixture-editor-token";
+const OBJECTIVE_TOKEN = "fixture-objective-token";
+const CSRF_TOKEN = "fixture-csrf-token";
 const status = document.querySelector("#status");
+let controlState;
+let currentDraft;
+let currentPreview;
+let commandCounter = 0;
 
 function showText(selector, value) {
   const node = document.querySelector(selector);
@@ -161,6 +169,181 @@ async function loadEvents(eventsUrl) {
   return text.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line));
 }
 
+async function controlJson(path, options = {}) {
+  const { token = CONTROL_TOKEN, ...requestOptions } = options;
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  if (requestOptions.method && requestOptions.method !== "GET") headers.set("X-CSRF-Token", CSRF_TOKEN);
+  const response = await fetch(`${CONTROL_BASE}${path}`, { ...requestOptions, headers, cache: "no-store" });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error?.message || value.error?.code || `control request returned ${response.status}`);
+  return value;
+}
+
+function renderControl(capabilities, stateValue, items) {
+  controlState = stateValue;
+  showText("#management-badge", capabilities.enabled ? "management enabled" : "legacy mode");
+  showText("#control-status", stateValue.status);
+  showText("#active-revision", stateValue.active_revision_id);
+  showText("#control-version", stateValue.control_version);
+  showText("#pause-latch", stateValue.pause_latched ? "latched" : "open");
+  showText("#plan-epoch", stateValue.plan_epoch);
+  const rows = document.querySelector("#eligible-rows");
+  rows.replaceChildren();
+  items.items.forEach((entry) => {
+    const row = document.createElement("tr");
+    const useCell = document.createElement("td");
+    if (entry.protected || !entry.content_available) {
+      useCell.textContent = "locked";
+    } else {
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.dataset.item = JSON.stringify(entry.item);
+      input.setAttribute("aria-label", `Include ${entry.item.item_id}`);
+      useCell.append(input);
+    }
+    row.append(useCell);
+    [entry.item.item_id, entry.kind, entry.item.version, entry.protected ? (entry.locked_reason || "protected") : "editable"]
+      .forEach((value) => { const cell = document.createElement("td"); cell.textContent = String(value); row.append(cell); });
+    rows.append(row);
+  });
+  document.querySelector("#control-panel").hidden = false;
+  document.querySelector("#eligible").hidden = false;
+  document.querySelector("#editor").hidden = false;
+}
+
+async function refreshControl() {
+  const [capabilities, stateValue, items] = await Promise.all([
+    controlJson("/capabilities"),
+    controlJson("/state"),
+    controlJson("/eligible-items"),
+  ]);
+  renderControl(capabilities, stateValue, items);
+  return stateValue;
+}
+
+function scopeForControl() {
+  return controlState && controlState.scope;
+}
+
+function setDraftMessage(message, isError = false) {
+  const node = document.querySelector("#draft-message");
+  node.textContent = message;
+  node.dataset.state = isError ? "error" : "";
+}
+
+function command(kind, extra = {}) {
+  commandCounter += 1;
+  return {
+    schema: "ascension.context-control.command.v1",
+    scope: scopeForControl(),
+    idempotency_key: `browser-${kind}-${commandCounter}`,
+    command_window_id: controlState.command_window_id,
+    expected_control_version: controlState.control_version,
+    kind,
+    ...extra,
+  };
+}
+
+function renderDraft(draft) {
+  currentDraft = draft;
+  showText("#draft-version", `Draft ${draft.draft_id} · version ${draft.version}`);
+  document.querySelector("#save-draft").disabled = false;
+  document.querySelector("#preview-draft").disabled = false;
+}
+
+function renderPreview(preview) {
+  currentPreview = preview;
+  showText("#preview-id", preview.preview_id);
+  showText("#prepared-digest", preview.prepared_manifest_sha256);
+  showText("#preview-components", preview.components.length ? preview.components.map((item) => `${item.kind}:${item.bytes} B`).join(", ") : "none");
+  showText("#preview-budget", `${preview.budget_status}${preview.unknown_total_risk_acknowledged ? " · risk acknowledged" : ""}`);
+  showText("#preview-badge", preview.applicable ? "applicable" : "exploratory / blocked");
+  const diff = { blockers: preview.blockers, selected_items: preview.selected_items, components: preview.components };
+  document.querySelector("#preview-diff").textContent = JSON.stringify(diff, null, 2);
+  document.querySelector("#preview").hidden = false;
+  document.querySelector("#commit-draft").disabled = !preview.applicable;
+}
+
+async function createDraft() {
+  try {
+    renderDraft(await controlJson("/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: scopeForControl(), expected_active_revision_id: controlState.active_revision_id }) }));
+    setDraftMessage("Draft created in memory-backed fixture control storage.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "draft creation failed", true); }
+}
+
+function selectedItems() {
+  return [...document.querySelectorAll("#eligible-rows input[type=checkbox]:checked")].map((input) => JSON.parse(input.dataset.item));
+}
+
+function itemKey(item) {
+  return `${item.item_id}:${item.version}:${item.sha256}`;
+}
+
+async function saveDraft() {
+  if (!currentDraft) return;
+  const existing = new Set(currentDraft.selected_items.map(itemKey));
+  const operations = selectedItems().filter((item) => !existing.has(itemKey(item))).map((item) => ({ op: "include_item", item }));
+  const note = document.querySelector("#note-text").value;
+  const existingNote = currentDraft.note_items.find((item) => item.item_id === "note-browser");
+  if (note) operations.push({ op: "put_note", note_id: "note-browser", expected_note_version: existingNote?.version ?? null, text: note, expires_at: "2030-01-01T00:00:00Z" });
+  const objective = document.querySelector("#objective-text").value;
+  if (objective) operations.push({ op: "set_objective", text: objective });
+  if (!operations.length) { setDraftMessage("Select an editable item or enter a bounded note first.", true); return; }
+  try {
+    renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, { token: objective ? OBJECTIVE_TOKEN : CONTROL_TOKEN, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schema: "ascension.context-control.patch.v1", scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, expected_active_revision_id: controlState.active_revision_id, operations }) }));
+    setDraftMessage("Draft saved; any prior preview is invalid.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "draft save failed", true); }
+}
+
+async function makePreview() {
+  if (!currentDraft) { setDraftMessage("Start a draft before previewing.", true); return; }
+  try {
+    const preview = await controlJson("/previews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, applicable_requested: Boolean(controlState.pause_latched), expected_control_version: controlState.control_version, unknown_total_risk_acknowledged: false }) });
+    renderPreview(preview);
+    setDraftMessage(preview.applicable ? "Applicable preview is frozen for commit." : `Exploratory preview: ${preview.blockers.join(", ") || "run is not held"}.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "preview failed", true); }
+}
+
+async function pauseRun() {
+  try {
+    const receipt = await controlJson("/pause", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("pause")) });
+    await refreshControl();
+    setDraftMessage(`Pause ${receipt.status}: the scheduler remains held until explicit resume.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "pause failed", true); }
+}
+
+async function commitDraft() {
+  if (!currentPreview || !currentPreview.applicable) return;
+  try {
+    const receipt = await controlJson("/commits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("commit", { expected_active_revision_id: controlState.active_revision_id, preview_id: currentPreview.preview_id, approved_manifest_sha256: currentPreview.prepared_manifest_sha256 })) });
+    await refreshControl();
+    setDraftMessage(`Commit ${receipt.status}: revision ${receipt.active_revision_id} is durable while paused.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "commit failed", true); }
+}
+
+async function resumeRun() {
+  try {
+    const receipt = await controlJson("/resume", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("resume", { expected_active_revision_id: controlState.active_revision_id, expected_preview_id: currentPreview?.applicable ? currentPreview.preview_id : null })) });
+    await refreshControl();
+    setDraftMessage(`Resume ${receipt.status}: no automatic provider or game call was made by the console.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "resume failed", true); }
+}
+
+async function loadControl() {
+  try {
+    await refreshControl();
+    document.querySelector("#create-draft").addEventListener("click", createDraft);
+    document.querySelector("#save-draft").addEventListener("click", saveDraft);
+    document.querySelector("#preview-draft").addEventListener("click", makePreview);
+    document.querySelector("#pause-run").addEventListener("click", pauseRun);
+    document.querySelector("#commit-draft").addEventListener("click", commitDraft);
+    document.querySelector("#resume-run").addEventListener("click", resumeRun);
+  } catch (error) {
+    document.querySelector("#control-message").textContent = error instanceof Error ? error.message : "management control is unavailable";
+  }
+}
+
 async function loadFixture() {
   const bundle = validateBundleManifest(await loadJson(bundleManifestUrl));
   const [snapshot, events] = await Promise.all([loadJson(bundle.snapshotUrl), loadEvents(bundle.eventsUrl)]);
@@ -174,6 +357,7 @@ async function loadFixture() {
       ? "The retained snapshots have the same ordered component measurements. This view does not imply a cache hit."
       : `The retained snapshots differ at the application boundary (${rendered.capture_mode} vs ${comparison.capture_mode}); no future input was changed.`;
   });
+  await loadControl();
 }
 
 loadFixture().catch((error) => {
