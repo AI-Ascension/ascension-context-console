@@ -6,13 +6,13 @@
     "companion_main": "780f2d521508a2aadc76c4d779544d967955f102"
   },
   "target": {
-    "evidence_commit": "5222157855b27b656cf099bede22c2f78f216458",
-    "phase2_source_revision": "dde4b7806eb64b7a25e52b4bc20b11e37261f922",
+    "evidence_commit": "1cd50b21e6e4c6904e48d632db99edd112f14c8f",
+    "phase2_source_revision": "b6617a53a8f81ea72e61fe4113f5fe1d20245c4d",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
-    "phase2_control_tests": 14,
+    "phase2_control_tests": 15,
     "phase2_demo": {
       "status": "passed",
       "provider_calls": 0,
@@ -34,6 +34,12 @@
       "external_requests": 0,
       "typed_operations": "pin_and_restore",
       "security_probes": "read_only_token_missing_csrf_cross_origin_duplicate_json_cross_scope"
+    },
+    "failure_matrix": {
+      "evidence_artifact": "docs/evidence/phase2-failure-matrix-20260910.json",
+      "rows": 80,
+      "executed": 8,
+      "required_not_executed": 72
     }
   },
   "companion": {
