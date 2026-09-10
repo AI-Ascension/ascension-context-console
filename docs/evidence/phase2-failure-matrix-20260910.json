@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 48,
+  "executed_row_count": 49,
   "rows": [
     {
       "id": "P2-F001",
@@ -33,10 +33,10 @@
         "P2-R005",
         "P2-R023"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "ASTRA-OFF-001; OLLAMA-OFF-001; renderer_is_bounded_and_legacy_content_is_byte_stable; ollama_renderer_preserves_legacy_and_marks_enabled_context",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/499f29018dbb4d7fe4bd80159bafb15781a2b90d/docs/evidence/context-capture-fidelity-20260910.json",
+      "observed": "companion disabled-mode fidelity artifact matched Astra and Ollama baseline components; current legacy renderer regressions preserve the baseline bytes"
     },
     {
       "id": "P2-F003",
