@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 62,
+  "executed_row_count": 63,
   "rows": [
     {
       "id": "P2-F001",
@@ -583,10 +583,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "mandatory_context_over_adapter_budget_is_rejected_without_trimming",
+      "evidence_artifact": "crates/context-service/src/control/render.rs",
+      "observed": "Rust renderer regression constructed 64 valid 3000-byte items and rejected the mandatory aggregate with mandatory_budget_exceeded without trimming"
     },
     {
       "id": "P2-F033",
