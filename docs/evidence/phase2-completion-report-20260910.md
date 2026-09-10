@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `62715332a08bda38b54f64b718043820ac3f3439`, evidence handoff `06ed916e03bbaf8adbeb6ee493123de0225fe6f8`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `7580619964ad73fd107031fb5bf6a1a6f5c9e3ec`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `df0a40a0959f12f447ff80f226630e3520410ad2`, evidence handoff `06ed916e03bbaf8adbeb6ee493123de0225fe6f8`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `7580619964ad73fd107031fb5bf6a1a6f5c9e3ec`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -42,7 +42,8 @@ schema repair with Phase 1 byte retention, legacy active-state refusal, and comp
 for `P2-F064`, plus the companion expired-pin and compiled fake-peer bridge regressions. The target
 boundary-change, expiry, and browser commit/resume regressions cover `P2-F050`, `P2-F054`, and
 `P2-F070`; catalog/provider fingerprint, unknown-capacity, unsupported-image, and no-store edit
-regressions cover `P2-F028`, `P2-F029`, `P2-F033`, `P2-F034`, and `P2-F069`. The other 26 remain
+regressions cover `P2-F028`, `P2-F029`, `P2-F033`, `P2-F034`, and `P2-F069`; prepared-manifest
+recovery covers `P2-F037`. The other 25 remain
 explicitly marked `required_not_executed` because they require crash windows not injected here,
 live provider/game effects, native ownership controls, or other evidence outside this fixture.
 
@@ -135,7 +136,7 @@ paths, including a denied edit that leaves no durable file or WAL behind.
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records 54 executed cases and 26
+failure matrix has 80 rows. The row-level ledger records 55 executed cases and 25
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 
