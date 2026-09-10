@@ -7,7 +7,7 @@
   },
   "target": {
     "evidence_commit": "cb47c5bfd9ead5a59518ec0b2fb9347ca2f180aa",
-    "phase2_source_revision": "f66283611d573f09e96276f43e5f22285e5d4c6b",
+    "phase2_source_revision": "66163ef2d946dcd3cfa36fc2a82144a47f9d563f",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
@@ -29,7 +29,7 @@
     },
     "browser_audit": {
       "status": "passed",
-      "source_revision": "f66283611d573f09e96276f43e5f22285e5d4c6b",
+      "source_revision": "66163ef2d946dcd3cfa36fc2a82144a47f9d563f",
       "command": "FONTCONFIG_PATH=/tmp/ascension-browser-libs/root-20260910/etc/fonts FONTCONFIG_FILE=/tmp/ascension-browser-libs/fontconfig-runtime.conf XDG_DATA_DIRS=/tmp/ascension-browser-libs/root-20260910/usr/share LD_LIBRARY_PATH=/tmp/ascension-browser-libs/root-20260910/lib/x86_64-linux-gnu:/tmp/ascension-browser-libs/root-20260910/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib/x86_64-linux-gnu PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
       "workflow": "draft_saved_exploratory_preview_pause_applicable_preview_commit_paused_explicit_resume_restore_as_draft",
       "provider_calls": 0,
@@ -40,7 +40,7 @@
     },
     "integrated_browser_audit": {
       "status": "passed",
-      "source_revision": "f66283611d573f09e96276f43e5f22285e5d4c6b",
+      "source_revision": "66163ef2d946dcd3cfa36fc2a82144a47f9d563f",
       "evidence_artifact": "docs/evidence/integrated-browser-ui-20260910.json"
     },
     "failure_matrix": {
