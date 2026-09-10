@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `08e6dafc569749edc8d8d2152ab9beee704789ea`, evidence handoff `8a6a78b2e04f53e30e1da737dd74e2fdb9c9dd54`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `08e6dafc569749edc8d8d2152ab9beee704789ea`, evidence handoff `8a6a78b2e04f53e30e1da737dd74e2fdb9c9dd54`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `499f29018dbb4d7fe4bd80159bafb15781a2b90d`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -120,7 +120,7 @@ rejection, transaction rollback with outbox atomicity, additive migration, legac
 immutable snapshot backup. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases documented
-in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354/docs/evidence/context-control-store-20260910.md).
+in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/499f29018dbb4d7fe4bd80159bafb15781a2b90d/docs/evidence/context-control-store-20260910.md).
 The compiled target CLI suite adds five tests for durable command sequencing, explicit content
 permission, stdin parsing bounds, and no-mutation rejection paths.
 The package’s bounded reference model additionally
