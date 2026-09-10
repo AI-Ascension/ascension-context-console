@@ -113,6 +113,7 @@ async function run() {
     await page.locator('#commit-draft').click();
     await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'paused_committed');
     assert.match(await page.locator('#draft-message').textContent(), /committed while paused/);
+    assert.equal(await page.locator('#preview').isHidden(), true);
     await page.locator('#resume-run').click();
     await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'running');
     assert.match(await page.locator('#draft-message').textContent(), /Resume/);
@@ -121,6 +122,7 @@ async function run() {
     await page.locator('#restore-draft').click();
     await page.waitForFunction(() => document.querySelector('#draft-message').textContent.includes('restored'));
     assert.equal(await page.locator('#eligible-rows input.context-select:checked').count(), 0);
+    assert.equal(await page.locator('#preview').isHidden(), true);
     const workflowConsoleErrors = consoleErrors.slice();
     const workflowPageErrors = pageErrors.slice();
     assert.deepEqual(workflowConsoleErrors, []);
@@ -267,6 +269,7 @@ async function run() {
         private_note_absent_from_metrics: !JSON.stringify(metrics).includes('Browser operator note') && !JSON.stringify(metrics).includes('<img'),
         reconnect_preserves_pause_without_auto_resume: true,
         keyboard_activation: true,
+        stale_preview_is_cleared_after_mutation: true,
       },
       artifacts: [
         { path: 'docs/evidence/phase2-browser-desktop-20260910.png', sha256: digest(desktopPath) },

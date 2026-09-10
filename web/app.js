@@ -332,6 +332,15 @@ function renderPreview(preview) {
   document.querySelector("#commit-draft").disabled = !preview.applicable;
 }
 
+function invalidatePreview() {
+  currentPreview = null;
+  document.querySelector("#preview").hidden = true;
+  document.querySelector("#preview-id").textContent = "";
+  document.querySelector("#prepared-digest").textContent = "";
+  document.querySelector("#preview-diff").textContent = "";
+  document.querySelector("#commit-draft").disabled = true;
+}
+
 async function createDraft() {
   try {
     renderDraft(await controlJson("/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: scopeForControl(), expected_active_revision_id: controlState.active_revision_id }) }));
@@ -384,8 +393,7 @@ async function saveDraft() {
   if (!operations.length) { setDraftMessage("Select an editable item or enter a bounded note first.", true); return; }
   try {
     renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, { token: objective ? OBJECTIVE_TOKEN : CONTROL_TOKEN, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schema: "ascension.context-control.patch.v1", scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, expected_active_revision_id: controlState.active_revision_id, operations }) }));
-    currentPreview = null;
-    document.querySelector("#commit-draft").disabled = true;
+    invalidatePreview();
     setDraftMessage("Draft saved; any prior preview is invalid.");
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "draft save failed", true); }
 }
@@ -409,8 +417,7 @@ async function restoreDraft() {
     }));
     document.querySelector("#note-text").value = "";
     document.querySelector("#objective-text").value = "";
-    currentPreview = null;
-    document.querySelector("#commit-draft").disabled = true;
+    invalidatePreview();
     setDraftMessage("Configuration restored into the draft; preview it again before commit.");
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "restore failed", true); }
 }
@@ -433,6 +440,7 @@ async function removeNote() {
       }),
     }));
     document.querySelector("#note-text").value = "";
+    invalidatePreview();
     setDraftMessage("Operator note removed from the draft; preview it again before commit.");
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "note removal failed", true); }
 }
@@ -459,7 +467,7 @@ async function commitDraft() {
   try {
     const receipt = await controlJson("/commits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("commit", { expected_active_revision_id: controlState.active_revision_id, preview_id: currentPreview.preview_id, approved_manifest_sha256: currentPreview.prepared_manifest_sha256 })) });
     approvedContinuationPreviewId = currentPreview.preview_id;
-    currentPreview = null;
+    invalidatePreview();
     await refreshControl();
     setDraftMessage(`Commit ${receipt.status}: revision ${receipt.active_revision_id} is committed while paused.`);
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "commit failed", true); }
