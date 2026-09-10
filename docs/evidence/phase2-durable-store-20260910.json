@@ -4,7 +4,7 @@
   "date": "2026-09-10",
   "repository": "AI-Ascension/ascension-context-console",
   "branch": "phase2/context-editing",
-  "source_revision": "66163ef2d946dcd3cfa36fc2a82144a47f9d563f",
+  "source_revision": "08e6dafc569749edc8d8d2152ab9beee704789ea",
   "command": "cargo test --locked --package context-service --test phase2_durable",
   "result": "passed",
   "tests": [
@@ -87,7 +87,7 @@
   "source_artifacts": [
     {
       "path": "crates/context-service/src/control/durable.rs",
-      "sha256": "afad22f56a5814861d065416448affa60811733ac62f0e718febc1227547f86f"
+      "sha256": "cd5d5915d43874b00e13bb7185b81ed94659d8f5120ad2c1175b645382bc54c3"
     },
     {
       "path": "crates/context-service/src/control/durable_ops.rs",

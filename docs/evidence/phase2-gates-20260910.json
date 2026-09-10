@@ -6,8 +6,8 @@
     "companion_main": "780f2d521508a2aadc76c4d779544d967955f102"
   },
   "target": {
-    "evidence_commit": "2d195ebbd19fea69fadc73ae664ef9b5d1e93a80",
-    "phase2_source_revision": "66163ef2d946dcd3cfa36fc2a82144a47f9d563f",
+    "evidence_commit": "pending-refresh",
+    "phase2_source_revision": "08e6dafc569749edc8d8d2152ab9beee704789ea",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
@@ -15,6 +15,7 @@
     "phase2_control_tests": 15,
     "durable_store_tests": 6,
     "durable_store_evidence": "docs/evidence/phase2-durable-store-20260910.json",
+    "cli_evidence": "docs/evidence/phase2-cli-20260910.json",
     "phase2_demo": {
       "status": "passed",
       "provider_calls": 0,
@@ -29,8 +30,8 @@
     },
     "browser_audit": {
       "status": "passed",
-      "source_revision": "66163ef2d946dcd3cfa36fc2a82144a47f9d563f",
-      "command": "FONTCONFIG_PATH=/tmp/ascension-browser-libs/root-20260910/etc/fonts FONTCONFIG_FILE=/tmp/ascension-browser-libs/fontconfig-runtime.conf XDG_DATA_DIRS=/tmp/ascension-browser-libs/root-20260910/usr/share LD_LIBRARY_PATH=/tmp/ascension-browser-libs/root-20260910/lib/x86_64-linux-gnu:/tmp/ascension-browser-libs/root-20260910/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib/x86_64-linux-gnu PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
+      "source_revision": "08e6dafc569749edc8d8d2152ab9beee704789ea",
+      "command": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
       "workflow": "draft_saved_exploratory_preview_pause_applicable_preview_commit_paused_explicit_resume_restore_as_draft",
       "provider_calls": 0,
       "game_launches": 0,
@@ -40,26 +41,26 @@
     },
     "integrated_browser_audit": {
       "status": "passed",
-      "source_revision": "66163ef2d946dcd3cfa36fc2a82144a47f9d563f",
+      "source_revision": "08e6dafc569749edc8d8d2152ab9beee704789ea",
       "evidence_artifact": "docs/evidence/integrated-browser-ui-20260910.json"
     },
     "failure_matrix": {
       "evidence_artifact": "docs/evidence/phase2-failure-matrix-20260910.json",
       "rows": 80,
-      "executed": 30,
-      "required_not_executed": 50
+      "executed": 33,
+      "required_not_executed": 47
     }
   },
   "companion": {
-    "branch_head": "4047b5bd5f28e2fc847220bb5a97a90eb3929329",
-    "phase2_source_revision": "4047b5bd5f28e2fc847220bb5a97a90eb3929329",
+    "branch_head": "c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354",
+    "phase2_source_revision": "c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
-    "context_control_tests": 5,
+    "context_control_tests": 6,
     "context_control_migration_tests": 7,
-    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/4047b5bd5f28e2fc847220bb5a97a90eb3929329/docs/evidence/context-control-store-20260910.md",
+    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354/docs/evidence/context-control-store-20260910.md",
     "exo_adapter_tests": 6,
     "ollama_bridge_tests": 8,
     "astra_bridge_tests": 4

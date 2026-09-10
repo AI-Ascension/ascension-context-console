@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 30,
+  "executed_row_count": 33,
   "rows": [
     {
       "id": "P2-F001",
@@ -322,10 +322,10 @@
         "P2-R015",
         "P2-R017"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "compiled_cli_rejects_duplicate_and_oversized_stdin_without_mutation",
+      "evidence_artifact": "tests/phase2_cli.rs",
+      "observed": "compiled CLI rejected duplicate JSON before decode and oversized stdin with no draft mutation"
     },
     {
       "id": "P2-F019",
@@ -341,10 +341,10 @@
         "P2-R015",
         "P2-R017"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "compiled_cli_rejects_duplicate_and_oversized_stdin_without_mutation",
+      "evidence_artifact": "tests/phase2_cli.rs",
+      "observed": "compiled CLI rejected a 17 KiB stdin body with exit code 2 and preserved draft version 1"
     },
     {
       "id": "P2-F020",
@@ -545,10 +545,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "renderer_rejects_content_digest_mismatch_for_selected_note_and_objective",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354/crates/harness/tests/context_control.rs",
+      "observed": "companion renderer recomputed selected, note, and objective digests and rejected same-reference byte substitution"
     },
     {
       "id": "P2-F031",

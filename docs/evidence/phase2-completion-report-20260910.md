@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `66163ef2d946dcd3cfa36fc2a82144a47f9d563f`, evidence handoff `2d195ebbd19fea69fadc73ae664ef9b5d1e93a80`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4047b5bd5f28e2fc847220bb5a97a90eb3929329`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `08e6dafc569749edc8d8d2152ab9beee704789ea`, evidence handoff pending the refreshed evidence commit. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -22,13 +22,19 @@ provider/game effects, the target durable-store capability, storage, network, ke
 Luna/max descendants and reservation metadata remain unavailable;
 see `docs/evidence/phase2-native-preflight-20260910.json`.
 
+The compiled operator CLI is covered by [`docs/evidence/phase2-cli-20260910.json`](phase2-cli-20260910.json):
+separate processes run the encrypted durable edit/preview/pause/commit/resume sequence, default
+content redaction, explicit content permission, typed stdin editing, duplicate-key rejection, and
+the 16 KiB input bound. The CLI emits the documented machine schema and makes zero provider, game,
+or external requests.
+
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Thirty rows have executable evidence: the browser cases (`P2-F001`,
+failure rows. Thirty-two rows have executable evidence: the browser cases (`P2-F001`,
 `P2-F003`, `P2-F005`, `P2-F011`, `P2-F017`, `P2-F022`, and `P2-F031`) plus named Rust
 regressions for CAS, protected identity, restore, authorization, preview freshness/expiry,
 idempotency, plan fencing, stop dominance, safe deactivation, and the approved-resume guard, plus
 target durable-store regressions for transaction rollback, wrong-key/tamper rejection, additive
-schema repair with Phase 1 byte retention, and legacy active-state refusal. The other 50 remain
+schema repair with Phase 1 byte retention, and legacy active-state refusal. The other 48 remain
 explicitly marked `required_not_executed` because they require crash windows not injected here,
 live provider/game effects, native ownership controls, or other evidence outside this fixture.
 
@@ -53,7 +59,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R013 | executed | Versioned notes are attributed in target state and rendered harness context. |
 | P2-R014 | executed | `objective_authorization_and_restore_alone_are_enforced`. |
 | P2-R015 | executed | Restore is exclusive and creates a new draft configuration; target test and browser flow pass. |
-| P2-R016 | source-reviewed | Edit-time and preview-time immutable scope/digest/expiry checks are implemented. |
+| P2-R016 | executed | Target preview freshness/expiry checks plus the companion renderer digest-substitution regression bind edit bytes to immutable references. |
 | P2-R017 | executed | Pins remain subject to selection, item, and aggregate component bounds; target test and browser flow pass. |
 | P2-R018 | executed | Exploratory/applicable preview distinction and provider-free test pass. |
 | P2-R019 | executed | Prepared renderer and dispatch seam tests pass. |
@@ -88,7 +94,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R048 | source-reviewed | Phase1 memory capture remains explicitly separate from durable control journal. |
 | P2-R049 | executed | Receipt effects distinguish pause, commit, resume and preview state. |
 | P2-R050 | executed | Phase 2 Playwright audit covers control/error UI, typed restore, and same-origin security assertions; disabled/disconnected live state remains outside the fixture. |
-| P2-R051 | source-reviewed | CLI demo uses the same typed control reducer; a separate remote CLI is not claimed. |
+| P2-R051 | executed | Compiled `phase2_cli` process tests cover the typed durable CLI workflow, redaction, explicit capabilities, and parser bounds; no remote CLI is claimed. |
 | P2-R052 | executed | Relations bind revision, preview, snapshot, execution, attempt and intervention IDs. |
 | P2-R053 | source-reviewed | Intervention lineage is retained on revisions and relations after restore. |
 | P2-R054 | executed | `phase2_durable` repairs the additive schema while retaining seeded Phase 1 bytes; target evidence is in `docs/evidence/phase2-durable-store-20260910.json`. |
@@ -114,11 +120,13 @@ rejection, transaction rollback with outbox atomicity, additive migration, legac
 immutable snapshot backup. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases documented
-in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/4047b5bd5f28e2fc847220bb5a97a90eb3929329/docs/evidence/context-control-store-20260910.md).
+in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354/docs/evidence/context-control-store-20260910.md).
+The compiled target CLI suite adds five tests for durable command sequencing, explicit content
+permission, stdin parsing bounds, and no-mutation rejection paths.
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records 30 executed cases and 50
+failure matrix has 80 rows. The row-level ledger records 33 executed cases and 47
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 
