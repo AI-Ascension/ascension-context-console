@@ -320,7 +320,13 @@ function renderPreview(preview) {
   showText("#preview-budget", `${preview.budget_status}${preview.unknown_total_risk_acknowledged ? " · risk acknowledged" : ""}`);
   showText("#preview-provider-context", preview.provider_added_context);
   showText("#preview-badge", preview.applicable ? "applicable" : "exploratory / blocked");
-  const diff = { blockers: preview.blockers, selected_items: preview.selected_items, components: preview.components };
+  const diff = {
+    blockers: preview.blockers,
+    selected_items: preview.selected_items,
+    notes: currentDraft?.note_items ?? [],
+    objective: currentDraft?.objective_item ?? null,
+    components: preview.components,
+  };
   document.querySelector("#preview-diff").textContent = JSON.stringify(diff, null, 2);
   document.querySelector("#preview").hidden = false;
   document.querySelector("#commit-draft").disabled = !preview.applicable;

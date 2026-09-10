@@ -74,11 +74,13 @@ async function run() {
     assert.equal(await page.locator('#durable-store').textContent(), 'supported');
     assert.ok(await page.locator('#eligible-rows input[type=checkbox]').count() >= 1);
 
-    await page.locator('#create-draft').click();
+    await page.locator('#create-draft').focus();
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'create-draft');
+    await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('#draft-version').textContent.includes('version 1'));
     await page.locator('#eligible-rows input[type=checkbox]').first().check();
     await page.locator('#eligible-rows input.context-pin').first().check();
-    await page.locator('#note-text').fill('Browser operator note for the controlled fixture.');
+    await page.locator('#note-text').fill('Browser operator note <img src="https://attacker.invalid/note.png" onerror="window.__noteInjection=1"> for the controlled fixture.');
     await page.locator('#objective-text').fill('Preserve the fixture while choosing visible legal actions.');
     await page.locator('#save-draft').click();
     await page.waitForFunction(() => document.querySelector('#draft-message').textContent.includes('Draft saved'));
@@ -91,11 +93,22 @@ async function run() {
 
     await page.locator('#pause-run').click();
     await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'paused_ready');
+    const reconnect = await context.newPage();
+    try {
+      await reconnect.goto('/web/', { waitUntil: 'networkidle' });
+      await reconnect.waitForSelector('#control-panel:not([hidden])');
+      assert.equal(await reconnect.locator('#control-status').textContent(), 'paused_ready');
+      assert.equal(await reconnect.locator('#management-badge').textContent(), 'management enabled');
+    } finally {
+      await reconnect.close();
+    }
     await page.locator('#preview-draft').click();
     await page.waitForFunction(() => document.querySelector('#preview-badge').textContent === 'applicable');
     assert.equal(await page.locator('#commit-draft').isDisabled(), false);
     assert.notEqual(await page.locator('#prepared-digest').textContent(), 'unavailable');
     assert.match(await page.locator('#preview-diff').textContent(), /note-browser/);
+    assert.match(await page.locator('#note-text').inputValue(), /<img src=/);
+    assert.equal(await page.evaluate(() => window.__noteInjection), undefined);
 
     await page.locator('#commit-draft').click();
     await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'paused_committed');
@@ -177,6 +190,8 @@ async function run() {
     assert.equal(metrics.management_enabled, true);
     assert.equal(metrics.durable_control_store, 'supported');
     assert.ok(metrics.control_events >= 7);
+    assert.equal(JSON.stringify(metrics).includes('Browser operator note'), false);
+    assert.equal(JSON.stringify(metrics).includes('<img'), false);
 
     const storage = await page.evaluate(async () => ({
       localStorageEntries: localStorage.length,
@@ -205,8 +220,8 @@ async function run() {
     const evidence = {
       schema: 'ascension.phase2-browser-evidence.v1',
       evidence_id: 'PHASE2-BROWSER-20260910',
-      requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R045', 'P2-R050', 'P2-R059'],
-      case_ids: ['P2-F001', 'P2-F003', 'P2-F005', 'P2-F011', 'P2-F017', 'P2-F022', 'P2-F031'],
+      requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R044', 'P2-R045', 'P2-R046', 'P2-R050', 'P2-R052', 'P2-R053', 'P2-R059', 'P2-R064'],
+      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F075'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -248,6 +263,10 @@ async function run() {
         missing_csrf_denied: security.missingCsrf.status === 403,
         duplicate_json_rejected: security.duplicate.value.error.code === 'duplicate_json_key',
         cross_scope_route_concealed: security.otherRun.value.error.code === 'route_not_found',
+        note_html_stays_data: true,
+        private_note_absent_from_metrics: !JSON.stringify(metrics).includes('Browser operator note') && !JSON.stringify(metrics).includes('<img'),
+        reconnect_preserves_pause_without_auto_resume: true,
+        keyboard_activation: true,
       },
       artifacts: [
         { path: 'docs/evidence/phase2-browser-desktop-20260910.png', sha256: digest(desktopPath) },
