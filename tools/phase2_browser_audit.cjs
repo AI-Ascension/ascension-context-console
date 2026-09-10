@@ -76,11 +76,13 @@ async function run() {
     await page.locator('#create-draft').click();
     await page.waitForFunction(() => document.querySelector('#draft-version').textContent.includes('version 1'));
     await page.locator('#eligible-rows input[type=checkbox]').first().check();
+    await page.locator('#eligible-rows input.context-pin').first().check();
     await page.locator('#note-text').fill('Browser operator note for the controlled fixture.');
     await page.locator('#objective-text').fill('Preserve the fixture while choosing visible legal actions.');
     await page.locator('#save-draft').click();
     await page.waitForFunction(() => document.querySelector('#draft-message').textContent.includes('Draft saved'));
     assert.match(await page.locator('#draft-version').textContent(), /version 2/);
+    assert.equal(await page.locator('#eligible-rows input.context-pin:checked').count(), 1);
 
     await page.locator('#preview-draft').click();
     await page.waitForFunction(() => document.querySelector('#preview-badge').textContent.includes('exploratory'));
@@ -100,6 +102,65 @@ async function run() {
     await page.locator('#resume-run').click();
     await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'running');
     assert.match(await page.locator('#draft-message').textContent(), /Resume/);
+
+    await page.locator('#restore-source').selectOption('revision-1');
+    await page.locator('#restore-draft').click();
+    await page.waitForFunction(() => document.querySelector('#draft-message').textContent.includes('restored'));
+    assert.equal(await page.locator('#eligible-rows input.context-select:checked').count(), 0);
+    const workflowConsoleErrors = consoleErrors.slice();
+    const workflowPageErrors = pageErrors.slice();
+    assert.deepEqual(workflowConsoleErrors, []);
+    assert.deepEqual(workflowPageErrors, []);
+
+    const security = await page.evaluate(async () => {
+      const scope = { project_id: 'fixture-project', run_id: 'fixture-run', episode_id: 'fixture-episode', agent_id: 'fixture-agent' };
+      const body = JSON.stringify({ scope, expected_active_revision_id: 'revision-1' });
+      const readOnly = await fetch('/v2/runs/fixture-run/context-control/drafts', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer integrated-demo-token', Origin: location.origin, 'X-CSRF-Token': 'fixture-csrf-token', 'Content-Type': 'application/json' },
+        body,
+      });
+      const missingCsrf = await fetch('/v2/runs/fixture-run/context-control/drafts', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer fixture-editor-token', 'Content-Type': 'application/json' },
+        body,
+      });
+      const duplicate = await fetch('/v2/runs/fixture-run/context-control/drafts', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer fixture-editor-token', Origin: location.origin, 'X-CSRF-Token': 'fixture-csrf-token', 'Content-Type': 'application/json' },
+        body: `{"scope":${JSON.stringify(scope)},"scope":${JSON.stringify(scope)},"expected_active_revision_id":"revision-1"}`,
+      });
+      const otherRun = await fetch('/v2/runs/other-run/context-control/state', {
+        headers: { Authorization: 'Bearer fixture-editor-token' },
+      });
+      return {
+        readOnly: { status: readOnly.status, value: await readOnly.json() },
+        missingCsrf: { status: missingCsrf.status, value: await missingCsrf.json() },
+        duplicate: { status: duplicate.status, value: await duplicate.json() },
+        otherRun: { status: otherRun.status, value: await otherRun.json() },
+      };
+    });
+    const crossOriginResponse = await fetch(`${base}/v2/runs/fixture-run/context-control/drafts`, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer fixture-editor-token',
+        Origin: 'https://attacker.invalid',
+        'X-CSRF-Token': 'fixture-csrf-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        scope: { project_id: 'fixture-project', run_id: 'fixture-run', episode_id: 'fixture-episode', agent_id: 'fixture-agent' },
+        expected_active_revision_id: 'revision-1',
+      }),
+    });
+    const crossOrigin = { status: crossOriginResponse.status, value: await crossOriginResponse.json() };
+    assert.equal(security.readOnly.status, 403);
+    assert.equal(security.missingCsrf.status, 403);
+    assert.equal(crossOrigin.status, 403);
+    assert.equal(security.duplicate.status, 422);
+    assert.equal(security.duplicate.value.error.code, 'duplicate_json_key');
+    assert.notEqual(security.otherRun.status, 200);
+    assert.equal(security.otherRun.value.error.code, 'route_not_found');
 
     const events = await page.evaluate(async () => (await fetch('/v2/runs/fixture-run/context-control/events', { cache: 'no-store', headers: { Authorization: 'Bearer fixture-editor-token' } })).json());
     const eventTypes = events.events.map((event) => event.event_type);
@@ -125,7 +186,6 @@ async function run() {
     assert.equal(storage.sessionStorageEntries, 0);
     assert.equal(storage.indexedDbDatabases, 0);
     assert.deepEqual(storage.cacheNames, []);
-    assert.deepEqual(consoleErrors, []);
     assert.deepEqual(pageErrors, []);
     assert.deepEqual(requests.filter((url) => !url.startsWith(base)), []);
 
@@ -143,7 +203,7 @@ async function run() {
     const evidence = {
       schema: 'ascension.phase2-browser-evidence.v1',
       evidence_id: 'PHASE2-BROWSER-20260910',
-      requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R045', 'P2-R050', 'P2-R059'],
+      requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R045', 'P2-R050', 'P2-R059'],
       case_ids: ['P2-F001', 'P2-F003', 'P2-F005', 'P2-F011', 'P2-F017', 'P2-F022', 'P2-F031'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
@@ -159,17 +219,20 @@ async function run() {
       tool: `Playwright ${require(`${playwrightModule}/package.json`).version}`,
       browser: await browser.version(),
       base_url: base,
-      workflow: ['draft_created', 'draft_saved', 'exploratory_preview', 'pause_ready', 'applicable_preview', 'commit_paused', 'explicit_resume'],
+      workflow: ['draft_created', 'draft_saved', 'exploratory_preview', 'pause_ready', 'applicable_preview', 'commit_paused', 'explicit_resume', 'restore_as_draft'],
       event_types: eventTypes,
+      security,
       requests,
       storage,
       horizontal_overflow_narrow: horizontalOverflow,
-      console_errors: consoleErrors,
+      console_errors: workflowConsoleErrors,
+      security_console_errors: consoleErrors.slice(workflowConsoleErrors.length),
       page_errors: pageErrors,
       integration_metrics: metrics,
       assertions: {
         exact_control_workflow: true,
         objective_and_note_delivered: true,
+        pin_and_restore_are_typed_draft_operations: true,
         applicable_preview_has_digest: true,
         commit_remains_paused: true,
         resume_is_explicit: true,
@@ -178,6 +241,11 @@ async function run() {
         zero_external_requests: metrics.external_requests === 0,
         no_browser_persistence: true,
         no_horizontal_overflow_narrow: true,
+        read_only_token_denied: security.readOnly.status === 403,
+        cross_origin_write_denied: crossOrigin.status === 403,
+        missing_csrf_denied: security.missingCsrf.status === 403,
+        duplicate_json_rejected: security.duplicate.value.error.code === 'duplicate_json_key',
+        cross_scope_route_concealed: security.otherRun.value.error.code === 'route_not_found',
       },
       artifacts: [
         { path: 'docs/evidence/phase2-browser-desktop-20260910.png', sha256: digest(desktopPath) },

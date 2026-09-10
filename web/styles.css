@@ -209,6 +209,33 @@ th {
   max-width: 48rem;
 }
 
+.restore-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.restore-row label {
+  flex-basis: 100%;
+}
+
+select {
+  min-width: 14rem;
+  border: 1px solid #40515f;
+  border-radius: 0.45rem;
+  padding: 0.45rem;
+  color: #e8edf2;
+  background: #0e151b;
+  font: inherit;
+}
+
+select:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+}
+
 label {
   color: #b9c6d2;
   font-size: 0.82rem;

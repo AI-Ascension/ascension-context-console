@@ -3,7 +3,7 @@
 use super::render::{PreparedMaterial, digest, item_ref, render};
 use super::types::*;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct DraftRecord {
@@ -218,12 +218,16 @@ impl ControlPlane {
                 scope: record.scope.clone(),
                 content_available: !record.content.is_empty()
                     && !record.protected
-                    && record.expires_at > self.now,
+                    && record.expires_at > self.now
+                    && std::str::from_utf8(&record.content).is_ok(),
                 bytes: record.content.len(),
                 expires_at: record.expires_text.clone(),
                 locked_reason: record.locked_reason.clone(),
-                content: (!record.protected && record.expires_at > self.now)
-                    .then(|| String::from_utf8_lossy(&record.content).into_owned()),
+                content: (!record.protected
+                    && record.expires_at > self.now
+                    && std::str::from_utf8(&record.content).is_ok())
+                .then(|| std::str::from_utf8(&record.content).ok().map(str::to_owned))
+                .flatten(),
             })
             .collect()
     }
@@ -285,14 +289,172 @@ impl ControlPlane {
                 "control journal exceeds its bound",
             ));
         }
+        let mut seen_items = BTreeSet::new();
         for (key, item) in journal.items {
+            if key.0 != item.item.item_id
+                || key.1 != item.item.version
+                || !item.item.valid()
+                || item.scope != journal.plane.scope
+                || item.content.len() > MAX_COMPONENT_BYTES
+                || item.expires_at == 0
+                || !seen_items.insert(key.clone())
+            {
+                return Err(ControlError::invalid(
+                    "journal_invalid",
+                    "control journal item integrity is invalid",
+                ));
+            }
             journal.plane.items.insert(key, item);
         }
+        journal.plane.validate_journal_integrity()?;
         journal.plane.state.controller_epoch =
             journal.plane.state.controller_epoch.saturating_add(1);
         journal.plane.boundary.controller_epoch = journal.plane.state.controller_epoch;
         journal.plane.sync_boundary();
         Ok(journal.plane)
+    }
+
+    fn validate_journal_integrity(&self) -> Result<(), ControlError> {
+        if self.state.scope != self.scope
+            || self.boundary.scope != self.scope
+            || self.state.active_revision_id.is_empty()
+            || !self.revisions.contains_key(&self.state.active_revision_id)
+        {
+            return Err(ControlError::invalid(
+                "journal_invalid",
+                "control journal scope or active revision is invalid",
+            ));
+        }
+        for (key, record) in &self.items {
+            if key.0 != record.item.item_id
+                || key.1 != record.item.version
+                || record.scope != self.scope
+                || !record.item.valid()
+                || digest(&record.content) != record.item.sha256
+                || record.content.len() > MAX_COMPONENT_BYTES
+                || record.expires_at == 0
+                || parse_time(&record.expires_text) != Some(record.expires_at)
+            {
+                return Err(ControlError::invalid(
+                    "journal_invalid",
+                    "control journal retained item is invalid",
+                ));
+            }
+        }
+        for record in self.drafts.values() {
+            self.validate_references(
+                &record.draft.selected_items,
+                &record.draft.note_items,
+                record.draft.objective_item.as_ref(),
+                &record.draft.pinned_item_ids,
+            )?;
+        }
+        for revision in self.revisions.values() {
+            self.validate_references(
+                &revision.selected_items,
+                &revision.note_items,
+                revision.objective_item.as_ref(),
+                &revision.pinned_item_ids,
+            )?;
+        }
+        for record in self.previews.values() {
+            if record.preview.scope != self.scope
+                || record
+                    .preview
+                    .selected_items
+                    .iter()
+                    .any(|reference| !self.retained_reference(reference))
+                || (record.preview.applicable && record.material.is_none())
+                || record.material.as_ref().is_some_and(|material| {
+                    material.manifest_sha256
+                        != record
+                            .preview
+                            .prepared_manifest_sha256
+                            .clone()
+                            .unwrap_or_default()
+                })
+            {
+                return Err(ControlError::invalid(
+                    "journal_invalid",
+                    "control journal preview references missing material",
+                ));
+            }
+        }
+        if self
+            .continuation_preview_id
+            .as_ref()
+            .is_some_and(|preview_id| !self.previews.contains_key(preview_id))
+            || self.prepared_input.as_ref().is_some_and(|input| {
+                !self.previews.values().any(|record| {
+                    record.consumed
+                        && record
+                            .material
+                            .as_ref()
+                            .is_some_and(|material| material.input == *input)
+                })
+            })
+        {
+            return Err(ControlError::invalid(
+                "journal_invalid",
+                "control journal continuation is invalid",
+            ));
+        }
+        if self.events.iter().any(|event| event.scope != self.scope)
+            || self
+                .relations
+                .iter()
+                .any(|relation| relation.scope != self.scope)
+            || self
+                .commands
+                .values()
+                .any(|(_, receipt)| receipt.scope != self.scope)
+        {
+            return Err(ControlError::invalid(
+                "journal_invalid",
+                "control journal record scope is invalid",
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_references(
+        &self,
+        selected: &[ItemRef],
+        notes: &[ItemRef],
+        objective: Option<&ItemRef>,
+        pinned: &[String],
+    ) -> Result<(), ControlError> {
+        if selected
+            .iter()
+            .any(|reference| !self.retained_reference(reference))
+            || notes
+                .iter()
+                .any(|reference| !self.retained_reference(reference))
+            || objective.is_some_and(|reference| !self.retained_reference(reference))
+            || pinned.iter().any(|item_id| {
+                !selected
+                    .iter()
+                    .any(|reference| reference.item_id == *item_id)
+            })
+        {
+            return Err(ControlError::invalid(
+                "journal_invalid",
+                "control journal references missing item bytes",
+            ));
+        }
+        Ok(())
+    }
+
+    fn retained_reference(&self, reference: &ItemRef) -> bool {
+        reference.valid()
+            && self
+                .items
+                .get(&(reference.item_id.clone(), reference.version))
+                .is_some_and(|record| {
+                    record.scope == self.scope
+                        && record.item == *reference
+                        && digest(&record.content) == reference.sha256
+                })
     }
 
     pub fn get_draft(&self, draft_id: &str) -> Result<Draft, ControlError> {
@@ -924,7 +1086,7 @@ impl ControlPlane {
                 draft.selected_items.push(record.item.clone());
             }
             Operation::ExcludeItem { item } => {
-                self.editable_item(&item)?;
+                self.retained_item(&item)?;
                 if draft.pinned_item_ids.iter().any(|id| id == &item.item_id) {
                     return Err(ControlError::forbidden(
                         "pinned_item",
@@ -951,7 +1113,7 @@ impl ControlPlane {
                 }
             }
             Operation::UnpinItem { item } => {
-                self.editable_item(&item)?;
+                self.retained_item(&item)?;
                 draft.pinned_item_ids.retain(|id| id != &item.item_id);
             }
             Operation::PutNote {
@@ -1054,6 +1216,16 @@ impl ControlPlane {
                 "note is outside its UTF-8 bound",
             ));
         }
+        if self
+            .items
+            .values()
+            .any(|record| record.item.item_id == note_id && record.protected)
+        {
+            return Err(ControlError::forbidden(
+                "protected_item",
+                "note identity is reserved for host-owned content",
+            ));
+        }
         let expiry = parse_time(expires_at)
             .ok_or_else(|| ControlError::invalid("invalid_expiry", "note expiry is invalid"))?;
         if expiry <= self.now {
@@ -1076,16 +1248,23 @@ impl ControlPlane {
         let version = current
             .unwrap_or_else(|| self.latest_versions.get(note_id).copied().unwrap_or(0))
             .saturating_add(1);
-        if draft.note_items.len() >= MAX_NOTES {
+        if current.is_none() && draft.note_items.len() >= MAX_NOTES {
             return Err(ControlError::invalid("note_limit", "note limit is reached"));
         }
+        let replaced_bytes = current
+            .and_then(|version| self.items.get(&(note_id.to_owned(), version)))
+            .map_or(0, |record| record.content.len());
         let total_note_bytes = draft
             .note_items
             .iter()
             .filter_map(|item| self.items.get(&(item.item_id.clone(), item.version)))
             .map(|record| record.content.len())
             .sum::<usize>();
-        if total_note_bytes.saturating_add(text.len()) > MAX_TOTAL_NOTE_BYTES {
+        if total_note_bytes
+            .saturating_sub(replaced_bytes)
+            .saturating_add(text.len())
+            > MAX_TOTAL_NOTE_BYTES
+        {
             return Err(ControlError::invalid(
                 "note_budget",
                 "aggregate note budget is exceeded",
@@ -1115,6 +1294,26 @@ impl ControlPlane {
     }
 
     fn editable_item(&self, item: &ItemRef) -> Result<&ItemRecord, ControlError> {
+        let record = self.retained_item(item)?;
+        if record.protected {
+            return Err(ControlError::forbidden(
+                "protected_item",
+                record
+                    .locked_reason
+                    .clone()
+                    .unwrap_or_else(|| "item is host-owned".to_owned()),
+            ));
+        }
+        if record.expires_at <= self.now || record.content.is_empty() {
+            return Err(ControlError::conflict(
+                "content_unavailable",
+                "editable content is expired or unavailable",
+            ));
+        }
+        Ok(record)
+    }
+
+    fn retained_item(&self, item: &ItemRef) -> Result<&ItemRecord, ControlError> {
         if !item.valid() {
             return Err(ControlError::invalid(
                 "invalid_item",
@@ -1135,21 +1334,6 @@ impl ControlPlane {
             return Err(ControlError::forbidden(
                 "scope_mismatch",
                 "item is outside this run",
-            ));
-        }
-        if record.protected {
-            return Err(ControlError::forbidden(
-                "protected_item",
-                record
-                    .locked_reason
-                    .clone()
-                    .unwrap_or_else(|| "item is host-owned".to_owned()),
-            ));
-        }
-        if record.expires_at <= self.now || record.content.is_empty() {
-            return Err(ControlError::conflict(
-                "content_unavailable",
-                "editable content is expired or unavailable",
             ));
         }
         Ok(record)

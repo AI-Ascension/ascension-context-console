@@ -9,6 +9,7 @@ const OBJECTIVE_TOKEN = "fixture-objective-token";
 const CSRF_TOKEN = "fixture-csrf-token";
 const status = document.querySelector("#status");
 let controlState;
+let controlCapabilities;
 let currentDraft;
 let currentPreview;
 let commandCounter = 0;
@@ -180,7 +181,28 @@ async function controlJson(path, options = {}) {
   return value;
 }
 
-function renderControl(capabilities, stateValue, items) {
+function setManagementControls(enabled) {
+  ["create-draft", "save-draft", "preview-draft", "pause-run", "commit-draft", "resume-run", "restore-draft", "remove-note"]
+    .forEach((id) => { document.querySelector(`#${id}`).disabled = !enabled; });
+}
+
+function syncDraftSelections() {
+  if (!currentDraft) return;
+  const selected = new Set(currentDraft.selected_items.map(itemKey));
+  const pinned = new Set(currentDraft.pinned_item_ids);
+  document.querySelectorAll("#eligible-rows input.context-select").forEach((input) => {
+    input.checked = selected.has(input.dataset.item && itemKey(JSON.parse(input.dataset.item)));
+  });
+  document.querySelectorAll("#eligible-rows input.context-pin").forEach((input) => {
+    const item = JSON.parse(input.dataset.item);
+    const selectedItem = selected.has(itemKey(item));
+    input.checked = selectedItem && pinned.has(item.item_id);
+    input.disabled = !selectedItem;
+  });
+}
+
+function renderControl(capabilities, stateValue, items, revisions) {
+  controlCapabilities = capabilities;
   controlState = stateValue;
   showText("#management-badge", capabilities.enabled ? "management enabled" : "legacy mode");
   showText("#control-status", stateValue.status);
@@ -193,32 +215,64 @@ function renderControl(capabilities, stateValue, items) {
   items.items.forEach((entry) => {
     const row = document.createElement("tr");
     const useCell = document.createElement("td");
+    const pinCell = document.createElement("td");
     if (entry.protected || !entry.content_available) {
       useCell.textContent = "locked";
+      pinCell.textContent = "locked";
     } else {
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.dataset.item = JSON.stringify(entry.item);
-      input.setAttribute("aria-label", `Include ${entry.item.item_id}`);
-      useCell.append(input);
+      const useInput = document.createElement("input");
+      useInput.type = "checkbox";
+      useInput.className = "context-select";
+      useInput.dataset.item = JSON.stringify(entry.item);
+      useInput.setAttribute("aria-label", `Include ${entry.item.item_id}`);
+      const pinInput = document.createElement("input");
+      pinInput.type = "checkbox";
+      pinInput.className = "context-pin";
+      pinInput.dataset.item = JSON.stringify(entry.item);
+      pinInput.setAttribute("aria-label", `Pin ${entry.item.item_id}`);
+      useInput.addEventListener("change", () => {
+        pinInput.disabled = !useInput.checked;
+        if (!useInput.checked) pinInput.checked = false;
+      });
+      useCell.append(useInput);
+      pinCell.append(pinInput);
     }
     row.append(useCell);
+    row.append(pinCell);
     [entry.item.item_id, entry.kind, entry.item.version, entry.protected ? (entry.locked_reason || "protected") : "editable"]
       .forEach((value) => { const cell = document.createElement("td"); cell.textContent = String(value); row.append(cell); });
     rows.append(row);
   });
+  const restoreSource = document.querySelector("#restore-source");
+  restoreSource.replaceChildren();
+  revisions.revisions.slice().sort((left, right) => right.sequence - left.sequence).forEach((revision) => {
+    const option = document.createElement("option");
+    option.value = revision.revision_id;
+    option.textContent = `${revision.revision_id} · ${revision.state_after_commit}`;
+    restoreSource.append(option);
+  });
+  setManagementControls(capabilities.enabled);
+  if (!currentDraft) {
+    document.querySelector("#save-draft").disabled = true;
+    document.querySelector("#preview-draft").disabled = true;
+    document.querySelector("#restore-draft").disabled = true;
+    document.querySelector("#remove-note").disabled = true;
+  }
+  document.querySelector("#commit-draft").disabled = !currentPreview?.applicable || !capabilities.enabled;
+  syncDraftSelections();
   document.querySelector("#control-panel").hidden = false;
   document.querySelector("#eligible").hidden = false;
   document.querySelector("#editor").hidden = false;
 }
 
 async function refreshControl() {
-  const [capabilities, stateValue, items] = await Promise.all([
+  const [capabilities, stateValue, items, revisions] = await Promise.all([
     controlJson("/capabilities"),
     controlJson("/state"),
     controlJson("/eligible-items"),
+    controlJson("/revisions"),
   ]);
-  renderControl(capabilities, stateValue, items);
+  renderControl(capabilities, stateValue, items, revisions);
   return stateValue;
 }
 
@@ -248,8 +302,12 @@ function command(kind, extra = {}) {
 function renderDraft(draft) {
   currentDraft = draft;
   showText("#draft-version", `Draft ${draft.draft_id} · version ${draft.version}`);
-  document.querySelector("#save-draft").disabled = false;
-  document.querySelector("#preview-draft").disabled = false;
+  document.querySelector("#save-draft").disabled = !controlCapabilities?.enabled;
+  document.querySelector("#preview-draft").disabled = !controlCapabilities?.enabled;
+  document.querySelector("#restore-draft").disabled = !controlCapabilities?.enabled;
+  document.querySelector("#remove-note").disabled = !controlCapabilities?.enabled
+    || !draft.note_items.some((item) => item.item_id === "note-browser");
+  syncDraftSelections();
 }
 
 function renderPreview(preview) {
@@ -258,6 +316,7 @@ function renderPreview(preview) {
   showText("#prepared-digest", preview.prepared_manifest_sha256);
   showText("#preview-components", preview.components.length ? preview.components.map((item) => `${item.kind}:${item.bytes} B`).join(", ") : "none");
   showText("#preview-budget", `${preview.budget_status}${preview.unknown_total_risk_acknowledged ? " · risk acknowledged" : ""}`);
+  showText("#preview-provider-context", preview.provider_added_context);
   showText("#preview-badge", preview.applicable ? "applicable" : "exploratory / blocked");
   const diff = { blockers: preview.blockers, selected_items: preview.selected_items, components: preview.components };
   document.querySelector("#preview-diff").textContent = JSON.stringify(diff, null, 2);
@@ -273,7 +332,13 @@ async function createDraft() {
 }
 
 function selectedItems() {
-  return [...document.querySelectorAll("#eligible-rows input[type=checkbox]:checked")].map((input) => JSON.parse(input.dataset.item));
+  return [...document.querySelectorAll("#eligible-rows input.context-select:checked")]
+    .map((input) => JSON.parse(input.dataset.item));
+}
+
+function pinnedItems() {
+  return [...document.querySelectorAll("#eligible-rows input.context-pin:checked")]
+    .map((input) => JSON.parse(input.dataset.item));
 }
 
 function itemKey(item) {
@@ -282,8 +347,27 @@ function itemKey(item) {
 
 async function saveDraft() {
   if (!currentDraft) return;
+  const selected = selectedItems();
+  const selectedKeys = new Set(selected.map(itemKey));
   const existing = new Set(currentDraft.selected_items.map(itemKey));
-  const operations = selectedItems().filter((item) => !existing.has(itemKey(item))).map((item) => ({ op: "include_item", item }));
+  const visible = new Map([...document.querySelectorAll("#eligible-rows input.context-select")]
+    .map((input) => {
+      const item = JSON.parse(input.dataset.item);
+      return [item.item_id, item];
+    }));
+  const operations = selected
+    .filter((item) => !existing.has(itemKey(item)))
+    .map((item) => ({ op: "include_item", item }));
+  const desiredPinned = new Set(pinnedItems().map((item) => item.item_id));
+  currentDraft.pinned_item_ids
+    .filter((itemId) => visible.has(itemId) && !desiredPinned.has(itemId))
+    .forEach((itemId) => operations.push({ op: "unpin_item", item: visible.get(itemId) }));
+  pinnedItems()
+    .filter((item) => !currentDraft.pinned_item_ids.includes(item.item_id))
+    .forEach((item) => operations.push({ op: "pin_item", item }));
+  currentDraft.selected_items
+    .filter((item) => visible.has(item.item_id) && !selectedKeys.has(itemKey(item)))
+    .forEach((item) => operations.push({ op: "exclude_item", item }));
   const note = document.querySelector("#note-text").value;
   const existingNote = currentDraft.note_items.find((item) => item.item_id === "note-browser");
   if (note) operations.push({ op: "put_note", note_id: "note-browser", expected_note_version: existingNote?.version ?? null, text: note, expires_at: "2030-01-01T00:00:00Z" });
@@ -292,8 +376,57 @@ async function saveDraft() {
   if (!operations.length) { setDraftMessage("Select an editable item or enter a bounded note first.", true); return; }
   try {
     renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, { token: objective ? OBJECTIVE_TOKEN : CONTROL_TOKEN, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schema: "ascension.context-control.patch.v1", scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, expected_active_revision_id: controlState.active_revision_id, operations }) }));
+    currentPreview = null;
+    document.querySelector("#commit-draft").disabled = true;
     setDraftMessage("Draft saved; any prior preview is invalid.");
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "draft save failed", true); }
+}
+
+async function restoreDraft() {
+  if (!currentDraft) { setDraftMessage("Start a draft before restoring a configuration.", true); return; }
+  const sourceRevisionId = document.querySelector("#restore-source").value;
+  if (!sourceRevisionId) { setDraftMessage("Choose a retained revision to restore.", true); return; }
+  try {
+    renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema: "ascension.context-control.patch.v1",
+        scope: scopeForControl(),
+        draft_id: currentDraft.draft_id,
+        expected_draft_version: currentDraft.version,
+        expected_active_revision_id: controlState.active_revision_id,
+        operations: [{ op: "restore_configuration", source_revision_id: sourceRevisionId }],
+      }),
+    }));
+    document.querySelector("#note-text").value = "";
+    document.querySelector("#objective-text").value = "";
+    currentPreview = null;
+    document.querySelector("#commit-draft").disabled = true;
+    setDraftMessage("Configuration restored into the draft; preview it again before commit.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "restore failed", true); }
+}
+
+async function removeNote() {
+  if (!currentDraft) return;
+  const note = currentDraft.note_items.find((item) => item.item_id === "note-browser");
+  if (!note) return;
+  try {
+    renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema: "ascension.context-control.patch.v1",
+        scope: scopeForControl(),
+        draft_id: currentDraft.draft_id,
+        expected_draft_version: currentDraft.version,
+        expected_active_revision_id: controlState.active_revision_id,
+        operations: [{ op: "remove_note", note_id: note.item_id, expected_note_version: note.version }],
+      }),
+    }));
+    document.querySelector("#note-text").value = "";
+    setDraftMessage("Operator note removed from the draft; preview it again before commit.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "note removal failed", true); }
 }
 
 async function makePreview() {
@@ -317,6 +450,7 @@ async function commitDraft() {
   if (!currentPreview || !currentPreview.applicable) return;
   try {
     const receipt = await controlJson("/commits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("commit", { expected_active_revision_id: controlState.active_revision_id, preview_id: currentPreview.preview_id, approved_manifest_sha256: currentPreview.prepared_manifest_sha256 })) });
+    currentPreview = null;
     await refreshControl();
     setDraftMessage(`Commit ${receipt.status}: revision ${receipt.active_revision_id} is durable while paused.`);
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "commit failed", true); }
@@ -339,6 +473,8 @@ async function loadControl() {
     document.querySelector("#pause-run").addEventListener("click", pauseRun);
     document.querySelector("#commit-draft").addEventListener("click", commitDraft);
     document.querySelector("#resume-run").addEventListener("click", resumeRun);
+    document.querySelector("#restore-draft").addEventListener("click", restoreDraft);
+    document.querySelector("#remove-note").addEventListener("click", removeNote);
   } catch (error) {
     document.querySelector("#control-message").textContent = error instanceof Error ? error.message : "management control is unavailable";
   }

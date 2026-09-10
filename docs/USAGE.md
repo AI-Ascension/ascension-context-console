@@ -26,6 +26,11 @@ while held, and resume explicitly. It never calls a provider or game. For HTTP r
 `integrated-demo 0` and use the `/v2/runs/fixture-run/context-control/` routes with the fixture
 editor capability and exact loopback Origin/CSRF headers.
 
+The browser editor exposes the same typed operations: editable rows can be included, excluded,
+and pinned or unpinned; a retained revision can be restored into the current draft; and an
+attributed browser note can be removed with its expected version. Restore and removal invalidate
+any prior preview and never change a host snapshot or game state.
+
 For the integrated synthetic browser path, run `tools/integrated_browser_audit.cjs` with the
 Playwright module and Chromium library environment shown in [DEMO.md](DEMO.md). It starts the
 loopback `integrated-demo` server and verifies that the browser receives API-derived projections

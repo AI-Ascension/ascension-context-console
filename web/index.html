@@ -99,7 +99,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th scope="col">Use</th><th scope="col">Item</th><th scope="col">Kind</th><th scope="col">Version</th><th scope="col">Access</th></tr></thead>
+            <thead><tr><th scope="col">Use</th><th scope="col">Pin</th><th scope="col">Item</th><th scope="col">Kind</th><th scope="col">Version</th><th scope="col">Access</th></tr></thead>
             <tbody id="eligible-rows"></tbody>
           </table>
         </div>
@@ -115,6 +115,13 @@
           <textarea id="note-text" rows="3" maxlength="4096" placeholder="Optional note; it remains operator attributed."></textarea>
           <label for="objective-text">Objective override (separate permission)</label>
           <textarea id="objective-text" rows="2" maxlength="512" placeholder="Requires the objective scope."></textarea>
+        </div>
+        <div class="restore-row">
+          <label for="restore-source">Restore an earlier configuration into this draft</label>
+          <select id="restore-source" aria-describedby="restore-help"></select>
+          <button id="restore-draft" type="button" disabled>Restore as draft</button>
+          <button id="remove-note" type="button" disabled>Remove browser note</button>
+          <span id="restore-help" class="muted">Restore is exclusive and never rolls back host state.</span>
         </div>
         <div class="button-row">
           <button id="create-draft" type="button">Start draft</button>
@@ -137,6 +144,7 @@
           <div><dt>Prepared digest</dt><dd id="prepared-digest"></dd></div>
           <div><dt>Components</dt><dd id="preview-components"></dd></div>
           <div><dt>Budget</dt><dd id="preview-budget"></dd></div>
+          <div><dt>Provider-added context</dt><dd id="preview-provider-context"></dd></div>
         </dl>
         <pre id="preview-diff" class="preview-diff" tabindex="0"></pre>
       </section>

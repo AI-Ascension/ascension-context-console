@@ -39,6 +39,7 @@ demo only and never shares read capabilities with writes:
 | `/v2/runs/{run_id}/context-control/capabilities` | Enabled profile, supported operations, and explicit non-goals. |
 | `/v2/runs/{run_id}/context-control/state` | Current pause latch, revision, plan epoch, and observed boundary. |
 | `/v2/runs/{run_id}/context-control/eligible-items` | Scoped editable items and locked-item explanations. |
+| `/v2/runs/{run_id}/context-control/revisions` | Immutable approved configuration history for restore selection. |
 | `/v2/runs/{run_id}/context-control/drafts` | Create a versioned draft from the active revision. |
 | `/v2/runs/{run_id}/context-control/drafts/{draft_id}/operations` | Apply bounded include/exclude/pin/note/objective/restore operations with draft CAS. |
 | `/v2/runs/{run_id}/context-control/previews` | Build an exploratory or held-boundary immutable preview without inference. |

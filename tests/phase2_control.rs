@@ -3,6 +3,7 @@
 use context_service::{
     ControlCommand, ControlError, ControlOperation, ControlPatch, ControlPlane, ControlScope,
 };
+use serde_json::Value;
 
 const COMMAND_SCHEMA: &str = "ascension.context-control.command.v1";
 const PATCH_SCHEMA: &str = "ascension.context-control.patch.v1";
@@ -174,6 +175,154 @@ fn objective_authorization_and_restore_alone_are_enforced() {
     assert_eq!(
         mixed_restore.expect_err("restore is exclusive").code,
         "restore_must_be_alone"
+    );
+    let protected_alias = plane.apply_patch(
+        patch(
+            &plane,
+            &created.draft_id,
+            1,
+            vec![ControlOperation::PutNote {
+                note_id: "locked-state".to_owned(),
+                expected_note_version: None,
+                text: "alias".to_owned(),
+                expires_at: "2030-01-01T00:00:00Z".to_owned(),
+            }],
+        ),
+        "operator-fixture",
+        false,
+    );
+    assert_eq!(
+        protected_alias
+            .expect_err("notes cannot alias protected identities")
+            .code,
+        "protected_item"
+    );
+}
+
+#[test]
+fn pinning_requires_selection_and_restore_is_a_new_configuration_draft() {
+    let mut plane = ControlPlane::synthetic();
+    let created = draft(&mut plane);
+    let history = history_item(&plane);
+    let pinned = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &created.draft_id,
+                created.version,
+                vec![ControlOperation::PinItem {
+                    item: history.clone(),
+                }],
+            ),
+            "operator-fixture",
+            false,
+        )
+        .expect_err("pinning an unselected item must fail");
+    assert_eq!(pinned.code, "pin_requires_selection");
+
+    let selected = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &created.draft_id,
+                created.version,
+                vec![ControlOperation::IncludeItem {
+                    item: history.clone(),
+                }],
+            ),
+            "operator-fixture",
+            false,
+        )
+        .expect("select history");
+    let pinned = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &created.draft_id,
+                selected.version,
+                vec![ControlOperation::PinItem { item: history }],
+            ),
+            "operator-fixture",
+            false,
+        )
+        .expect("pin selected item");
+    let excluded = plane.apply_patch(
+        patch(
+            &plane,
+            &created.draft_id,
+            pinned.version,
+            vec![ControlOperation::ExcludeItem {
+                item: history_item(&plane),
+            }],
+        ),
+        "operator-fixture",
+        false,
+    );
+    assert_eq!(
+        excluded
+            .expect_err("pinned item must be unpinned first")
+            .code,
+        "pinned_item"
+    );
+
+    let restored = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &created.draft_id,
+                pinned.version,
+                vec![ControlOperation::RestoreConfiguration {
+                    source_revision_id: "revision-1".to_owned(),
+                }],
+            ),
+            "operator-fixture",
+            false,
+        )
+        .expect("restore source revision as draft");
+    assert_eq!(restored.base_revision_id, "revision-1");
+    assert!(restored.selected_items.is_empty());
+    assert!(restored.pinned_item_ids.is_empty());
+    assert_ne!(restored.draft_id, "revision-1");
+}
+
+#[test]
+fn journal_recovery_rejects_tampered_or_duplicate_retained_items() {
+    let plane = ControlPlane::synthetic();
+    let journal = plane.export_journal().expect("journal");
+    let mut tampered: Value = serde_json::from_slice(&journal).expect("journal JSON");
+    let first = tampered
+        .get_mut("items")
+        .and_then(Value::as_array_mut)
+        .and_then(|items| items.first_mut())
+        .and_then(Value::as_array_mut)
+        .and_then(|entry| entry.get_mut(1))
+        .and_then(Value::as_object_mut)
+        .expect("item record");
+    first.insert(
+        "content".to_owned(),
+        serde_json::json!([116, 97, 109, 112, 101, 114, 101, 100]),
+    );
+    let tampered = serde_json::to_vec(&tampered).expect("tampered journal");
+    assert_eq!(
+        ControlPlane::recover_journal(&tampered)
+            .expect_err("content digest mismatch must be rejected")
+            .code,
+        "journal_invalid"
+    );
+
+    let mut duplicate: Value = serde_json::from_slice(&journal).expect("journal JSON");
+    let items = duplicate
+        .get_mut("items")
+        .and_then(Value::as_array_mut)
+        .expect("items");
+    let first = items.first().cloned().expect("first item");
+    items.push(first);
+    let duplicate = serde_json::to_vec(&duplicate).expect("duplicate journal");
+    assert_eq!(
+        ControlPlane::recover_journal(&duplicate)
+            .expect_err("duplicate item references must be rejected")
+            .code,
+        "journal_invalid"
     );
 }
 
@@ -425,6 +574,18 @@ fn identical_configuration_commit_returns_no_change_without_epoch_churn() {
     assert_eq!(plane.state().control_version, before_control_version);
     assert_eq!(plane.state().status, "paused_ready");
     assert!(plane.prepared_input().is_none());
+    let mut resume = command(
+        &plane,
+        "resume",
+        "resume-no-change",
+        plane.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(before_revision);
+    resume.expected_preview_id = Some(preview.preview_id);
+    assert_eq!(
+        plane.resume(resume).expect("resume after no-change").effect,
+        "resume_accepted"
+    );
 }
 
 #[test]
@@ -530,4 +691,25 @@ fn safe_deactivation_preserves_revision_pause_and_journal() {
     assert!(!recovered.enabled());
     assert!(recovered.state().pause_latched);
     assert_eq!(recovered.state().active_revision_id, revision);
+}
+
+#[test]
+fn expired_command_window_rejects_replay_without_mutation() {
+    let mut plane = ControlPlane::synthetic();
+    plane.advance_time(3_601);
+    let command = command(
+        &plane,
+        "pause",
+        "pause-expired-window",
+        plane.state().control_version,
+    );
+    assert_eq!(
+        plane
+            .pause(command)
+            .expect_err("expired command window")
+            .code,
+        "command_window_expired"
+    );
+    assert_eq!(plane.state().status, "running");
+    assert!(!plane.state().pause_latched);
 }
