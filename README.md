@@ -26,8 +26,10 @@ cargo run --locked --package context-service --bin context-console -- phase2-dem
 The browser fixture can be served from the repository root with any static file server and opened
 at `/web/`. It reads only the checked-in synthetic bundle. A local Chromium run is recorded in
 [`docs/evidence/browser-ui-20260910.json`](docs/evidence/browser-ui-20260910.json) with desktop and
-narrow screenshots. See [docs/DEMO.md](docs/DEMO.md), [docs/API.md](docs/API.md), and
-[docs/SECURITY.md](docs/SECURITY.md) for the evidence boundary and operational limits.
+narrow screenshots. The Phase 2 control workflow audit and its sanitized screenshots are recorded
+in `docs/evidence/phase2-browser-ui-20260910.json`. See [docs/DEMO.md](docs/DEMO.md),
+[docs/API.md](docs/API.md), and [docs/SECURITY.md](docs/SECURITY.md) for the evidence boundary and
+operational limits.
 
 The integrated synthetic review is available through `context-console integrated-demo 0`. It
 serves the browser and routes its declared `/demo/*` artifacts through the authenticated read API

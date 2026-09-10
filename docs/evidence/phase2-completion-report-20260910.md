@@ -8,9 +8,13 @@ The implementation is disabled outside the synthetic management fixture. The tar
 
 ## Gates and demonstrations
 
-The target and companion each passed `cargo fmt --all -- --check`, strict repository policy, `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`, `cargo test --workspace --all-targets --all-features --locked`, and locked cargo metadata. The target `phase2-demo` passed with `provider_calls=0` and `game_launches=0`; its prepared manifest is `734b79c24a125e465e72be6004193345bc2aa3f6e290e18df88e49a19d316f9b`. Loopback API probes passed capabilities/state, CSRF rejection, duplicate-key rejection, and a valid write. The package verifier and bounded reference model passed; the optional schema fixture validator is unavailable because Python `jsonschema` is not installed.
+The target and companion each passed `cargo fmt --all -- --check`, strict repository policy, `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`, `cargo test --workspace --all-targets --all-features --locked`, and locked cargo metadata. The target `phase2-demo` passed with `provider_calls=0` and `game_launches=0`; its prepared manifest is `734b79c24a125e465e72be6004193345bc2aa3f6e290e18df88e49a19d316f9b`. Loopback API probes passed capabilities/state, CSRF rejection, duplicate-key rejection, and a valid write. The package verifier, schema fixtures (15 schemas, 17 valid vectors, 28 rejected vectors), and bounded reference model passed.
 
-The browser audit is explicitly unverified because Playwright is unavailable and the available browser cannot load `libglib-2.0.so.0`. Native depth-2/3 Luna/max descendants and reservation metadata were unavailable; see `docs/evidence/phase2-native-preflight-20260910.json`.
+The Phase 2 browser audit now passes with the bounded Chromium/Playwright environment: it exercises
+draft save, note/objective entry, exploratory and applicable previews, pause, commit-while-paused,
+explicit resume, control events, zero provider/game effects, storage, network, keyboard and narrow
+layout assertions. Native depth-2/3 Luna/max descendants and reservation metadata remain unavailable;
+see `docs/evidence/phase2-native-preflight-20260910.json`.
 
 ## Requirement index
 
@@ -67,7 +71,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R047 | source-reviewed | Finite limits cover commands, notes, items, components, previews, events and journal. |
 | P2-R048 | source-reviewed | Phase1 memory capture remains explicitly separate from durable control journal. |
 | P2-R049 | executed | Receipt effects distinguish pause, commit, resume and preview state. |
-| P2-R050 | unverified | Browser audit could not launch because Playwright/host GLib dependencies are unavailable. |
+| P2-R050 | executed | Phase 2 Playwright audit covers disabled/control/error UI and same-origin security assertions. |
 | P2-R051 | source-reviewed | CLI demo uses the same typed control reducer; a separate remote CLI is not claimed. |
 | P2-R052 | executed | Relations bind revision, preview, snapshot, execution, attempt and intervention IDs. |
 | P2-R053 | source-reviewed | Intervention lineage is retained on revisions and relations after restore. |
@@ -76,7 +80,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R056 | executed | Target fault/state tests and bounded reference model cover ordering and rejection transitions. |
 | P2-R057 | executed | Compiled Astra/Ollama/Exo fake peers verify final serialized input. |
 | P2-R058 | executed | Target demo and control tests report zero provider calls/game launches for management operations. |
-| P2-R059 | unverified | Browser network/storage/accessibility run is documented but unavailable on this host. |
+| P2-R059 | executed | Phase 2 Playwright audit verifies network, storage, keyboard, reduced-motion and narrow layout. |
 | P2-R060 | executed | This report, evidence JSON, pinned contracts, clean commits and draft PRs reconcile the handoff. |
 | P2-R061 | executed | README/API/DEMO/USAGE/TESTING/decision docs give bounded run and recovery instructions. |
 | P2-R062 | executed | Report separates local, synthetic-process, browser, native and live evidence classes. |
@@ -88,4 +92,3 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 The target Phase 2 integration tests cover protected edits, draft CAS, objective authorization, restore exclusivity, exploratory/applicable preview, pause/commit/resume, stale boundaries, idempotent receipts, changed-body conflicts, journal recovery, disabled mode, and stop dominance. The companion tests cover prepared Exo bytes, legacy parity, control recovery, and actual serialized Ollama/Astra bridge inputs. The package’s bounded reference model additionally checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate Rust storage, authentication, provider behavior, game effects, or native topology.
 
 No production migration or rollback claim is made because this fixture uses bounded in-memory state. A maintainer should review the two draft PRs, rerun the documented gates, install `jsonschema` for schema fixtures, and provide the missing browser/native environment before treating those rows as verified.
-

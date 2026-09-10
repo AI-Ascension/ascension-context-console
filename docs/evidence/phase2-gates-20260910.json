@@ -24,8 +24,12 @@
       "valid_loopback_write": "passed"
     },
     "browser_audit": {
-      "status": "unavailable",
-      "reason": "Playwright is not installed; the available module also cannot launch because libglib-2.0.so.0 is absent."
+      "status": "passed",
+      "command": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
+      "workflow": "draft_saved_exploratory_preview_pause_applicable_preview_commit_paused_explicit_resume",
+      "provider_calls": 0,
+      "game_launches": 0,
+      "external_requests": 0
     }
   },
   "companion": {
@@ -42,8 +46,12 @@
     "python3_tools_verify_package": "passed",
     "bounded_reference_model": "passed_bounded_reference_only",
     "schema_fixture_validation": {
-      "status": "unavailable",
-      "reason": "The jsonschema Python package is not installed."
+      "status": "passed",
+      "schema_files": 15,
+      "valid_vectors": 17,
+      "rejected_vectors": 28,
+      "semantic_rejections": 15,
+      "frozen_phase1_vectors": 3
     }
   }
 }

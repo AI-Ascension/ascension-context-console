@@ -192,7 +192,7 @@ async function run() {
       case_ids: ['INTEGRATED-NORMAL-001', 'INTEGRATED-ADVERSARIAL-001', 'INTEGRATED-MANIFEST-PATH-001'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
-        branch: 'phase1/t02-bootstrap',
+        branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
         revision: require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
       },
       platform: {

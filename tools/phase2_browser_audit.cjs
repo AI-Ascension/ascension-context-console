@@ -1,0 +1,199 @@
+// SPDX-License-Identifier: MIT
+
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
+
+const root = path.resolve(__dirname, '..');
+const evidenceDir = path.join(root, 'docs', 'evidence');
+const playwrightModule = process.env.PLAYWRIGHT_MODULE || 'playwright';
+const { chromium } = require(playwrightModule);
+
+function digest(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function waitForServer(child) {
+  return new Promise((resolve, reject) => {
+    let output = '';
+    const onData = (chunk) => {
+      output += chunk.toString();
+      const line = output.split(/\r?\n/).find((value) => value.startsWith('integrated_demo_ready='));
+      if (line) {
+        child.stdout.off('data', onData);
+        resolve(line.slice('integrated_demo_ready='.length).trim());
+      }
+    };
+    child.stdout.on('data', onData);
+    child.once('error', reject);
+    child.once('exit', (code, signal) => reject(new Error(`server exited before readiness: ${code}/${signal}`)));
+  });
+}
+
+async function stopServer(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  child.kill('SIGTERM');
+  await new Promise((resolve) => child.once('exit', resolve));
+}
+
+async function run() {
+  const child = spawn(
+    process.env.CONTEXT_CONSOLE_BIN || 'cargo',
+    process.env.CONTEXT_CONSOLE_BIN
+      ? []
+      : ['run', '--locked', '--package', 'context-service', '--bin', 'context-console', '--', 'integrated-demo', '0'],
+    { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  let serverStderr = '';
+  child.stderr.on('data', (chunk) => { serverStderr += chunk.toString(); });
+  let browser;
+  try {
+    const readyUrl = await waitForServer(child);
+    const base = new URL(readyUrl).origin;
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({
+      baseURL: base,
+      reducedMotion: 'reduce',
+      viewport: { width: 1440, height: 1000 },
+    });
+    const page = await context.newPage();
+    const requests = [];
+    const consoleErrors = [];
+    const pageErrors = [];
+    page.on('request', (request) => requests.push(request.url()));
+    page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+    page.on('pageerror', (error) => pageErrors.push(String(error)));
+
+    await page.goto('/web/', { waitUntil: 'networkidle' });
+    await page.waitForSelector('#control-panel:not([hidden])');
+    assert.equal(await page.locator('#management-badge').textContent(), 'management enabled');
+    assert.equal(await page.locator('#control-status').textContent(), 'running');
+    assert.ok(await page.locator('#eligible-rows input[type=checkbox]').count() >= 1);
+
+    await page.locator('#create-draft').click();
+    await page.waitForFunction(() => document.querySelector('#draft-version').textContent.includes('version 1'));
+    await page.locator('#eligible-rows input[type=checkbox]').first().check();
+    await page.locator('#note-text').fill('Browser operator note for the controlled fixture.');
+    await page.locator('#objective-text').fill('Preserve the fixture while choosing visible legal actions.');
+    await page.locator('#save-draft').click();
+    await page.waitForFunction(() => document.querySelector('#draft-message').textContent.includes('Draft saved'));
+    assert.match(await page.locator('#draft-version').textContent(), /version 2/);
+
+    await page.locator('#preview-draft').click();
+    await page.waitForFunction(() => document.querySelector('#preview-badge').textContent.includes('exploratory'));
+    assert.equal(await page.locator('#commit-draft').isDisabled(), true);
+
+    await page.locator('#pause-run').click();
+    await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'paused_ready');
+    await page.locator('#preview-draft').click();
+    await page.waitForFunction(() => document.querySelector('#preview-badge').textContent === 'applicable');
+    assert.equal(await page.locator('#commit-draft').isDisabled(), false);
+    assert.notEqual(await page.locator('#prepared-digest').textContent(), 'unavailable');
+    assert.match(await page.locator('#preview-diff').textContent(), /note-browser/);
+
+    await page.locator('#commit-draft').click();
+    await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'paused_committed');
+    assert.match(await page.locator('#draft-message').textContent(), /durable while paused/);
+    await page.locator('#resume-run').click();
+    await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'running');
+    assert.match(await page.locator('#draft-message').textContent(), /Resume/);
+
+    const events = await page.evaluate(async () => (await fetch('/v2/runs/fixture-run/context-control/events', { cache: 'no-store', headers: { Authorization: 'Bearer fixture-editor-token' } })).json());
+    const eventTypes = events.events.map((event) => event.event_type);
+    for (const expected of ['draft.updated', 'preview.built', 'pause.accepted', 'pause.ready', 'revision.committed', 'plan.retired', 'resume.accepted']) {
+      assert.ok(eventTypes.includes(expected), `missing control event ${expected}`);
+    }
+    const revisions = await page.evaluate(async () => (await fetch('/v2/runs/fixture-run/context-control/revisions', { cache: 'no-store', headers: { Authorization: 'Bearer fixture-editor-token' } })).json());
+    assert.ok(revisions.revisions.length >= 2);
+    const metrics = await page.evaluate(async () => (await fetch('/demo/metrics', { cache: 'no-store' })).json());
+    assert.equal(metrics.provider_calls, 0);
+    assert.equal(metrics.game_launches, 0);
+    assert.equal(metrics.external_requests, 0);
+    assert.equal(metrics.management_enabled, true);
+    assert.ok(metrics.control_events >= 7);
+
+    const storage = await page.evaluate(async () => ({
+      localStorageEntries: localStorage.length,
+      sessionStorageEntries: sessionStorage.length,
+      indexedDbDatabases: typeof indexedDB.databases === 'function' ? (await indexedDB.databases()).length : 0,
+      cacheNames: await caches.keys(),
+    }));
+    assert.equal(storage.localStorageEntries, 0);
+    assert.equal(storage.sessionStorageEntries, 0);
+    assert.equal(storage.indexedDbDatabases, 0);
+    assert.deepEqual(storage.cacheNames, []);
+    assert.deepEqual(consoleErrors, []);
+    assert.deepEqual(pageErrors, []);
+    assert.deepEqual(requests.filter((url) => !url.startsWith(base)), []);
+
+    await page.evaluate(() => document.fonts.ready);
+    const desktopPath = path.join(evidenceDir, 'phase2-browser-desktop-20260910.png');
+    const narrowPath = path.join(evidenceDir, 'phase2-browser-narrow-20260910.png');
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    await page.screenshot({ path: desktopPath, fullPage: true });
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: narrowPath, fullPage: true });
+    const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    assert.equal(horizontalOverflow, false);
+
+    const evidence = {
+      schema: 'ascension.phase2-browser-evidence.v1',
+      evidence_id: 'PHASE2-BROWSER-20260910',
+      requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R045', 'P2-R050', 'P2-R059'],
+      case_ids: ['P2-F001', 'P2-F003', 'P2-F005', 'P2-F011', 'P2-F017', 'P2-F022', 'P2-F031'],
+      repository: {
+        name: 'AI-Ascension/ascension-context-console',
+        branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
+        revision: require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+      },
+      command: {
+        server: 'cargo run --locked --package context-service --bin context-console -- integrated-demo 0',
+        audit: `FONTCONFIG_PATH=${process.env.FONTCONFIG_PATH || '<unset>'} FONTCONFIG_FILE=${process.env.FONTCONFIG_FILE || '<unset>'} XDG_DATA_DIRS=${process.env.XDG_DATA_DIRS || '<unset>'} LD_LIBRARY_PATH=${process.env.LD_LIBRARY_PATH || '<unset>'} PLAYWRIGHT_MODULE=${playwrightModule} node tools/phase2_browser_audit.cjs`,
+      },
+      result: 'passed',
+      evidence_class: ['synthetic', 'native', 'browser'],
+      tool: `Playwright ${require(`${playwrightModule}/package.json`).version}`,
+      browser: await browser.version(),
+      base_url: base,
+      workflow: ['draft_created', 'draft_saved', 'exploratory_preview', 'pause_ready', 'applicable_preview', 'commit_paused', 'explicit_resume'],
+      event_types: eventTypes,
+      requests,
+      storage,
+      horizontal_overflow_narrow: horizontalOverflow,
+      console_errors: consoleErrors,
+      page_errors: pageErrors,
+      integration_metrics: metrics,
+      assertions: {
+        exact_control_workflow: true,
+        objective_and_note_delivered: true,
+        applicable_preview_has_digest: true,
+        commit_remains_paused: true,
+        resume_is_explicit: true,
+        zero_provider_calls: metrics.provider_calls === 0,
+        zero_game_launches: metrics.game_launches === 0,
+        zero_external_requests: metrics.external_requests === 0,
+        no_browser_persistence: true,
+        no_horizontal_overflow_narrow: true,
+      },
+      artifacts: [
+        { path: 'docs/evidence/phase2-browser-desktop-20260910.png', sha256: digest(desktopPath) },
+        { path: 'docs/evidence/phase2-browser-narrow-20260910.png', sha256: digest(narrowPath) },
+      ],
+    };
+    fs.writeFileSync(path.join(evidenceDir, 'phase2-browser-ui-20260910.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+    console.log(JSON.stringify(evidence, null, 2));
+  } finally {
+    if (browser) await browser.close();
+    await stopServer(child);
+    if (serverStderr && process.env.SHOW_SERVER_STDERR === '1') process.stderr.write(serverStderr);
+  }
+}
+
+run().catch((error) => {
+  console.error(error.stack || error);
+  process.exitCode = 1;
+});

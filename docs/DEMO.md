@@ -63,9 +63,26 @@ The integrated result and screenshots are
 [`docs/evidence/integrated-browser-desktop-20260910.png`](evidence/integrated-browser-desktop-20260910.png),
 and [`docs/evidence/integrated-browser-narrow-20260910.png`](evidence/integrated-browser-narrow-20260910.png).
 
-This is source/synthetic evidence plus a local browser observation over synthetic data. The local
-browser audit is currently unavailable in this environment because Playwright's browser binary
-cannot load the host GLib library; no browser pass is claimed here. The implementation does not
+The Phase 2 control workflow has a separate executable browser audit. Run it with the same bounded
+Chromium library environment:
+
+```text
+FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts \
+FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf \
+XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share \
+LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib \
+PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright \
+node tools/phase2_browser_audit.cjs
+```
+
+It exercises draft creation and save, note/objective authorization, exploratory and applicable
+previews, pause readiness, commit while paused, explicit resume, control events, zero provider/game
+effects, narrow layout, and browser-storage/network assertions. The result and screenshots are
+[`docs/evidence/phase2-browser-ui-20260910.json`](evidence/phase2-browser-ui-20260910.json),
+[`docs/evidence/phase2-browser-desktop-20260910.png`](evidence/phase2-browser-desktop-20260910.png),
+and [`docs/evidence/phase2-browser-narrow-20260910.png`](evidence/phase2-browser-narrow-20260910.png).
+
+This is source/synthetic evidence plus a local browser observation over synthetic data. It does not
 claim a live provider receipt, actual game launch, native storage enforcement, or cross-platform
 browser compatibility. The companion harness repository records fake-only Astra/Ollama process
 fidelity against synthetic downstreams.

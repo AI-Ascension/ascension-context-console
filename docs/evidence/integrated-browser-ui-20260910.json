@@ -14,8 +14,8 @@
   ],
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
-    "branch": "phase1/t02-bootstrap",
-    "revision": "06c74f61571adc389a7aa27477d4db04bd8b7c26"
+    "branch": "phase2/context-editing",
+    "revision": "41946e34dc23c1f4f7d18b0e85c9a099c215ac10"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:33981",
+  "base_url": "http://127.0.0.1:40035",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,13 +46,16 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:33981/web/",
-    "http://127.0.0.1:33981/web/styles.css",
-    "http://127.0.0.1:33981/web/app.js",
-    "http://127.0.0.1:33981/offline-bundle.json",
-    "http://127.0.0.1:33981/demo/snapshot",
-    "http://127.0.0.1:33981/demo/events",
-    "http://127.0.0.1:33981/demo/comparison"
+    "http://127.0.0.1:40035/web/",
+    "http://127.0.0.1:40035/web/styles.css",
+    "http://127.0.0.1:40035/web/app.js",
+    "http://127.0.0.1:40035/offline-bundle.json",
+    "http://127.0.0.1:40035/demo/snapshot",
+    "http://127.0.0.1:40035/demo/events",
+    "http://127.0.0.1:40035/demo/comparison",
+    "http://127.0.0.1:40035/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:40035/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:40035/v2/runs/fixture-run/context-control/eligible-items"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -83,11 +86,14 @@
     "rejected_before_fetch": true
   },
   "integration_metrics": {
-    "api_requests": 6,
-    "browser_requests": 19,
+    "api_requests": 12,
+    "browser_requests": 25,
     "capture_records": 2,
+    "control_events": 0,
+    "control_status": "running",
     "external_requests": 0,
     "game_launches": 0,
+    "management_enabled": true,
     "producer_events": 7,
     "producer_snapshots": 2,
     "provider_calls": 0,
@@ -97,15 +103,15 @@
   "source_artifacts": [
     {
       "path": "crates/context-service/src/integrated_demo.rs",
-      "sha256": "bc9a9402eff2ae19d9c1bc0ca835f0891ef107ec96037f5f0fb3bed72107ff3f"
+      "sha256": "908c803d4cc9a4b5d090defa86e4794cb452bba36023cbd2c57144532a8a64a8"
     },
     {
       "path": "tools/integrated_browser_audit.cjs",
-      "sha256": "bf25a3ea8b3250ca15691d9a8cc76ceed70799c9d445fbacc28613b2d2a75283"
+      "sha256": "a990e4c267ec2f7f45f2693f62beed97c768c94f920d185072469a5621f142fc"
     },
     {
       "path": "web/app.js",
-      "sha256": "43bfa6d9e8e33a45c2dd691d7a1aaa2a41727d10178de74da76aeff9ffbce894"
+      "sha256": "ce407a37e13ab91b14c4a4879eac0df849bf7df7c318f9bcb2b897b3ad527925"
     },
     {
       "path": "fixtures/valid/snapshot-metadata.json",
@@ -147,11 +153,11 @@
   "artifacts": [
     {
       "path": "docs/evidence/integrated-browser-desktop-20260910.png",
-      "sha256": "9451995eb549b6ad7ffcf04b5c83dd0e0c1d840055a8a605d96368e436b80245"
+      "sha256": "842718bde6fd81c7a736b30b3701c3c283c2d3f130ba4d22f3cfcb2c9dd89e5b"
     },
     {
       "path": "docs/evidence/integrated-browser-narrow-20260910.png",
-      "sha256": "85043a12e7c4f2545599505fd2ae9d8af17a958d36f25e1d88105655e5c205df"
+      "sha256": "e3882438c9f57277295fdc40a8350b095967a49d4794796ff8ae60fd9e779534"
     }
   ]
 }
