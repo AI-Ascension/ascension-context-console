@@ -558,7 +558,7 @@ impl<'a> ReadApi<'a> {
     }
 }
 
-fn read_request_bytes(stream: &mut TcpStream) -> Result<Vec<u8>, ApiError> {
+pub(crate) fn read_request_bytes(stream: &mut TcpStream) -> Result<Vec<u8>, ApiError> {
     let mut bytes = Vec::new();
     let mut buffer = [0_u8; 2048];
     let header_end = loop {

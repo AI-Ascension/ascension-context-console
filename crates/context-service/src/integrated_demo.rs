@@ -8,10 +8,10 @@
 //! directly. No provider, game, URL fetch, or arbitrary process path is available here.
 
 use crate::capture::{CaptureConfig, CaptureMode, CaptureSink, MemoryCapture, PreparedCapture};
-use crate::read_api::{ApiError, HttpRequest, HttpResponse, MAX_HTTP_REQUEST_BYTES, ReadApi};
+use crate::read_api::{ApiError, HttpRequest, HttpResponse, ReadApi, read_request_bytes};
 use crate::store::{CapturePrivilege, IngestError, ReadGrant, Store};
 use serde_json::{Value, json};
-use std::io::{ErrorKind, Read, Write};
+use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::time::{Duration, SystemTime};
 
@@ -126,6 +126,13 @@ impl DemoState {
     fn dispatch(&mut self, request: &HttpRequest) -> HttpResponse {
         self.browser_requests = self.browser_requests.saturating_add(1);
         let (path, _) = split_target(&request.target);
+        if request.method == "GET" && !request.body.is_empty() {
+            return static_response(
+                400,
+                "application/json",
+                br#"{"error":"get_body_not_allowed","read_only":true}"#.to_vec(),
+            );
+        }
         if request.method != "GET" && !path.starts_with("/v1/") {
             return static_response(
                 405,
@@ -282,27 +289,7 @@ impl DemoState {
 }
 
 fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, ApiError> {
-    let mut bytes = Vec::new();
-    let mut buffer = [0_u8; 2048];
-    loop {
-        let read = stream.read(&mut buffer).map_err(|error| {
-            if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock) {
-                ApiError::BadRequest
-            } else {
-                ApiError::Io
-            }
-        })?;
-        if read == 0 {
-            return Err(ApiError::BadRequest);
-        }
-        bytes.extend_from_slice(&buffer[..read]);
-        if bytes.len() > MAX_HTTP_REQUEST_BYTES {
-            return Err(ApiError::TooLarge);
-        }
-        if bytes.windows(4).any(|window| window == b"\r\n\r\n") {
-            break;
-        }
-    }
+    let bytes = read_request_bytes(stream)?;
     HttpRequest::parse(&bytes)
 }
 
