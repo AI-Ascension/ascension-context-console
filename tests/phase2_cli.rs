@@ -176,3 +176,27 @@ fn compiled_cli_runs_the_durable_edit_preview_commit_resume_sequence() {
     assert_eq!(resumed["status"], "accepted");
     cleanup(&path);
 }
+
+#[test]
+fn compiled_cli_rejects_duplicate_and_oversized_stdin_without_mutation() {
+    let path = path();
+    cleanup(&path);
+    let path_text = path.to_string_lossy().into_owned();
+    let _ = json_output(cli_process(&["init", &path_text], None));
+    let _ = json_output(cli_process(&["draft-create", &path_text], None));
+
+    let duplicate = r#"{"schema":"ascension.context-control.patch.v1","schema":"duplicate"}"#;
+    let duplicate_result =
+        cli_process(&["draft-edit", &path_text, "operator-cli"], Some(duplicate));
+    assert_eq!(duplicate_result.status.code(), Some(2));
+
+    let oversized = format!("{{\"payload\":\"{}\"}}", "x".repeat(17 * 1024));
+    let oversized_result = cli_process(
+        &["draft-edit", &path_text, "operator-cli"],
+        Some(&oversized),
+    );
+    assert_eq!(oversized_result.status.code(), Some(2));
+    let drafts = json_output(cli_process(&["drafts", &path_text], None));
+    assert_eq!(drafts["value"]["drafts"][0]["version"], 1);
+    cleanup(&path);
+}
