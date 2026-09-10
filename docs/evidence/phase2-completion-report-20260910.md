@@ -97,7 +97,10 @@ conflicts, journal tamper/recovery, disabled mode, and stop dominance. The compa
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, and
 actual serialized Ollama/Astra bridge inputs. The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
-Rust storage, authentication, provider behavior, game effects, or native topology.
+Rust storage, authentication, provider behavior, game effects, or native topology. The package
+failure matrix has 80 rows; this handoff records the exercised product cases and leaves scenarios
+requiring production storage, live providers, native orchestration, or unavailable fault injection
+explicitly outside the evidence boundary.
 
 No production migration or rollback claim is made because this fixture uses bounded in-memory state;
 the additive journal recovery and safe deactivation behavior are tested, while a native encrypted

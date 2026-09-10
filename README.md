@@ -3,7 +3,7 @@
 Bounded Context Console inspector and controlled context editor for AI-Ascension decision paths.
 
 This checkout contains the Phase 1 snapshot/event reader and its Phase 2 extension. Phase 2 adds
-scoped drafts, immutable provider-specific previews, a durable journal envelope, and explicit
+scoped drafts, immutable provider-specific previews, a bounded journal envelope with recovery, and explicit
 pause/commit/resume control. The console still invokes no provider or game and never edits host
 state or submits a game action; the harness owns those authorities.
 
