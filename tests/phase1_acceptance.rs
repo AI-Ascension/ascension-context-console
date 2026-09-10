@@ -96,7 +96,7 @@ fn events_are_allowlisted_and_support_plan_reuse_gap() {
             b"acceptance-token",
             &grant,
             "run-fixture-001",
-            Some(0),
+            None,
             20,
             UNIX_EPOCH,
         )

@@ -15,13 +15,14 @@ Supported GET resources are:
 | `/v1/runs/{run_id}/snapshots/{snapshot_id}` | Authorized snapshot manifest. |
 | `/v1/runs/{run_id}/snapshots/{snapshot_id}/components/{component_id}` | Component metadata and availability state. |
 | `/v1/runs/{run_id}/snapshots/{snapshot_id}/components/{component_id}/content` | Authorized retained bytes with the declared media type. |
-| `/v1/runs/{run_id}/events?cursor=N` | Bounded lifecycle events with a scope-local reconnect cursor. |
+| `/v1/runs/{run_id}/events?cursor=C` | Bounded lifecycle events with an opaque cursor authenticated for this bearer grant and run. |
 | `/v1/runs/{run_id}/compare?left=A&right=B` | Bounded local comparison with no apply/preview action. |
 
 Requests with a body, unsafe methods, traversal or percent escapes, URL credentials, unknown
 routes, invalid limits, mismatched scope, expired grants, or revoked tokens are rejected. Event
 sequence values and cursors are contiguous within the authorized project/run scope; producer-global
-sequence positions are not exposed. Producer capture loss remains an explicit `capture.gap` event.
+sequence positions are not exposed. A cursor from another project, grant, or run is rejected.
+Producer capture loss remains an explicit `capture.gap` event.
 Capability
 expiry and revocation are checked against the current request time, including when one listener
 serves multiple requests. Responses

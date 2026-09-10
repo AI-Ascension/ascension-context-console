@@ -156,7 +156,8 @@ pub struct ComponentSummary {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EventPage {
     pub events: Vec<CaptureEvent>,
-    pub next_cursor: Option<u64>,
+    /// An authenticated reconnect cursor bound to the bearer grant and run stream.
+    pub next_cursor: Option<String>,
     pub gap: bool,
 }
 
@@ -464,7 +465,7 @@ impl Store {
         token: &[u8],
         grant: &ReadGrant,
         run_id: &str,
-        after_sequence: Option<u64>,
+        after_cursor: Option<&str>,
         limit: usize,
         now: SystemTime,
     ) -> Result<EventPage, ReadError> {
@@ -472,6 +473,13 @@ impl Store {
             return Err(ReadError::TooLarge);
         }
         self.authorize(token, grant, now)?;
+        if grant.run().is_some_and(|scoped_run| scoped_run != run_id) {
+            // Keep run-scoped grants indistinguishable from an unknown run.
+            return Err(ReadError::NotFound);
+        }
+        let after_sequence = after_cursor
+            .map(|cursor| decode_event_cursor(grant, run_id, cursor))
+            .transpose()?;
         let scope_project = grant.project();
         let mut scoped_events: Vec<(u64, CaptureEvent)> = self
             .events
@@ -504,7 +512,7 @@ impl Store {
         let next_cursor = if events.len() > limit {
             let next = events[limit - 1].sequence;
             events.truncate(limit);
-            Some(next)
+            Some(encode_event_cursor(grant, run_id, next))
         } else {
             None
         };
@@ -744,6 +752,35 @@ fn hex_digest(bytes: &[u8; 32]) -> String {
     value
 }
 
+fn encode_event_cursor(grant: &ReadGrant, run_id: &str, sequence: u64) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"ascension.context-event-cursor.v1\0");
+    hasher.update(grant.token_digest);
+    for value in [grant.project(), run_id] {
+        hasher.update((value.len() as u64).to_be_bytes());
+        hasher.update(value.as_bytes());
+    }
+    hasher.update(sequence.to_be_bytes());
+    let digest: [u8; 32] = hasher.finalize().into();
+    format!("c1-{sequence}-{}", hex_digest(&digest))
+}
+
+fn decode_event_cursor(grant: &ReadGrant, run_id: &str, cursor: &str) -> Result<u64, ReadError> {
+    let Some(value) = cursor.strip_prefix("c1-") else {
+        return Err(ReadError::InvalidScope);
+    };
+    let Some((sequence, _digest)) = value.split_once('-') else {
+        return Err(ReadError::InvalidScope);
+    };
+    let sequence = sequence
+        .parse::<u64>()
+        .map_err(|_| ReadError::InvalidScope)?;
+    if encode_event_cursor(grant, run_id, sequence) != cursor {
+        return Err(ReadError::InvalidScope);
+    }
+    Ok(sequence)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -933,14 +970,14 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![0, 1]
         );
-        assert_eq!(first_page.next_cursor, Some(1));
+        assert!(first_page.next_cursor.is_some());
         assert!(!first_page.gap);
         let second_page = store
             .events(
                 b"fixture-token",
                 &fixture_grant,
                 "run-fixture-001",
-                first_page.next_cursor,
+                first_page.next_cursor.as_deref(),
                 2,
                 NOW,
             )
@@ -954,7 +991,7 @@ mod tests {
             vec![2, 3]
         );
         assert!(!second_page.gap);
-        assert!(
+        assert_eq!(
             store
                 .events(
                     b"fixture-token",
@@ -964,9 +1001,8 @@ mod tests {
                     20,
                     NOW,
                 )
-                .expect("scoped empty page")
-                .events
-                .is_empty()
+                .expect_err("run-scoped grant cannot read another run"),
+            ReadError::NotFound
         );
     }
 
@@ -1014,7 +1050,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["event-ordered-0"]
         );
-        assert_eq!(first_page.next_cursor, Some(0));
+        assert!(first_page.next_cursor.is_some());
 
         // The producer's missing sequence arrives after the page was issued. Its immutable
         // scope ordinal follows the already visible event and cannot be skipped by cursor 0.
@@ -1024,7 +1060,7 @@ mod tests {
                 b"fixture-token",
                 &grant,
                 "run-fixture-001",
-                first_page.next_cursor,
+                first_page.next_cursor.as_deref(),
                 10,
                 NOW,
             )
@@ -1036,6 +1072,88 @@ mod tests {
                 .map(|event| (event.event_id.as_str(), event.sequence))
                 .collect::<Vec<_>>(),
             vec![("event-ordered-2", 1), ("event-ordered-1", 2)]
+        );
+    }
+
+    #[test]
+    fn event_grants_and_cursors_are_bound_to_the_requested_run_stream() {
+        let mut store = Store::default();
+        store.ingest(CLI_FIXTURE).expect("run A snapshot");
+        let run_b = String::from_utf8(CLI_FIXTURE.to_vec())
+            .expect("fixture utf8")
+            .replace("snapshot-fixture-cli-001", "snapshot-fixture-cli-002")
+            .replace("run-fixture-001", "run-fixture-002");
+        store.ingest(run_b.as_bytes()).expect("run B snapshot");
+        let append = |store: &mut Store, event_id: &str, snapshot_id: &str| {
+            store
+                .append_event(
+                    &serde_json::to_vec(&serde_json::json!({
+                        "schema":"ascension.context-event.v1",
+                        "event_id":event_id,
+                        "producer_id":"producer-scoped",
+                        "sequence":0,
+                        "snapshot_id":snapshot_id,
+                        "provider_attempt_id":null,
+                        "observed_at":"2026-09-09T00:00:00Z",
+                        "event_type":"snapshot.prepared",
+                        "details":{}
+                    }))
+                    .expect("event bytes"),
+                )
+                .expect("event");
+        };
+        append(&mut store, "event-run-a-0", "snapshot-fixture-cli-001");
+        append(&mut store, "event-run-a-1", "snapshot-fixture-cli-001");
+        append(&mut store, "event-run-b-0", "snapshot-fixture-cli-002");
+
+        let project_grant = ReadGrant::issue(
+            b"project-token",
+            "agent-fixture-001",
+            None,
+            CapturePrivilege::Metadata,
+            Duration::from_secs(60),
+            NOW,
+        )
+        .expect("project grant");
+        let first_page = store
+            .events(
+                b"project-token",
+                &project_grant,
+                "run-fixture-001",
+                None,
+                1,
+                NOW,
+            )
+            .expect("run A page");
+        let cursor = first_page.next_cursor.expect("run A cursor");
+        assert_eq!(
+            store
+                .events(
+                    b"project-token",
+                    &project_grant,
+                    "run-fixture-002",
+                    Some(cursor.as_str()),
+                    10,
+                    NOW,
+                )
+                .expect_err("run A cursor cannot be replayed on run B"),
+            ReadError::InvalidScope
+        );
+
+        let run_grant = ReadGrant::issue(
+            b"run-token",
+            "agent-fixture-001",
+            Some("run-fixture-001".to_owned()),
+            CapturePrivilege::Metadata,
+            Duration::from_secs(60),
+            NOW,
+        )
+        .expect("run grant");
+        assert_eq!(
+            store
+                .events(b"run-token", &run_grant, "run-fixture-002", None, 10, NOW,)
+                .expect_err("run grant cannot read another run"),
+            ReadError::NotFound
         );
     }
 

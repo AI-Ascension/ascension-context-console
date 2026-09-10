@@ -6,7 +6,7 @@
 
 use crate::store::{CapturePrivilege, ReadError, ReadGrant, Store};
 use serde_json::{Value, json};
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -23,6 +23,17 @@ pub struct HttpRequest {
 
 impl HttpRequest {
     pub fn parse(bytes: &[u8]) -> Result<Self, ApiError> {
+        Self::parse_with_body_framing(bytes, true)
+    }
+
+    fn parse_head(bytes: &[u8]) -> Result<Self, ApiError> {
+        Self::parse_with_body_framing(bytes, false)
+    }
+
+    fn parse_with_body_framing(
+        bytes: &[u8],
+        enforce_declared_body_length: bool,
+    ) -> Result<Self, ApiError> {
         if bytes.is_empty() || bytes.len() > MAX_HTTP_REQUEST_BYTES {
             return Err(ApiError::BadRequest);
         }
@@ -80,6 +91,10 @@ impl HttpRequest {
                 return Err(ApiError::TooLarge);
             }
         }
+        let declared_body_length = declared_content_length(&headers)?;
+        if enforce_declared_body_length && body.len() != declared_body_length {
+            return Err(ApiError::BadRequest);
+        }
         Ok(Self {
             method,
             target,
@@ -93,6 +108,27 @@ impl HttpRequest {
             .iter()
             .find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(value.as_str()))
     }
+}
+
+fn declared_content_length(headers: &[(String, String)]) -> Result<usize, ApiError> {
+    let mut content_length = None;
+    for (name, value) in headers {
+        if name.eq_ignore_ascii_case("transfer-encoding") {
+            return Err(ApiError::BadRequest);
+        }
+        if !name.eq_ignore_ascii_case("content-length") {
+            continue;
+        }
+        if content_length.is_some() {
+            return Err(ApiError::BadRequest);
+        }
+        let length = value.parse::<usize>().map_err(|_| ApiError::BadRequest)?;
+        if length > MAX_HTTP_BODY_BYTES {
+            return Err(ApiError::TooLarge);
+        }
+        content_length = Some(length);
+    }
+    Ok(content_length.unwrap_or(0))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -281,23 +317,13 @@ impl<'a> ReadApi<'a> {
         stream
             .set_read_timeout(Some(std::time::Duration::from_secs(2)))
             .map_err(|_| ApiError::Io)?;
-        let mut bytes = Vec::new();
-        let mut buffer = [0_u8; 2048];
-        loop {
-            let read = stream.read(&mut buffer).map_err(|_| ApiError::Io)?;
-            if read == 0 {
-                break;
-            }
-            bytes.extend_from_slice(&buffer[..read]);
-            if bytes.len() > MAX_HTTP_REQUEST_BYTES {
-                let response = error_response(ApiError::TooLarge);
-                response.write_to(&mut stream)?;
+        let bytes = match read_request_bytes(&mut stream) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                error_response(error).write_to(&mut stream)?;
                 return Ok(());
             }
-            if bytes.windows(4).any(|window| window == b"\r\n\r\n") {
-                break;
-            }
-        }
+        };
         let response = match HttpRequest::parse(&bytes) {
             Ok(request) => self.handle(&request),
             Err(error) => error_response(error),
@@ -471,8 +497,7 @@ impl<'a> ReadApi<'a> {
             let after = query
                 .iter()
                 .find(|(key, _)| key == "cursor")
-                .map(|(_, value)| value.parse::<u64>().map_err(|_| ApiError::BadRequest))
-                .transpose()?;
+                .map(|(_, value)| value.as_str());
             let page = self
                 .store
                 .events(
@@ -524,6 +549,58 @@ impl<'a> ReadApi<'a> {
         }
         Err(ApiError::NotFound)
     }
+}
+
+fn read_request_bytes(stream: &mut TcpStream) -> Result<Vec<u8>, ApiError> {
+    let mut bytes = Vec::new();
+    let mut buffer = [0_u8; 2048];
+    let header_end = loop {
+        let read = read_from_stream(stream, &mut buffer)?;
+        if read == 0 {
+            return Err(ApiError::BadRequest);
+        }
+        bytes.extend_from_slice(&buffer[..read]);
+        if bytes.len() > MAX_HTTP_REQUEST_BYTES {
+            return Err(ApiError::TooLarge);
+        }
+        if let Some(split) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
+            break split + 4;
+        }
+    };
+
+    let head = HttpRequest::parse_head(&bytes[..header_end])?;
+    let body_length = declared_content_length(&head.headers)?;
+    let total_length = header_end
+        .checked_add(body_length)
+        .ok_or(ApiError::TooLarge)?;
+    if total_length > MAX_HTTP_REQUEST_BYTES || bytes.len() > total_length {
+        return Err(if total_length > MAX_HTTP_REQUEST_BYTES {
+            ApiError::TooLarge
+        } else {
+            ApiError::BadRequest
+        });
+    }
+    while bytes.len() < total_length {
+        let read = read_from_stream(stream, &mut buffer)?;
+        if read == 0 {
+            return Err(ApiError::BadRequest);
+        }
+        bytes.extend_from_slice(&buffer[..read]);
+        if bytes.len() > total_length || bytes.len() > MAX_HTTP_REQUEST_BYTES {
+            return Err(ApiError::BadRequest);
+        }
+    }
+    Ok(bytes)
+}
+
+fn read_from_stream(stream: &mut TcpStream, buffer: &mut [u8]) -> Result<usize, ApiError> {
+    stream.read(buffer).map_err(|error| {
+        if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock) {
+            ApiError::BadRequest
+        } else {
+            ApiError::Io
+        }
+    })
 }
 
 fn capabilities() -> Value {
@@ -643,6 +720,8 @@ fn _epoch_now() -> u64 {
 mod tests {
     use super::*;
     use crate::store::{CapturePrivilege, ReadGrant, Store};
+    use std::io::ErrorKind;
+    use std::net::{Shutdown, TcpStream};
     use std::time::Duration;
 
     const FIXTURE: &[u8] = include_bytes!("../../../fixtures/synthetic/snapshot.json");
@@ -841,5 +920,43 @@ mod tests {
             UNIX_EPOCH,
         );
         assert_eq!(response.status, 400);
+    }
+
+    #[test]
+    fn serve_once_rejects_a_declared_body_sent_after_the_headers() {
+        let (store, grant) = api();
+        let api = ReadApi::new(
+            &store,
+            &grant,
+            b"api-token",
+            "127.0.0.1:0",
+            Some("http://127.0.0.1:0".to_owned()),
+            UNIX_EPOCH,
+        );
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        std::thread::scope(|scope| {
+            let server = scope.spawn(|| api.serve_once(&listener));
+            let mut client = TcpStream::connect(address).expect("client");
+            client
+                .write_all(
+                    b"GET /health HTTP/1.1\r\nHost: 127.0.0.1:0\r\nContent-Length: 4\r\n\r\n",
+                )
+                .expect("request");
+            client
+                .set_read_timeout(Some(Duration::from_millis(100)))
+                .expect("probe timeout");
+            let mut probe = [0_u8; 1];
+            assert!(
+                matches!(client.read(&mut probe), Err(error) if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock))
+            );
+            client.set_read_timeout(None).expect("clear timeout");
+            client.write_all(b"body").expect("body");
+            client.shutdown(Shutdown::Write).expect("close request");
+            let mut response = Vec::new();
+            client.read_to_end(&mut response).expect("response");
+            assert!(response.starts_with(b"HTTP/1.1 400 Bad Request\r\n"));
+            assert!(server.join().expect("server thread").is_ok());
+        });
     }
 }
