@@ -151,7 +151,9 @@ async function run() {
     assert.match(await page.locator('#draft-message').textContent(), /draft version is stale/);
     const workflowConsoleErrors = consoleErrors.slice();
     const workflowPageErrors = pageErrors.slice();
-    assert.deepEqual(workflowConsoleErrors, []);
+    const expectedConflictConsoleErrors = workflowConsoleErrors.filter((message) => message.includes('status of 409'));
+    assert.equal(expectedConflictConsoleErrors.length, 1);
+    assert.deepEqual(workflowConsoleErrors.filter((message) => !message.includes('status of 409')), []);
     assert.deepEqual(workflowPageErrors, []);
 
     const security = await page.evaluate(async () => {
