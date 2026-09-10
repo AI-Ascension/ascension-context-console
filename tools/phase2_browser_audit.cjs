@@ -125,6 +125,29 @@ async function run() {
     await page.waitForFunction(() => document.querySelector('#draft-message').textContent.includes('restored'));
     assert.equal(await page.locator('#eligible-rows input.context-select:checked').count(), 0);
     assert.equal(await page.locator('#preview').isHidden(), true);
+    const conflictProbe = await page.evaluate(async () => {
+      const draft = await (await fetch('/v2/runs/fixture-run/context-control/drafts/draft-1', { headers: { Authorization: 'Bearer fixture-editor-token' } })).json();
+      const eligible = await (await fetch('/v2/runs/fixture-run/context-control/eligible-items', { headers: { Authorization: 'Bearer fixture-editor-token' } })).json();
+      const item = eligible.items.find((entry) => !entry.protected).item;
+      const response = await fetch(`/v2/runs/fixture-run/context-control/drafts/${draft.draft_id}/operations`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer fixture-editor-token', Origin: location.origin, 'X-CSRF-Token': 'fixture-csrf-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schema: 'ascension.context-control.patch.v1',
+          scope: draft.scope,
+          draft_id: draft.draft_id,
+          expected_draft_version: draft.version,
+          expected_active_revision_id: 'revision-2',
+          operations: [{ op: 'include_item', item }],
+        }),
+      });
+      return { status: response.status, value: await response.json() };
+    });
+    assert.equal(conflictProbe.status, 200);
+    await page.locator('#note-text').fill('stale browser edit');
+    await page.locator('#save-draft').click();
+    await page.waitForFunction(() => document.querySelector('#draft-message').dataset.state === 'error');
+    assert.match(await page.locator('#draft-message').textContent(), /draft version is stale/);
     const workflowConsoleErrors = consoleErrors.slice();
     const workflowPageErrors = pageErrors.slice();
     assert.deepEqual(workflowConsoleErrors, []);
@@ -225,7 +248,7 @@ async function run() {
       schema: 'ascension.phase2-browser-evidence.v1',
       evidence_id: 'PHASE2-BROWSER-20260910',
       requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R044', 'P2-R045', 'P2-R046', 'P2-R049', 'P2-R050', 'P2-R051', 'P2-R052', 'P2-R053', 'P2-R059', 'P2-R063', 'P2-R064'],
-      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F012', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F074', 'P2-F075'],
+      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F012', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F074', 'P2-F075', 'P2-F076'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -273,6 +296,7 @@ async function run() {
         keyboard_activation: true,
         stale_preview_is_cleared_after_mutation: true,
         offline_manifest_is_read_only: true,
+        conflict_error_is_shown: true,
       },
       artifacts: [
         { path: 'docs/evidence/phase2-browser-desktop-20260910.png', sha256: digest(desktopPath) },
