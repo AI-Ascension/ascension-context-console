@@ -6,8 +6,8 @@
     "companion_main": "780f2d521508a2aadc76c4d779544d967955f102"
   },
   "target": {
-    "evidence_commit": "0cd6bef9fb5db9357ef792a8e7d81a05e47c6941",
-    "phase2_source_revision": "e4b3ae56e92b7641b3bbb7d99c6945e0a97fa1cc",
+    "evidence_commit": "5222157855b27b656cf099bede22c2f78f216458",
+    "phase2_source_revision": "dde4b7806eb64b7a25e52b4bc20b11e37261f922",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",

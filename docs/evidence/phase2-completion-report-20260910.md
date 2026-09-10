@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `e4b3ae56e92b7641b3bbb7d99c6945e0a97fa1cc`, evidence handoff `0cd6bef9fb5db9357ef792a8e7d81a05e47c6941`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4c79e83d27691e265a4649b7361a111f617c3f79`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `dde4b7806eb64b7a25e52b4bc20b11e37261f922`, evidence handoff `5222157855b27b656cf099bede22c2f78f216458`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4c79e83d27691e265a4649b7361a111f617c3f79`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane never calls a provider or game; the companion seam proves prepared bytes through fake Exo/Astra/Ollama peers. Real provider, host, deployment and soak evidence is not claimed.
 
