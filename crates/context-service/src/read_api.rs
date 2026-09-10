@@ -230,8 +230,11 @@ impl<'a> ReadApi<'a> {
         if request.method != "GET" {
             return HttpResponse::json(405, json!({"error":"method_not_allowed","read_only":true}));
         }
-        if request.body.len() > MAX_HTTP_BODY_BYTES {
-            return HttpResponse::json(413, json!({"error":"request_too_large"}));
+        if !request.body.is_empty() {
+            return HttpResponse::json(
+                400,
+                json!({"error":"get_body_not_allowed","read_only":true}),
+            );
         }
         if request.header("host") != Some(self.expected_host.as_str()) {
             return HttpResponse::json(400, json!({"error":"host_not_allowed"}));
@@ -793,5 +796,31 @@ mod tests {
             UNIX_EPOCH,
         );
         assert_eq!(response.status, 403);
+    }
+
+    #[test]
+    fn get_body_is_rejected_even_when_within_the_bound() {
+        let (store, grant) = api();
+        let api = ReadApi::new(
+            &store,
+            &grant,
+            b"api-token",
+            "127.0.0.1:0",
+            Some("http://127.0.0.1:0".to_owned()),
+            UNIX_EPOCH,
+        );
+        let response = api.handle_at(
+            &HttpRequest {
+                method: "GET".to_owned(),
+                target: "/health".to_owned(),
+                headers: vec![
+                    ("host".to_owned(), "127.0.0.1:0".to_owned()),
+                    ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
+                ],
+                body: b"unexpected body".to_vec(),
+            },
+            UNIX_EPOCH,
+        );
+        assert_eq!(response.status, 400);
     }
 }

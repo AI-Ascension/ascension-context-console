@@ -449,7 +449,7 @@ impl Store {
             return Err(ReadError::TooLarge);
         }
         self.authorize(token, grant, now)?;
-        let mut events: Vec<CaptureEvent> = self
+        let mut scoped_events: Vec<CaptureEvent> = self
             .events
             .values()
             .filter_map(|stored| {
@@ -462,16 +462,25 @@ impl Store {
                         let projection = snapshot.snapshot.projection();
                         projection.identity.run_id == run_id && grant.permits_scope(projection)
                     });
-                (snapshot_matches && after_sequence.is_none_or(|cursor| event.sequence > cursor))
-                    .then_some(event.clone())
+                snapshot_matches.then_some(event.clone())
             })
             .collect();
-        events.sort_by_key(|event| event.sequence);
-        let gap = after_sequence.is_some_and(|cursor| {
-            events
-                .first()
-                .is_some_and(|event| event.sequence > cursor.saturating_add(1))
-        });
+        scoped_events.sort_by_key(|event| event.sequence);
+
+        // Producer sequences are intentionally not exposed: they are usually global to a
+        // producer, so filtering them by project/run would reveal hidden event positions. Assign
+        // a fresh contiguous cursor within this authorized run scope instead.
+        let mut events = scoped_events
+            .into_iter()
+            .enumerate()
+            .filter_map(|(local_sequence, mut event)| {
+                let local_sequence = local_sequence as u64;
+                event.sequence = local_sequence;
+                after_sequence
+                    .is_none_or(|cursor| local_sequence > cursor)
+                    .then_some(event)
+            })
+            .collect::<Vec<_>>();
         let next_cursor = if events.len() > limit {
             let next = events[limit - 1].sequence;
             events.truncate(limit);
@@ -479,6 +488,10 @@ impl Store {
         } else {
             None
         };
+        // The page's `gap` flag cannot be inferred from producer sequence jumps after scope
+        // filtering. Any producer-side capture gap remains an explicit `capture.gap` event in the
+        // page; this flag is reserved for a future scope-local retention watermark.
+        let gap = false;
         Ok(EventPage {
             events,
             next_cursor,
@@ -837,6 +850,22 @@ mod tests {
         let mut store = Store::default();
         store.ingest(FIXTURE).expect("reader snapshot");
         store.ingest(CLI_FIXTURE).expect("fixture snapshot");
+        store
+            .append_event(
+                &serde_json::to_vec(&serde_json::json!({
+                    "schema":"ascension.context-event.v1",
+                    "event_id":"event-hidden-sequence",
+                    "producer_id":"producer-hidden",
+                    "sequence":1,
+                    "snapshot_id":"snapshot-t02-synthetic-001",
+                    "provider_attempt_id":null,
+                    "observed_at":"2026-09-09T00:00:00Z",
+                    "event_type":"snapshot.prepared",
+                    "details":{}
+                }))
+                .expect("hidden event"),
+            )
+            .expect("hidden event ingest");
         for line in include_bytes!("../../../fixtures/valid/events.jsonl")
             .split(|byte| *byte == b'\n')
             .filter(|line| !line.is_empty())
@@ -867,6 +896,45 @@ mod tests {
                 .len(),
             7
         );
+        let first_page = store
+            .events(
+                b"fixture-token",
+                &fixture_grant,
+                "run-fixture-001",
+                None,
+                2,
+                NOW,
+            )
+            .expect("first page");
+        assert_eq!(
+            first_page
+                .events
+                .iter()
+                .map(|event| event.sequence)
+                .collect::<Vec<_>>(),
+            vec![0, 1]
+        );
+        assert_eq!(first_page.next_cursor, Some(1));
+        assert!(!first_page.gap);
+        let second_page = store
+            .events(
+                b"fixture-token",
+                &fixture_grant,
+                "run-fixture-001",
+                first_page.next_cursor,
+                2,
+                NOW,
+            )
+            .expect("second page");
+        assert_eq!(
+            second_page
+                .events
+                .iter()
+                .map(|event| event.sequence)
+                .collect::<Vec<_>>(),
+            vec![2, 3]
+        );
+        assert!(!second_page.gap);
         assert!(
             store
                 .events(

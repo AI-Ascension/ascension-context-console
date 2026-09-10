@@ -20,7 +20,7 @@ pub use observability::{
     CaptureTelemetry, MemoryTelemetry, NoopTelemetry, TelemetryError, TelemetryExporter,
 };
 pub use private_store::{
-    EncryptedContentMetadata, PolicyApproval, PrivateStoreError, PrivateVault,
+    EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,
 };
 pub use read_api::{
     ApiError, HttpRequest, HttpResponse, MAX_HTTP_BODY_BYTES, MAX_HTTP_REQUEST_BYTES, ReadApi,

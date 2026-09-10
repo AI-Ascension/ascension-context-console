@@ -104,6 +104,7 @@ pub enum CaptureError {
     TooLarge,
     InvalidIdentity,
     SinkUnavailable,
+    PrivateRequiresVault,
 }
 
 impl std::fmt::Display for CaptureError {
@@ -114,6 +115,7 @@ impl std::fmt::Display for CaptureError {
             Self::TooLarge => "capture record exceeds its byte bound",
             Self::InvalidIdentity => "capture identity is invalid",
             Self::SinkUnavailable => "capture sink is unavailable",
+            Self::PrivateRequiresVault => "private capture requires an approved encrypted vault",
         })
     }
 }
@@ -158,6 +160,9 @@ impl MemoryCapture {
         config.validate()?;
         if config.mode == CaptureMode::Off {
             return Err(CaptureError::Disabled);
+        }
+        if config.mode == CaptureMode::Private {
+            return Err(CaptureError::PrivateRequiresVault);
         }
         Ok(Self {
             config,
@@ -288,5 +293,17 @@ mod tests {
         assert_eq!(sink.records().count(), 1);
         assert_eq!(sink.dropped_entries(), 1);
         assert!(sink.records().next().expect("record").digest.is_none());
+    }
+
+    #[test]
+    fn private_mode_is_rejected_until_an_approved_vault_is_wired() {
+        assert!(matches!(
+            MemoryCapture::new(CaptureConfig {
+                mode: CaptureMode::Private,
+                max_queue_entries: 1,
+                max_record_bytes: 128,
+            }),
+            Err(CaptureError::PrivateRequiresVault)
+        ));
     }
 }

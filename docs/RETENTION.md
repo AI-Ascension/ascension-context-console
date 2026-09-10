@@ -9,7 +9,7 @@ record and reports a gap counter.
 Memory capture has no WAL, temporary file, disk fallback, or browser persistence. The plaintext
 store rejects private-mode snapshots with content references. Private retention uses the separately
 approved authenticated `PrivateVault` primitive with a 16 MiB object bound, a 512 MiB quota, and
-content-reference-bound associated data; construction fails when policy approval, restricted
+project/snapshot/component/content-reference-bound associated data; construction fails when policy approval, restricted
 authorization, or a nonzero key is absent. The vault in this delivery is in memory, so it does not
 claim crash recovery or a persistent filesystem retention scheduler.
 

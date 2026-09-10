@@ -55,6 +55,81 @@ pub struct EncryptedContentMetadata {
     pub algorithm: &'static str,
 }
 
+/// Authorization and identity for one private component. Every field is included in the
+/// authenticated associated data, so a ciphertext cannot be moved between projects, snapshots,
+/// components, or opaque references and still decrypt.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PrivateScope {
+    project_id: String,
+    snapshot_id: String,
+    component_id: String,
+    content_ref: String,
+}
+
+impl PrivateScope {
+    pub fn new(
+        project_id: impl Into<String>,
+        snapshot_id: impl Into<String>,
+        component_id: impl Into<String>,
+        content_ref: impl Into<String>,
+    ) -> Result<Self, PrivateStoreError> {
+        let scope = Self {
+            project_id: project_id.into(),
+            snapshot_id: snapshot_id.into(),
+            component_id: component_id.into(),
+            content_ref: content_ref.into(),
+        };
+        if [
+            &scope.project_id,
+            &scope.snapshot_id,
+            &scope.component_id,
+            &scope.content_ref,
+        ]
+        .iter()
+        .any(|value| !valid_ref(value))
+        {
+            return Err(PrivateStoreError::InvalidReference);
+        }
+        Ok(scope)
+    }
+
+    pub fn project_id(&self) -> &str {
+        &self.project_id
+    }
+
+    pub fn snapshot_id(&self) -> &str {
+        &self.snapshot_id
+    }
+
+    pub fn component_id(&self) -> &str {
+        &self.component_id
+    }
+
+    pub fn content_ref(&self) -> &str {
+        &self.content_ref
+    }
+
+    fn aad(&self) -> Vec<u8> {
+        let mut aad = Vec::with_capacity(64 + self.content_ref.len());
+        aad.extend_from_slice(b"ascension.private-context.v1\0");
+        for value in [
+            self.project_id.as_str(),
+            self.snapshot_id.as_str(),
+            self.component_id.as_str(),
+            self.content_ref.as_str(),
+        ] {
+            aad.extend_from_slice(&(value.len() as u64).to_be_bytes());
+            aad.extend_from_slice(value.as_bytes());
+        }
+        aad
+    }
+
+    fn storage_key(&self) -> String {
+        let digest: [u8; 32] = Sha256::digest(self.aad()).into();
+        digest.iter().map(|byte| format!("{byte:02x}")).collect()
+    }
+}
+
 #[derive(Clone)]
 struct EncryptedObject {
     nonce: [u8; 24],
@@ -95,18 +170,16 @@ impl PrivateVault {
 
     pub fn put(
         &mut self,
-        content_ref: &str,
+        scope: &PrivateScope,
         plaintext: &[u8],
     ) -> Result<EncryptedContentMetadata, PrivateStoreError> {
-        if !valid_ref(content_ref) {
-            return Err(PrivateStoreError::InvalidReference);
-        }
         if plaintext.len() > MAX_PRIVATE_OBJECT_BYTES {
             return Err(PrivateStoreError::TooLarge);
         }
+        let storage_key = scope.storage_key();
         let old = self
             .objects
-            .get(content_ref)
+            .get(&storage_key)
             .map(|object| object.ciphertext.len());
         let projected = self
             .used_bytes
@@ -116,14 +189,14 @@ impl PrivateVault {
         if projected > self.quota_bytes {
             return Err(PrivateStoreError::Quota);
         }
-        let nonce = self.next_nonce(content_ref, plaintext);
+        let nonce = self.next_nonce(scope, plaintext);
         let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.key));
         let ciphertext = cipher
             .encrypt(
                 XNonce::from_slice(&nonce),
                 Payload {
                     msg: plaintext,
-                    aad: content_ref.as_bytes(),
+                    aad: &scope.aad(),
                 },
             )
             .map_err(|_| PrivateStoreError::AuthenticationFailed)?;
@@ -133,14 +206,14 @@ impl PrivateVault {
             .saturating_sub(old.unwrap_or(0))
             .saturating_add(ciphertext.len());
         self.objects.insert(
-            content_ref.to_owned(),
+            storage_key,
             EncryptedObject {
                 nonce,
                 ciphertext: ciphertext.clone(),
             },
         );
         Ok(EncryptedContentMetadata {
-            content_ref: content_ref.to_owned(),
+            content_ref: scope.content_ref().to_owned(),
             plaintext_bytes,
             ciphertext_bytes: ciphertext.len(),
             algorithm: "XChaCha20-Poly1305",
@@ -149,7 +222,7 @@ impl PrivateVault {
 
     pub fn get(
         &self,
-        content_ref: &str,
+        scope: &PrivateScope,
         restricted_authorization: bool,
     ) -> Result<Vec<u8>, PrivateStoreError> {
         if !restricted_authorization {
@@ -157,7 +230,7 @@ impl PrivateVault {
         }
         let object = self
             .objects
-            .get(content_ref)
+            .get(&scope.storage_key())
             .ok_or(PrivateStoreError::NotFound)?;
         let cipher = XChaCha20Poly1305::new(Key::from_slice(&self.key));
         cipher
@@ -165,15 +238,15 @@ impl PrivateVault {
                 XNonce::from_slice(&object.nonce),
                 Payload {
                     msg: object.ciphertext.as_ref(),
-                    aad: content_ref.as_bytes(),
+                    aad: &scope.aad(),
                 },
             )
             .map_err(|_| PrivateStoreError::AuthenticationFailed)
     }
 
-    pub fn ciphertext(&self, content_ref: &str) -> Result<&[u8], PrivateStoreError> {
+    pub fn ciphertext(&self, scope: &PrivateScope) -> Result<&[u8], PrivateStoreError> {
         self.objects
-            .get(content_ref)
+            .get(&scope.storage_key())
             .map(|object| object.ciphertext.as_slice())
             .ok_or(PrivateStoreError::NotFound)
     }
@@ -190,13 +263,13 @@ impl PrivateVault {
         self.used_bytes
     }
 
-    fn next_nonce(&mut self, content_ref: &str, plaintext: &[u8]) -> [u8; 24] {
+    fn next_nonce(&mut self, scope: &PrivateScope, plaintext: &[u8]) -> [u8; 24] {
         let counter = self.counter;
         self.counter = self.counter.wrapping_add(1);
         let mut hasher = Sha256::new();
         hasher.update(self.key);
         hasher.update(counter.to_le_bytes());
-        hasher.update(content_ref.as_bytes());
+        hasher.update(scope.aad());
         hasher.update(plaintext.len().to_le_bytes());
         let digest = hasher.finalize();
         let mut nonce = [0_u8; 24];
@@ -229,6 +302,16 @@ mod tests {
         .expect("vault")
     }
 
+    fn scope(content_ref: &str) -> PrivateScope {
+        PrivateScope::new(
+            "agent-private",
+            "snapshot-private",
+            "component-private",
+            content_ref,
+        )
+        .expect("scope")
+    }
+
     #[test]
     fn policy_never_downgrades_to_plaintext() {
         assert!(matches!(
@@ -247,25 +330,24 @@ mod tests {
     #[test]
     fn encrypted_content_round_trips_and_tampering_fails() {
         let mut vault = vault();
-        vault
-            .put("blob-1", b"private synthetic marker")
-            .expect("put");
+        let scope = scope("blob-1");
+        vault.put(&scope, b"private synthetic marker").expect("put");
         assert_ne!(
-            vault.ciphertext("blob-1").expect("ciphertext"),
+            vault.ciphertext(&scope).expect("ciphertext"),
             b"private synthetic marker"
         );
         assert_eq!(
-            vault.get("blob-1", true).expect("get"),
+            vault.get(&scope, true).expect("get"),
             b"private synthetic marker"
         );
         assert!(matches!(
-            vault.get("blob-1", false),
+            vault.get(&scope, false),
             Err(PrivateStoreError::Unauthorized)
         ));
-        let object = vault.objects.get_mut("blob-1").expect("object");
+        let object = vault.objects.get_mut(&scope.storage_key()).expect("object");
         object.ciphertext[0] ^= 1;
         assert!(matches!(
-            vault.get("blob-1", true),
+            vault.get(&scope, true),
             Err(PrivateStoreError::AuthenticationFailed)
         ));
     }
@@ -273,14 +355,34 @@ mod tests {
     #[test]
     fn ciphertext_is_bound_to_its_content_reference() {
         let mut vault = vault();
-        vault
-            .put("blob-1", b"private synthetic marker")
-            .expect("put");
-        let object = vault.objects.remove("blob-1").expect("object");
-        vault.objects.insert("blob-2".to_owned(), object);
+        let first = scope("blob-1");
+        let second = scope("blob-2");
+        vault.put(&first, b"private synthetic marker").expect("put");
+        let object = vault.objects.remove(&first.storage_key()).expect("object");
+        vault.objects.insert(second.storage_key(), object);
         assert!(matches!(
-            vault.get("blob-2", true),
+            vault.get(&second, true),
             Err(PrivateStoreError::AuthenticationFailed)
+        ));
+    }
+
+    #[test]
+    fn private_scope_binds_project_snapshot_and_component_identity() {
+        let mut vault = vault();
+        let original = scope("blob-1");
+        vault
+            .put(&original, b"private synthetic marker")
+            .expect("put");
+        let moved = PrivateScope::new(
+            "other-project",
+            original.snapshot_id(),
+            original.component_id(),
+            original.content_ref(),
+        )
+        .expect("scope");
+        assert!(matches!(
+            vault.get(&moved, true),
+            Err(PrivateStoreError::NotFound)
         ));
     }
 }
