@@ -210,6 +210,7 @@ function renderControl(capabilities, stateValue, items, revisions) {
   showText("#control-version", stateValue.control_version);
   showText("#pause-latch", stateValue.pause_latched ? "latched" : "open");
   showText("#plan-epoch", stateValue.plan_epoch);
+  showText("#durable-store", capabilities.durable_control_store);
   const rows = document.querySelector("#eligible-rows");
   rows.replaceChildren();
   items.items.forEach((entry) => {

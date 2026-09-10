@@ -516,6 +516,16 @@ fn disabled_profile_does_not_advertise_or_apply_management_operations() {
 }
 
 #[test]
+fn capability_projection_does_not_claim_production_durability() {
+    let plane = ControlPlane::synthetic();
+    let capabilities = plane.capabilities();
+    assert!(capabilities.enabled);
+    assert_eq!(capabilities.durable_control_store, "unverified");
+    assert!(!capabilities.commit_auto_resumes);
+    assert!(!capabilities.direct_game_dispatch);
+}
+
+#[test]
 fn stop_latch_dominates_resume_without_changing_the_revision() {
     let mut plane = ControlPlane::synthetic();
     let revision = plane.state().active_revision_id;

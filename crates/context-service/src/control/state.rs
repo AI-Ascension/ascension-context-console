@@ -195,7 +195,7 @@ impl ControlPlane {
             supported_operations: operations,
             exact_application_preview: "supported".to_owned(),
             optional_images: "unsupported".to_owned(),
-            durable_control_store: "available".to_owned(),
+            durable_control_store: "unverified".to_owned(),
             provider_added_context: "not_exposed".to_owned(),
             context_compact: false,
             persistent_provider_sessions: false,
