@@ -263,6 +263,13 @@ impl<'a> ReadApi<'a> {
 
     /// Handles one request at an explicit time for deterministic callers and tests.
     pub fn handle_at(&self, request: &HttpRequest, now: SystemTime) -> HttpResponse {
+        match declared_content_length(&request.headers) {
+            Ok(length) if length == request.body.len() => {}
+            Ok(_) | Err(ApiError::BadRequest) => {
+                return HttpResponse::json(400, json!({"error":"invalid_request_framing"}));
+            }
+            Err(error) => return error_response(error),
+        }
         if request.method != "GET" {
             return HttpResponse::json(405, json!({"error":"method_not_allowed","read_only":true}));
         }
