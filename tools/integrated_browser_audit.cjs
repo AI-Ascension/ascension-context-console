@@ -180,6 +180,10 @@ async function run() {
     assert.equal(metrics.read_only, true);
     assert.ok(metrics.api_requests >= 3);
     assert.ok(metrics.browser_requests >= 10);
+    const manifestResponse = await fetch(`${base}/offline-bundle.json`);
+    assert.equal(manifestResponse.ok, true);
+    const manifestBytes = Buffer.from(await manifestResponse.arrayBuffer());
+    const manifestSha256 = crypto.createHash('sha256').update(manifestBytes).digest('hex');
 
     const evidence = {
       schema: 'ascension.integrated-browser-evidence.v1',
@@ -235,6 +239,15 @@ async function run() {
         rejected_before_fetch: true,
       },
       integration_metrics: metrics,
+      source_artifacts: [
+        { path: 'crates/context-service/src/integrated_demo.rs', sha256: sha256(path.join(root, 'crates/context-service/src/integrated_demo.rs')) },
+        { path: 'tools/integrated_browser_audit.cjs', sha256: sha256(__filename) },
+        { path: 'web/app.js', sha256: sha256(path.join(root, 'web', 'app.js')) },
+        { path: 'fixtures/valid/snapshot-metadata.json', sha256: sha256(path.join(root, 'fixtures', 'valid', 'snapshot-metadata.json')) },
+        { path: 'fixtures/valid/snapshot-cli.json', sha256: sha256(path.join(root, 'fixtures', 'valid', 'snapshot-cli.json')) },
+        { path: 'fixtures/valid/events.jsonl', sha256: sha256(path.join(root, 'fixtures', 'valid', 'events.jsonl')) },
+        { path: 'offline-bundle.json', sha256: manifestSha256 },
+      ],
       assertions: {
         producer_stage: metrics.producer_snapshots === 2,
         capture_stage: metrics.capture_records === 2,
