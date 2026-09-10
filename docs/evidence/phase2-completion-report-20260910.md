@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `c516ff4a61d0613b3083407db2ade69590d415d9`, evidence handoff `f3b20a90d9e0a67b379cf046e57a692805dace0f`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `8674874feccfbf995ed0aa5a8ec8390d9dac137b`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `a43d42f0bf31f2d19720922d155be4385e08a759`, evidence handoff `f3b20a90d9e0a67b379cf046e57a692805dace0f`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `8674874feccfbf995ed0aa5a8ec8390d9dac137b`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -66,7 +66,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R005 | executed | Harness context-control legacy test plus Exo/Ollama compatibility tests. |
 | P2-R006 | executed | Harness compiled Exo, Astra, and Ollama bridge tests pass against fake peers. |
 | P2-R007 | executed | Contract copies and SHA-256 pins match in both repositories. |
-| P2-R008 | source-reviewed | Architecture/decision records keep provider/game authority in the harness/host boundary. |
+| P2-R008 | executed | `capability_projection_does_not_claim_production_durability` asserts no direct game dispatch, while the companion control seam keeps provider/game completion outside the console. |
 | P2-R009 | executed | Target revision/journal and Phase1 immutability tests pass. |
 | P2-R010 | executed | `protected_edit_and_draft_cas_fail_without_mutating_the_draft`. |
 | P2-R011 | executed | Protected-item operation is rejected without draft mutation. |
@@ -78,13 +78,13 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R017 | executed | Pins remain subject to selection, item, and aggregate component bounds; target test and browser flow pass. |
 | P2-R018 | executed | Exploratory/applicable preview distinction and provider-free test pass. |
 | P2-R019 | executed | Prepared renderer and dispatch seam tests pass. |
-| P2-R020 | source-reviewed | Boundary, revision, adapter, model/configuration and manifest fields are bound in code. |
+| P2-R020 | executed | `prepared_material_binds_boundary_configuration_and_excludes_provider_context` asserts scope, protected boundary, adapter/model/configuration and output schema bindings. |
 | P2-R021 | executed | Compiled Exo test asserts the approved prepared bytes are sent once. |
 | P2-R022 | executed | `preview_pause_commit_resume_fences_the_old_plan_and_reuses_receipts` asserts the prepared continuation is cleared after the one submitted input. |
-| P2-R023 | source-reviewed | Unsupported images/provider-added context/direct game dispatch are explicitly rejected or excluded. |
-| P2-R024 | source-reviewed | Unavailable, protected, non-UTF8 and expired content fail closed in render paths. |
-| P2-R025 | source-reviewed | Mandatory protected state is rendered before optional selected content; over-limit input fails. |
-| P2-R026 | source-reviewed | Provider-added context is explicitly `not_exposed`; no fabricated token occupancy is emitted. |
+| P2-R023 | executed | The renderer contract test rejects protected/invalid selected content and the browser audit rejects an unsupported image before commit. |
+| P2-R024 | executed | `render_rejects_unknown_protected_expired_and_non_utf8_content` covers unavailable, protected, expired, empty and non-UTF-8 bytes. |
+| P2-R025 | executed | `mandatory_context_over_adapter_budget_is_rejected_without_trimming` and the prepared-material test assert bounded failure and protected-state ordering. |
+| P2-R026 | executed | Prepared configuration and preview assertions expose `provider_added_context=not_exposed` and retain `bounded_unknown_total` without fabricated occupancy. |
 | P2-R027 | executed | Pause latch and durable pause event are covered by target/harness control tests. |
 | P2-R028 | executed | Pause/commit/plan admission tests fence new work. |
 | P2-R029 | executed | Harness admission, settlement, and retained-unknown tests block readiness until the original operation is reconciled; no clear-ledger path exists. |
@@ -92,8 +92,8 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R031 | executed | `p2_f051_old_plan_epoch_is_rejected_after_commit` asserts plan-epoch fencing after commit. |
 | P2-R032 | executed | Explicit no-edit resume path is covered by the target state machine. |
 | P2-R033 | executed | Commit checks control, revision, preview and boundary CAS. |
-| P2-R034 | source-reviewed | Commit/resume recheck content, boundary and authorization guards. |
-| P2-R035 | source-reviewed | In-memory fixture applies revision, plan epoch, state and journal events in one reducer path. |
+| P2-R034 | executed | Expiry, boundary-change, approved-preview identity and stop/authorization guards are asserted by target commit/resume tests. |
+| P2-R035 | executed | Target rollback/recovery tests and durable transaction failpoints assert atomic revision, journal and plan-epoch effects. |
 | P2-R036 | executed | Commit test asserts `revision_committed` while `paused` and zero provider/game effects. |
 | P2-R037 | executed | Old-plan rejection is asserted after commit. |
 | P2-R038 | executed | Resume requires an explicit command and approved continuation. |
@@ -101,17 +101,17 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R040 | executed | Same-key idempotency and changed-body conflict are asserted. |
 | P2-R041 | executed | Journal recovery preserves receipts and prevents duplicate reapplication. |
 | P2-R042 | executed | Recovery preserves pause and increments controller epoch. |
-| P2-R043 | source-reviewed | Journal serialization includes retained item bytes and bounded event limits. |
+| P2-R043 | executed | Durable reopen/outbox tests retain approved bytes, rebuild publication from the journal, and reject the 4097-event flood. |
 | P2-R044 | executed | Separate editor/objective tokens and read/write route checks are covered by API probes. |
 | P2-R045 | executed | Exact loopback Origin/CSRF and duplicate-key rejection probes pass. |
-| P2-R046 | source-reviewed | Browser uses textContent/no storage; metrics omit note/input bodies. |
-| P2-R047 | source-reviewed | Finite limits cover commands, notes, items, components, previews, events and journal. |
-| P2-R048 | source-reviewed | Phase1 memory capture remains explicitly separate from durable control journal. |
+| P2-R046 | executed | The Playwright audit asserts text rendering, zero browser persistence, and absence of private note/input bodies from metrics. |
+| P2-R047 | executed | CLI duplicate/16 KiB bounds, renderer component limits, and durable journal event flood rejection are executable. |
+| P2-R048 | executed | Encrypted reopen and immutable Phase1 snapshot tests prove capture bytes remain separate from the authoritative control journal. |
 | P2-R049 | executed | Receipt effects distinguish pause, commit, resume and preview state. |
 | P2-R050 | executed | Phase 2 Playwright audit covers control/error UI, typed restore, and same-origin security assertions; disabled/disconnected live state remains outside the fixture. |
 | P2-R051 | executed | Compiled `phase2_cli` process tests cover the typed durable CLI workflow, redaction, explicit capabilities, and parser bounds; no remote CLI is claimed. |
 | P2-R052 | executed | Relations bind revision, preview, snapshot, execution, attempt and intervention IDs. |
-| P2-R053 | source-reviewed | Intervention lineage is retained on revisions and relations after restore. |
+| P2-R053 | executed | `restore_keeps_prior_intervention_lineage_visible_after_a_new_commit` preserves the first relation and creates a distinct second intervention. |
 | P2-R054 | executed | `phase2_durable` repairs the additive schema while retaining seeded Phase 1 bytes; target evidence is in `docs/evidence/phase2-durable-store-20260910.json`. |
 | P2-R055 | executed | Safe deactivation preserves revision, pause, plan epoch and journal; writes fail closed. |
 | P2-R056 | executed | Target fault/state tests and bounded reference model cover ordering and rejection transitions. |
@@ -121,8 +121,8 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R060 | executed | This report, evidence JSON, pinned contracts, clean commits and draft PRs reconcile the handoff. |
 | P2-R061 | executed | README/API/DEMO/USAGE/TESTING/decision docs give bounded run and recovery instructions. |
 | P2-R062 | executed | Report separates local, synthetic-process, browser, native and live evidence classes. |
-| P2-R063 | source-reviewed | Offline bundle routes have no control capability and management routes require scoped bearer auth. |
-| P2-R064 | source-reviewed | Architecture distinguishes lossy Phase1 capture from authoritative control journal. |
+| P2-R063 | executed | The browser audit verifies the offline bundle is read-only and scoped bearer/CSRF controls deny management writes. |
+| P2-R064 | executed | Browser metrics and durable dropped-outbox recovery both assert the authoritative journal remains separate from lossy inspection output. |
 
 ## Failure and recovery coverage
 
