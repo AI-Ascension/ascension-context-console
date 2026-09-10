@@ -460,7 +460,7 @@ fn components(value: &Value) -> Result<Vec<Component>, SnapshotError> {
         );
         let content_forbidden = matches!(
             component.content_status,
-            ComponentStatus::MetadataOnly | ComponentStatus::Unavailable
+            ComponentStatus::MetadataOnly | ComponentStatus::Unavailable | ComponentStatus::Expired
         );
         if (content_required
             && (!content_present || component.content_ref.is_none() || component.sha256.is_none()))

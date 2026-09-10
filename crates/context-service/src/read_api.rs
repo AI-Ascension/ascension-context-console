@@ -91,7 +91,7 @@ impl HttpRequest {
     pub fn header(&self, name: &str) -> Option<&str> {
         self.headers
             .iter()
-            .find_map(|(key, value)| (key == name).then_some(value.as_str()))
+            .find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(value.as_str()))
     }
 }
 
@@ -238,11 +238,16 @@ impl<'a> ReadApi<'a> {
         {
             return HttpResponse::json(403, json!({"error":"origin_not_allowed"}));
         }
-        let (path, query) = split_target(&request.target);
-        if query
+        if ["host", "origin", "authorization"]
             .iter()
-            .any(|(key, _)| *key == "token" || *key == "authorization")
+            .any(|name| duplicate_header(request, name))
         {
+            return HttpResponse::json(400, json!({"error":"duplicate_security_header"}));
+        }
+        let (path, query) = split_target(&request.target);
+        if query.iter().any(|(key, _)| {
+            key.eq_ignore_ascii_case("token") || key.eq_ignore_ascii_case("authorization")
+        }) {
             return HttpResponse::json(400, json!({"error":"token_must_not_be_in_url"}));
         }
         if path == "/health" {
@@ -553,6 +558,15 @@ fn query_value<'a>(query: &'a [(String, String)], key: &str) -> Result<&'a str, 
         .map(|(_, value)| value.as_str())
         .filter(|value| !value.is_empty() && valid_id(value))
         .ok_or(ApiError::BadRequest)
+}
+
+fn duplicate_header(request: &HttpRequest, name: &str) -> bool {
+    request
+        .headers
+        .iter()
+        .filter(|(key, _)| key.eq_ignore_ascii_case(name))
+        .nth(1)
+        .is_some()
 }
 
 fn valid_id(value: &str) -> bool {
