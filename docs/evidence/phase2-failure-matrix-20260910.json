@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 58,
+  "executed_row_count": 62,
   "rows": [
     {
       "id": "P2-F001",
@@ -817,10 +817,10 @@
         "P2-R029",
         "P2-R030"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f045_host_evolution_while_held_marks_the_boundary_stale",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust host-boundary advancement while paused changed the status to paused_stale and blocked an applicable preview until re-observation"
     },
     {
       "id": "P2-F046",
@@ -872,10 +872,10 @@
         "P2-R035",
         "P2-R036"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "durable_commit_replay_after_lost_reply_returns_original_receipt",
+      "evidence_artifact": "tests/phase2_durable.rs",
+      "observed": "Rust reopened the committed encrypted journal and replayed the exact command to return the original receipt without creating a second revision"
     },
     {
       "id": "P2-F049",
@@ -939,10 +939,10 @@
         "P2-R038",
         "P2-R039"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f052_concurrent_resume_claims_have_one_winner",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust accepted one resume claim, rejected the second stale concurrent claim, and recorded one input submission"
     },
     {
       "id": "P2-F053",
@@ -1046,10 +1046,10 @@
         "P2-R038",
         "P2-R039"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f058_no_edit_resume_after_drain_releases_without_new_input",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust no-change commit followed by resume kept the revision unchanged and emitted no input.submitted event"
     },
     {
       "id": "P2-F059",

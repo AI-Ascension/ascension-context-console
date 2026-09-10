@@ -4,7 +4,7 @@
   "date": "2026-09-10",
   "repository": "AI-Ascension/ascension-context-console",
   "branch": "phase2/context-editing",
-  "source_revision": "46167a20b8d63d0b570c987a532fad1d05b88e69",
+  "source_revision": "bbcf04cfaf0680a64bd10b5658c3706dfec9873d",
   "command": "cargo test --locked --package context-service --test phase2_durable",
   "result": "passed",
   "tests": [
@@ -60,6 +60,15 @@
         "a snapshot identity cannot be overwritten with different bytes",
         "WAL checkpoint and file-copy backup reopen successfully",
         "the copied Phase 1 snapshot digest remains present"
+      ]
+    },
+    {
+      "test_id": "durable_commit_replay_after_lost_reply_returns_original_receipt",
+      "status": "passed",
+      "assertions": [
+        "the committed encrypted journal reopens after the simulated lost reply",
+        "replaying the exact command returns its original receipt",
+        "no second revision is created"
       ]
     }
   ],
