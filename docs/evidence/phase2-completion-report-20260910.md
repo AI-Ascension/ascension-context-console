@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5018295ed647d4a3658d19d940354825cf0c46a1`, evidence handoff `c0fb61fc30b79196783f99d3b4ad991556691385`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `7580619964ad73fd107031fb5bf6a1a6f5c9e3ec`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5018295ed647d4a3658d19d940354825cf0c46a1`, evidence handoff `964b88a768755e477443a43b7a9b1a7f521d895d`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `7580619964ad73fd107031fb5bf6a1a6f5c9e3ec`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite

@@ -6,7 +6,7 @@
     "companion_main": "780f2d521508a2aadc76c4d779544d967955f102"
   },
   "target": {
-    "evidence_commit": "c0fb61fc30b79196783f99d3b4ad991556691385",
+    "evidence_commit": "964b88a7811e0215abf58ade30b95162eb69c3b0",
     "phase2_source_revision": "5018295ed647d4a3658d19d940354825cf0c46a1",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
