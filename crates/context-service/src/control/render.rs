@@ -209,3 +209,55 @@ pub(crate) fn item_ref(item_id: impl Into<String>, version: u64, content: &[u8])
         sha256: digest(content),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{item_ref, render};
+    use crate::control::state::ControlPlane;
+    use crate::control::types::{Draft, ItemRecord, ItemRef, MAX_ITEMS, Scope};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn mandatory_context_over_adapter_budget_is_rejected_without_trimming() {
+        let plane = ControlPlane::synthetic();
+        let boundary = plane.state().boundary.expect("synthetic boundary");
+        let scope: Scope = boundary.scope.clone();
+        let mut registry = BTreeMap::new();
+        let mut selected_items: Vec<ItemRef> = Vec::with_capacity(MAX_ITEMS);
+        for index in 0..MAX_ITEMS {
+            let item_id = format!("large-item-{index}");
+            let content = vec![b'x'; 3_000];
+            let item = item_ref(item_id.clone(), 1, &content);
+            registry.insert(
+                (item_id, 1),
+                ItemRecord {
+                    item: item.clone(),
+                    kind: "history".to_owned(),
+                    protected: false,
+                    scope: scope.clone(),
+                    content,
+                    expires_at: 4_102_444_800,
+                    expires_text: "2100-01-01T00:00:00Z".to_owned(),
+                    locked_reason: None,
+                },
+            );
+            selected_items.push(item);
+        }
+        let draft = Draft {
+            schema: "ascension.context-control.draft.v1".to_owned(),
+            scope,
+            draft_id: "draft-budget".to_owned(),
+            version: 1,
+            base_revision_id: "revision-1".to_owned(),
+            selected_items,
+            pinned_item_ids: Vec::new(),
+            note_items: Vec::new(),
+            objective_item: None,
+            author_ref: "operator-budget".to_owned(),
+            expires_at: "2100-01-01T00:00:00Z".to_owned(),
+        };
+        let error = render("preview-budget", &boundary, &draft, &registry, 0)
+            .expect_err("mandatory context must not be trimmed to fit");
+        assert_eq!(error, "mandatory_budget_exceeded");
+    }
+}
