@@ -122,7 +122,7 @@ rejection, transaction rollback with outbox atomicity, additive migration, legac
 immutable snapshot backup. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and eight durable-store migration/integrity cases, including
-replacement-owner fencing for old live handles, documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/18c0682ab1218b71db2e76a80703e676caeddd2f/docs/evidence/context-control-store-20260910.md).
+replacement-owner fencing for old live handles, documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/7580619964ad73fd107031fb5bf6a1a6f5c9e3ec/docs/evidence/context-control-store-20260910.md).
 The compiled target CLI suite adds six tests for durable command sequencing, explicit content
 permission, stdin parsing bounds, unavailable-store exit classification, and no-mutation rejection
 paths.

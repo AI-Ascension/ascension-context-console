@@ -1150,7 +1150,7 @@
       ],
       "evidence_status": "executed",
       "test_id": "replacement_owner_fences_the_old_live_handle",
-      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/18c0682ab1218b71db2e76a80703e676caeddd2f/crates/harness/tests/context_control_migration.rs",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/7580619964ad73fd107031fb5bf6a1a6f5c9e3ec/crates/harness/tests/context_control_migration.rs",
       "observed": "companion migration test fences old reads and writes after replacement ownership is claimed"
     },
     {
