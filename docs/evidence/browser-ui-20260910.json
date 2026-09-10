@@ -1,6 +1,6 @@
 {
   "schema": "ascension.browser-ui-evidence.v1",
-  "source_revision": "a670d250841614773c941f3226fd49ccf573520c",
+  "source_revision": "af8e5ba9dda9f155d42d2d1068da2cb7a7d8d87b",
   "evidence_class": ["synthetic", "native"],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
@@ -16,6 +16,7 @@
     "height": 800
   },
   "reduced_motion": true,
+  "reduced_motion_match": true,
   "status": "Synthetic offline bundle loaded",
   "boundary": "adapter.cli_input",
   "component_count": 3,
@@ -84,7 +85,7 @@
     },
     "narrow": {
       "path": "docs/evidence/browser-narrow-20260910.png",
-      "sha256": "5aeb722841d533ca83362f84fa9aa32c9b1c6a115c7c5a14b69a60aae3cabfc1"
+      "sha256": "85043a12e7c4f2545599505fd2ae9d8af17a958d36f25e1d88105655e5c205df"
     }
   }
 }
