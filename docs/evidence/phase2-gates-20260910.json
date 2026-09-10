@@ -42,7 +42,7 @@
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
-    "context_control_tests": 4,
+    "context_control_tests": 5,
     "exo_adapter_tests": 6,
     "ollama_bridge_tests": 8,
     "astra_bridge_tests": 4
