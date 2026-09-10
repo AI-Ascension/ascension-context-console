@@ -177,11 +177,41 @@ async function run() {
       const otherRun = await fetch('/v2/runs/other-run/context-control/state', {
         headers: { Authorization: 'Bearer fixture-editor-token' },
       });
+      const draftBeforeForgedIdentity = await (await fetch('/v2/runs/fixture-run/context-control/drafts/draft-1', {
+        headers: { Authorization: 'Bearer fixture-editor-token' },
+      })).json();
+      const eligible = await (await fetch('/v2/runs/fixture-run/context-control/eligible-items', {
+        headers: { Authorization: 'Bearer fixture-editor-token' },
+      })).json();
+      const item = eligible.items.find((entry) => !entry.protected).item;
+      const forgedIdentity = await fetch('/v2/runs/fixture-run/context-control/drafts/draft-1/operations', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer fixture-editor-token', Origin: location.origin, 'X-CSRF-Token': 'fixture-csrf-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schema: 'ascension.context-control.patch.v1',
+          scope,
+          draft_id: 'draft-1',
+          expected_draft_version: draftBeforeForgedIdentity.version,
+          expected_active_revision_id: 'revision-1',
+          operations: [{ op: 'include_item', item }],
+          actor: 'forged-operator',
+          role: 'admin',
+        }),
+      });
+      const draftAfterForgedIdentity = await (await fetch('/v2/runs/fixture-run/context-control/drafts/draft-1', {
+        headers: { Authorization: 'Bearer fixture-editor-token' },
+      })).json();
       return {
         readOnly: { status: readOnly.status, value: await readOnly.json() },
         missingCsrf: { status: missingCsrf.status, value: await missingCsrf.json() },
         duplicate: { status: duplicate.status, value: await duplicate.json() },
         otherRun: { status: otherRun.status, value: await otherRun.json() },
+        forgedIdentity: {
+          status: forgedIdentity.status,
+          value: await forgedIdentity.json(),
+          versionBefore: draftBeforeForgedIdentity.version,
+          versionAfter: draftAfterForgedIdentity.version,
+        },
       };
     });
     const crossOriginResponse = await fetch(`${base}/v2/runs/fixture-run/context-control/drafts`, {
@@ -205,6 +235,9 @@ async function run() {
     assert.equal(security.duplicate.value.error.code, 'duplicate_json_key');
     assert.notEqual(security.otherRun.status, 200);
     assert.equal(security.otherRun.value.error.code, 'route_not_found');
+    assert.equal(security.forgedIdentity.status, 422);
+    assert.equal(security.forgedIdentity.value.error.code, 'invalid_json');
+    assert.equal(security.forgedIdentity.versionAfter, security.forgedIdentity.versionBefore);
 
     const events = await page.evaluate(async () => (await fetch('/v2/runs/fixture-run/context-control/events', { cache: 'no-store', headers: { Authorization: 'Bearer fixture-editor-token' } })).json());
     const eventTypes = events.events.map((event) => event.event_type);
@@ -251,7 +284,7 @@ async function run() {
       schema: 'ascension.phase2-browser-evidence.v1',
       evidence_id: 'PHASE2-BROWSER-20260910',
       requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R044', 'P2-R045', 'P2-R046', 'P2-R049', 'P2-R050', 'P2-R051', 'P2-R052', 'P2-R053', 'P2-R059', 'P2-R063', 'P2-R064'],
-      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F012', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F074', 'P2-F075', 'P2-F076'],
+      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F006', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F012', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F074', 'P2-F075', 'P2-F076'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -293,6 +326,7 @@ async function run() {
         missing_csrf_denied: security.missingCsrf.status === 403,
         duplicate_json_rejected: security.duplicate.value.error.code === 'duplicate_json_key',
         cross_scope_route_concealed: security.otherRun.value.error.code === 'route_not_found',
+        forged_actor_role_rejected_without_mutation: security.forgedIdentity.value.error.code === 'invalid_json' && security.forgedIdentity.versionAfter === security.forgedIdentity.versionBefore,
         note_html_stays_data: true,
         private_note_absent_from_metrics: !JSON.stringify(metrics).includes('Browser operator note') && !JSON.stringify(metrics).includes('<img'),
         reconnect_preserves_pause_without_auto_resume: true,
