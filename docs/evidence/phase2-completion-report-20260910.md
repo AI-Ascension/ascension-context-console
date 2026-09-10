@@ -126,7 +126,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 
 ## Failure and recovery coverage
 
-The 16 target control tests plus 25 row-level failure tests cover protected edits, draft CAS,
+The 17 target control tests plus 5 Phase 1 acceptance tests and 25 row-level failure tests cover protected edits, draft CAS,
 objective authorization, typed pin/exclude/restore, protected identity aliases,
 exploratory/applicable preview, pause/commit/resume, stale boundaries, idempotent receipts,
 command-window expiry, changed-body conflicts, journal tamper/recovery, disabled mode, and stop
