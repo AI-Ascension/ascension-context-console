@@ -766,4 +766,32 @@ mod tests {
             401
         );
     }
+
+    #[test]
+    fn capabilities_honor_revocation() {
+        let (mut store, grant) = api();
+        store.revoke(b"api-token").expect("revoke");
+        let api = ReadApi::new(
+            &store,
+            &grant,
+            b"api-token",
+            "127.0.0.1:0",
+            Some("http://127.0.0.1:0".to_owned()),
+            UNIX_EPOCH,
+        );
+        let response = api.handle_at(
+            &HttpRequest {
+                method: "GET".to_owned(),
+                target: "/v1/capabilities".to_owned(),
+                headers: vec![
+                    ("host".to_owned(), "127.0.0.1:0".to_owned()),
+                    ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
+                    ("authorization".to_owned(), "Bearer api-token".to_owned()),
+                ],
+                body: Vec::new(),
+            },
+            UNIX_EPOCH,
+        );
+        assert_eq!(response.status, 403);
+    }
 }
