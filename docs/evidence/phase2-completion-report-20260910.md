@@ -18,9 +18,11 @@ Luna/max descendants and reservation metadata remain unavailable;
 see `docs/evidence/phase2-native-preflight-20260910.json`.
 
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Eight rows have executable evidence: seven browser cases (`P2-F001`, `P2-F003`,
-`P2-F005`, `P2-F011`, `P2-F017`, `P2-F022`, and `P2-F031`) plus the Rust resume guard
-(`P2-F039`); the other 72 remain explicitly marked
+failure rows. Twenty-five rows have executable evidence: the browser cases (`P2-F001`,
+`P2-F003`, `P2-F005`, `P2-F011`, `P2-F017`, `P2-F022`, and `P2-F031`) plus named Rust
+regressions for CAS, protected identity, restore, authorization, preview freshness/expiry,
+idempotency, plan fencing, stop dominance, safe deactivation, and the approved-resume guard;
+the other 55 remain explicitly marked
 `required_not_executed` because the fixture has no dedicated fault injection or live provider,
 storage, migration, and process-ownership harness for them.
 
@@ -60,7 +62,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R028 | executed | Pause/commit/plan admission tests fence new work. |
 | P2-R029 | source-reviewed | Unresolved-operation fields block readiness; no clear-ledger path exists. |
 | P2-R030 | executed | Applicable preview requires paused-ready and quiescent state. |
-| P2-R031 | source-reviewed | Plan epoch and controller fencing reject obsolete work. |
+| P2-R031 | executed | `p2_f051_old_plan_epoch_is_rejected_after_commit` asserts plan-epoch fencing after commit. |
 | P2-R032 | executed | Explicit no-edit resume path is covered by the target state machine. |
 | P2-R033 | executed | Commit checks control, revision, preview and boundary CAS. |
 | P2-R034 | source-reviewed | Commit/resume recheck content, boundary and authorization guards. |
@@ -97,15 +99,16 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 
 ## Failure and recovery coverage
 
-The 14 target Phase 2 integration tests cover protected edits, draft CAS, objective authorization,
-typed pin/exclude/restore, protected identity aliases, exploratory/applicable preview,
-pause/commit/resume, stale boundaries, idempotent receipts, command-window expiry, changed-body
-conflicts, journal tamper/recovery, disabled mode, and stop dominance. The companion tests cover
+The 15 target control tests plus 17 row-level failure tests cover protected edits, draft CAS,
+objective authorization, typed pin/exclude/restore, protected identity aliases,
+exploratory/applicable preview, pause/commit/resume, stale boundaries, idempotent receipts,
+command-window expiry, changed-body conflicts, journal tamper/recovery, disabled mode, and stop
+dominance. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, and
 actual serialized Ollama/Astra bridge inputs. The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records eight executed cases and 72
+failure matrix has 80 rows. The row-level ledger records 25 executed cases and 55
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 

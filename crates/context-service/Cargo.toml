@@ -30,3 +30,7 @@ path = "../../tests/phase1_acceptance.rs"
 [[test]]
 name = "phase2_control"
 path = "../../tests/phase2_control.rs"
+
+[[test]]
+name = "phase2_failure_matrix"
+path = "../../tests/phase2_failure_matrix.rs"

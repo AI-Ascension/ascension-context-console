@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 8,
+  "executed_row_count": 25,
   "rows": [
     {
       "id": "P2-F001",
@@ -228,10 +228,10 @@
         "P2-R013",
         "P2-R016"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f013_two_operators_have_one_cas_winner",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust CAS regression passed; one stale operator was rejected"
     },
     {
       "id": "P2-F014",
@@ -265,10 +265,10 @@
         "P2-R015",
         "P2-R017"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f015_protected_item_cannot_be_excluded_or_selected",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust protected-item regression passed; draft stayed unchanged"
     },
     {
       "id": "P2-F016",
@@ -284,10 +284,10 @@
         "P2-R015",
         "P2-R017"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f016_note_identity_cannot_alias_protected_item",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust identity/protection regression passed"
     },
     {
       "id": "P2-F017",
@@ -360,10 +360,10 @@
         "P2-R015",
         "P2-R017"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f020_pin_requires_selection_and_exclude_requires_unpin",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust pin ordering regression passed"
     },
     {
       "id": "P2-F021",
@@ -397,9 +397,9 @@
         "P2-R017"
       ],
       "evidence_status": "executed",
-      "test_id": "tools/phase2_browser_audit.cjs",
-      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
-      "observed": "browser assertion passed"
+      "test_id": "p2_f022_restore_is_a_fresh_configuration_draft",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust restore regression passed; browser restore flow also passed"
     },
     {
       "id": "P2-F023",
@@ -415,10 +415,10 @@
         "P2-R015",
         "P2-R017"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f023_restore_cannot_be_combined_with_other_operations",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust restore exclusivity regression passed"
     },
     {
       "id": "P2-F024",
@@ -433,10 +433,10 @@
         "P2-R045",
         "P2-R046"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f024_objective_requires_elevated_authorization",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust objective authorization regression passed"
     },
     {
       "id": "P2-F025",
@@ -451,10 +451,10 @@
         "P2-R035",
         "P2-R036"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f025_identical_configuration_is_a_no_change_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust no-change commit regression passed"
     },
     {
       "id": "P2-F026",
@@ -470,10 +470,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f026_running_preview_is_exploratory_only",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust running preview regression passed"
     },
     {
       "id": "P2-F027",
@@ -488,10 +488,10 @@
         "P2-R035",
         "P2-R036"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f027_boundary_change_invalidates_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust boundary freshness regression passed"
     },
     {
       "id": "P2-F028",
@@ -637,10 +637,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f035_draft_change_invalidates_previous_preview",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust draft freshness regression passed"
     },
     {
       "id": "P2-F036",
@@ -656,10 +656,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f036_expired_preview_cannot_be_committed",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust expiry regression passed"
     },
     {
       "id": "P2-F037",
@@ -692,9 +692,9 @@
         "P2-R039"
       ],
       "evidence_status": "executed",
-      "test_id": "p2_f039_resume_cannot_bypass_the_approved_preview_identity",
+      "test_id": "preview_pause_commit_resume_fences_the_old_plan_and_reuses_receipts",
       "evidence_artifact": "tests/phase2_control.rs",
-      "observed": "Rust regression passed; resume stayed paused and retained prepared input"
+      "observed": "Rust control regression passed; commit advanced the plan and accepted the recorded continuation"
     },
     {
       "id": "P2-F039",
@@ -709,10 +709,10 @@
         "P2-R038",
         "P2-R039"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f039_resume_cannot_bypass_the_approved_preview_identity",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust regression passed; resume stayed paused and retained prepared input"
     },
     {
       "id": "P2-F040",
@@ -836,10 +836,10 @@
         "P2-R047",
         "P2-R048"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f046_old_pause_replay_returns_original_receipt",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust old-pause replay returned the original receipt"
     },
     {
       "id": "P2-F047",
@@ -921,10 +921,10 @@
         "P2-R031",
         "P2-R037"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f051_old_plan_epoch_is_rejected_after_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust plan-epoch fencing regression passed"
     },
     {
       "id": "P2-F052",
@@ -958,10 +958,10 @@
         "P2-R047",
         "P2-R048"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f053_changed_body_reuse_is_an_idempotency_conflict",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust idempotency conflict regression passed"
     },
     {
       "id": "P2-F054",
@@ -994,10 +994,10 @@
         "P2-R038",
         "P2-R039"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f055_stop_dominates_resume",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust stop-dominance regression passed"
     },
     {
       "id": "P2-F056",
@@ -1182,10 +1182,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f066_deactivation_preserves_pause_and_revision",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust safe-deactivation regression passed"
     },
     {
       "id": "P2-F067",
