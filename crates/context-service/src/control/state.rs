@@ -954,6 +954,7 @@ impl ControlPlane {
             );
         }
         self.continuation_preview_id = None;
+        self.prepared_input = None;
         Ok(receipt)
     }
 

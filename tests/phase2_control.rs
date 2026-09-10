@@ -417,6 +417,15 @@ fn preview_pause_commit_resume_fences_the_old_plan_and_reuses_receipts() {
         plane.resume(resume_command).expect("idempotent resume"),
         resumed
     );
+    assert!(plane.prepared_input().is_none());
+    assert!(
+        plane
+            .events()
+            .iter()
+            .filter(|event| event.event_type == "input.submitted")
+            .count()
+            == 1
+    );
     assert!(plane.validate_plan_epoch(plane.state().plan_epoch).is_ok());
 }
 
