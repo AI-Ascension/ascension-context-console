@@ -127,6 +127,7 @@ async function run() {
     assert.equal(await page.locator('#preview').isHidden(), true);
     const conflictProbe = await page.evaluate(async () => {
       const draft = await (await fetch('/v2/runs/fixture-run/context-control/drafts/draft-1', { headers: { Authorization: 'Bearer fixture-editor-token' } })).json();
+      const state = await (await fetch('/v2/runs/fixture-run/context-control/state', { headers: { Authorization: 'Bearer fixture-editor-token' } })).json();
       const eligible = await (await fetch('/v2/runs/fixture-run/context-control/eligible-items', { headers: { Authorization: 'Bearer fixture-editor-token' } })).json();
       const item = eligible.items.find((entry) => !entry.protected).item;
       const response = await fetch(`/v2/runs/fixture-run/context-control/drafts/${draft.draft_id}/operations`, {
@@ -137,7 +138,7 @@ async function run() {
           scope: draft.scope,
           draft_id: draft.draft_id,
           expected_draft_version: draft.version,
-          expected_active_revision_id: 'revision-2',
+          expected_active_revision_id: state.active_revision_id,
           operations: [{ op: 'include_item', item }],
         }),
       });
