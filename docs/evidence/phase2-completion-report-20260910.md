@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5018295ed647d4a3658d19d940354825cf0c46a1`, evidence handoff `964b88a768755e477443a43b7a9b1a7f521d895d`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `7580619964ad73fd107031fb5bf6a1a6f5c9e3ec`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5018295ed647d4a3658d19d940354825cf0c46a1`, evidence handoff `964b88a7811e0215abf58ade30b95162eb69c3b0`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `0c9033f7d4f7dc151b01247e2e56900c38fddc56`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -132,7 +132,7 @@ rejection, transaction rollback with outbox atomicity, additive migration, legac
 immutable snapshot backup. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and eight durable-store migration/integrity cases, including
-replacement-owner fencing for old live handles, documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/7580619964ad73fd107031fb5bf6a1a6f5c9e3ec/docs/evidence/context-control-store-20260910.md).
+replacement-owner fencing for old live handles, documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/0c9033f7d4f7dc151b01247e2e56900c38fddc56/docs/evidence/context-control-store-20260910.md).
 The compiled target CLI suite adds seven tests for durable command sequencing, explicit content
 permission, stdin parsing bounds, unavailable-store exit classification, and no-mutation rejection
 paths, including a denied edit that leaves no durable file or WAL behind.

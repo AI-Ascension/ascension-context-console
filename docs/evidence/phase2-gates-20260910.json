@@ -52,15 +52,15 @@
     }
   },
   "companion": {
-    "branch_head": "7580619964ad73fd107031fb5bf6a1a6f5c9e3ec",
-    "phase2_source_revision": "7580619964ad73fd107031fb5bf6a1a6f5c9e3ec",
+    "branch_head": "0c9033f7d4f7dc151b01247e2e56900c38fddc56",
+    "phase2_source_revision": "0c9033f7d4f7dc151b01247e2e56900c38fddc56",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
     "context_control_tests": 6,
     "context_control_migration_tests": 8,
-    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/7580619964ad73fd107031fb5bf6a1a6f5c9e3ec/docs/evidence/context-control-store-20260910.md",
+    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/0c9033f7d4f7dc151b01247e2e56900c38fddc56/docs/evidence/context-control-store-20260910.md",
     "exo_adapter_tests": 6,
     "ollama_bridge_tests": 8,
     "astra_bridge_tests": 4
