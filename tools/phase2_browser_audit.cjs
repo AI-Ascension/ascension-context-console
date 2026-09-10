@@ -71,9 +71,11 @@ async function run() {
     await page.waitForSelector('#control-panel:not([hidden])');
     const offlineManifest = await page.evaluate(async () => (await fetch('/offline-bundle.json', { cache: 'no-store' })).json());
     assert.equal(Object.values(offlineManifest).some((value) => typeof value === 'string' && (value.includes('/v2/') || value.includes('run-fixture-001'))), false);
+    const capabilities = await page.evaluate(async () => (await fetch('/v2/runs/fixture-run/context-control/capabilities', { headers: { Authorization: 'Bearer fixture-editor-token' } })).json());
     assert.equal(await page.locator('#management-badge').textContent(), 'management enabled');
     assert.equal(await page.locator('#control-status').textContent(), 'running');
     assert.equal(await page.locator('#durable-store').textContent(), 'supported');
+    assert.equal(capabilities.optional_images, 'unsupported');
     assert.ok(await page.locator('#eligible-rows input[type=checkbox]').count() >= 1);
 
     await page.locator('#create-draft').focus();
@@ -203,6 +205,18 @@ async function run() {
       const draftAfterForgedIdentity = await (await fetch('/v2/runs/fixture-run/context-control/drafts/draft-1', {
         headers: { Authorization: 'Bearer fixture-editor-token' },
       })).json();
+      const unsupportedImage = await fetch('/v2/runs/fixture-run/context-control/drafts/draft-1/operations', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer fixture-editor-token', Origin: location.origin, 'X-CSRF-Token': 'fixture-csrf-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schema: 'ascension.context-control.patch.v1',
+          scope,
+          draft_id: 'draft-1',
+          expected_draft_version: draftAfterForgedIdentity.version,
+          expected_active_revision_id: 'revision-1',
+          operations: [{ op: 'put_image', image: { media_type: 'image/png', bytes: 'not-retained' } }],
+        }),
+      });
       return {
         readOnly: { status: readOnly.status, value: await readOnly.json() },
         missingCsrf: { status: missingCsrf.status, value: await missingCsrf.json() },
@@ -214,6 +228,7 @@ async function run() {
           versionBefore: draftBeforeForgedIdentity.version,
           versionAfter: draftAfterForgedIdentity.version,
         },
+        unsupportedImage: { status: unsupportedImage.status, value: await unsupportedImage.json() },
       };
     });
     const crossOriginResponse = await fetch(`${base}/v2/runs/fixture-run/context-control/drafts`, {
@@ -240,6 +255,8 @@ async function run() {
     assert.equal(security.forgedIdentity.status, 422);
     assert.equal(security.forgedIdentity.value.error.code, 'invalid_json');
     assert.equal(security.forgedIdentity.versionAfter, security.forgedIdentity.versionBefore);
+    assert.equal(security.unsupportedImage.status, 422);
+    assert.equal(security.unsupportedImage.value.error.code, 'invalid_json');
 
     const events = await page.evaluate(async () => (await fetch('/v2/runs/fixture-run/context-control/events', { cache: 'no-store', headers: { Authorization: 'Bearer fixture-editor-token' } })).json());
     const eventTypes = events.events.map((event) => event.event_type);
@@ -286,7 +303,7 @@ async function run() {
       schema: 'ascension.phase2-browser-evidence.v1',
       evidence_id: 'PHASE2-BROWSER-20260910',
       requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R044', 'P2-R045', 'P2-R046', 'P2-R049', 'P2-R050', 'P2-R051', 'P2-R052', 'P2-R053', 'P2-R059', 'P2-R063', 'P2-R064'],
-      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F006', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F012', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F074', 'P2-F075', 'P2-F076'],
+      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F006', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F012', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F033', 'P2-F034', 'P2-F073', 'P2-F074', 'P2-F075', 'P2-F076'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -330,6 +347,7 @@ async function run() {
         duplicate_json_rejected: security.duplicate.value.error.code === 'duplicate_json_key',
         cross_scope_route_concealed: security.otherRun.value.error.code === 'route_not_found',
         forged_actor_role_rejected_without_mutation: security.forgedIdentity.value.error.code === 'invalid_json' && security.forgedIdentity.versionAfter === security.forgedIdentity.versionBefore,
+        unsupported_image_rejected_before_commit: security.unsupportedImage.value.error.code === 'invalid_json',
         note_html_stays_data: true,
         private_note_absent_from_metrics: !JSON.stringify(metrics).includes('Browser operator note') && !JSON.stringify(metrics).includes('<img'),
         reconnect_preserves_pause_without_auto_resume: true,

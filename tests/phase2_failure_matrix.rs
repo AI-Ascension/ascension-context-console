@@ -397,6 +397,80 @@ fn p2_f027_boundary_change_invalidates_commit() {
 }
 
 #[test]
+fn p2_f028_catalog_bytes_change_with_same_state_label_stales_preview() {
+    let mut plane = ControlPlane::synthetic();
+    let created = selected_draft(&mut plane);
+    let preview = applicable_preview(&mut plane, &created, "pause-catalog-matrix");
+    let before = plane.state();
+    plane.advance_catalog();
+    let after = plane.state();
+    assert_eq!(
+        before.boundary.as_ref().unwrap().state_id,
+        after.boundary.as_ref().unwrap().state_id
+    );
+    assert_ne!(
+        before.boundary.as_ref().unwrap().catalog_sha256,
+        after.boundary.as_ref().unwrap().catalog_sha256
+    );
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-catalog-matrix",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id);
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    assert_eq!(
+        plane
+            .commit(commit)
+            .expect_err("catalog digest changed")
+            .code,
+        "preview_stale"
+    );
+    assert_eq!(plane.state().active_revision_id, "revision-1");
+}
+
+#[test]
+fn p2_f029_provider_fingerprint_change_stales_preview() {
+    let mut plane = ControlPlane::synthetic();
+    let created = selected_draft(&mut plane);
+    let preview = applicable_preview(&mut plane, &created, "pause-provider-fingerprint");
+    let before = plane.state();
+    plane.advance_provider_fingerprint();
+    let after = plane.state();
+    assert_ne!(
+        before.boundary.as_ref().unwrap().adapter_revision,
+        after.boundary.as_ref().unwrap().adapter_revision
+    );
+    assert_ne!(
+        before.boundary.as_ref().unwrap().configuration_sha256,
+        after.boundary.as_ref().unwrap().configuration_sha256
+    );
+    assert_ne!(
+        before.boundary.as_ref().unwrap().model,
+        after.boundary.as_ref().unwrap().model
+    );
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-provider-fingerprint",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id);
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    assert_eq!(
+        plane
+            .commit(commit)
+            .expect_err("provider fingerprint changed")
+            .code,
+        "preview_stale"
+    );
+    assert_eq!(plane.state().active_revision_id, "revision-1");
+}
+
+#[test]
 fn p2_f035_draft_change_invalidates_previous_preview() {
     let mut plane = ControlPlane::synthetic();
     let created = selected_draft(&mut plane);

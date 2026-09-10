@@ -209,3 +209,17 @@ fn compiled_cli_distinguishes_missing_durable_store() {
     let result = cli_process(&["state", &path_text], None);
     assert_eq!(result.status.code(), Some(5));
 }
+
+#[test]
+fn compiled_cli_denies_content_edit_without_a_durable_store() {
+    let path = path();
+    cleanup(&path);
+    let path_text = path.to_string_lossy().into_owned();
+    let patch = r#"{"schema":"ascension.context-control.patch.v1"}"#;
+    let result = cli_process(&["draft-edit", &path_text, "operator-cli"], Some(patch));
+    assert_eq!(result.status.code(), Some(5));
+    assert!(
+        !path.exists(),
+        "memory-only edit must not create a durable store"
+    );
+}

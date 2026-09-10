@@ -1010,6 +1010,34 @@ impl ControlPlane {
         self.invalidate_all_previews("boundary_changed");
     }
 
+    /// Changes the host action catalog fingerprint while retaining the visible state label. The
+    /// next approval must observe the new catalog bytes instead of silently reusing an old plan.
+    pub fn advance_catalog(&mut self) {
+        self.boundary.catalog_sha256 =
+            digest(format!("catalog-{}", self.boundary.gate_epoch.saturating_add(1)).as_bytes());
+        self.state.boundary = Some(self.boundary.clone());
+        if self.state.pause_latched {
+            self.state.status = "paused_stale".to_owned();
+        }
+        self.invalidate_all_previews("catalog_changed");
+    }
+
+    /// Changes the adapter/model/configuration fingerprints without changing host state. This is
+    /// the deterministic fixture seam for an upgraded binary or configuration between preview and
+    /// use; every existing preview is fenced at the new boundary.
+    pub fn advance_provider_fingerprint(&mut self) {
+        let next = self.boundary.gate_epoch.saturating_add(1);
+        self.boundary.adapter_revision = format!("fixture-adapter-v{next}");
+        self.boundary.adapter_sha256 = digest(self.boundary.adapter_revision.as_bytes());
+        self.boundary.model = format!("synthetic-fixture-v{next}");
+        self.boundary.configuration_sha256 = digest(format!("configuration-{next}").as_bytes());
+        self.state.boundary = Some(self.boundary.clone());
+        if self.state.pause_latched {
+            self.state.status = "paused_stale".to_owned();
+        }
+        self.invalidate_all_previews("provider_fingerprint_changed");
+    }
+
     /// Advances the deterministic fixture clock so expiry and command-window behavior can be
     /// exercised without depending on wall-clock sleeps.
     pub fn advance_time(&mut self, seconds: u64) {

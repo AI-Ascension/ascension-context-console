@@ -29,7 +29,7 @@ impl DurableControlStore {
         plane: &ControlPlane,
     ) -> Result<Self, DurableStoreError> {
         let run_id = plane.scope().run_id.clone();
-        let mut store = Self::open_connection(path.as_ref(), key, run_id)?;
+        let mut store = Self::open_connection(path.as_ref(), key, run_id, true)?;
         store.persist(plane)?;
         Ok(store)
     }
@@ -39,7 +39,7 @@ impl DurableControlStore {
         key: [u8; 32],
         run_id: impl Into<String>,
     ) -> Result<Self, DurableStoreError> {
-        Self::open_connection(path.as_ref(), key, run_id.into())
+        Self::open_connection(path.as_ref(), key, run_id.into(), false)
     }
 
     pub fn path(&self) -> &Path {
@@ -226,6 +226,7 @@ impl DurableControlStore {
         path: &Path,
         key: [u8; 32],
         run_id: String,
+        create: bool,
     ) -> Result<Self, DurableStoreError> {
         if path.as_os_str().is_empty() || run_id.is_empty() {
             return Err(DurableStoreError::InvalidPath);
@@ -239,7 +240,15 @@ impl DurableControlStore {
         {
             return Err(DurableStoreError::ParentMissing);
         }
-        let connection = Connection::open(path).map_err(|_| DurableStoreError::Sqlite)?;
+        if !create && !path.is_file() {
+            return Err(DurableStoreError::Missing);
+        }
+        let connection = if create {
+            Connection::open(path)
+        } else {
+            Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
+        }
+        .map_err(|_| DurableStoreError::Sqlite)?;
         connection
             .execute_batch(
                 "PRAGMA journal_mode = WAL;
