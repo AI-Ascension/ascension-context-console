@@ -26,6 +26,14 @@ screenshots are in `docs/evidence/browser-ui-20260910.json` and the two adjacent
 run covers the normal synthetic flow; filesystem spies and native storage enforcement remain
 separate evidence limits.
 
+The integrated browser audit runs `context-console integrated-demo 0` as a loopback server and
+loads `/web/` from that process. The server creates the synthetic producer projection, passes the
+same bytes through `MemoryCapture`, retains them in `Store`, and routes the browser's declared
+`/demo/*` artifacts through `ReadApi`. The audit asserts seven events, two captured records, at
+least three API projections, zero provider/game/external calls, and the same adversarial,
+keyboard, reduced-motion, persistence, and narrow-layout conditions. Its result and screenshots
+are the three `integrated-browser-*` artifacts in `docs/evidence/`.
+
 The companion harness branch records a bounded baseline/successor differential run for Astra and
 Ollama with synthetic fake downstreams; its machine-readable result is
 `docs/evidence/context-capture-fidelity-20260910.json`. That evidence covers the bridge handoff and

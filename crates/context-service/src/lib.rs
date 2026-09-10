@@ -3,10 +3,12 @@
 //! Restricted local ingestion and read projections for the Context Console.
 //!
 //! The service deliberately has no provider, game, process-execution, or gateway dependency.
-//! `Store` accepts only immutable manifests and exposes scoped read operations. A future
-//! executable may put an authenticated loopback transport around this library.
+//! `Store` accepts only immutable manifests and exposes scoped read operations. The
+//! `integrated-demo` executable places a provider-free synthetic loopback transport around these
+//! primitives for end-to-end review.
 
 mod capture;
+mod integrated_demo;
 mod observability;
 mod private_store;
 mod read_api;
@@ -30,6 +32,8 @@ pub use store::{
     MAX_CONTENT_BYTES, MAX_CONTENT_REFS, MAX_EVENTS, MAX_MANIFEST_BYTES, MAX_SNAPSHOTS, ReadError,
     ReadGrant, SnapshotSummary, Store, StoreConfig,
 };
+
+pub use integrated_demo::run as run_integrated_demo;
 
 /// Run the deterministic, provider-free fixture demonstration.
 pub fn demo() -> Result<(), IngestError> {

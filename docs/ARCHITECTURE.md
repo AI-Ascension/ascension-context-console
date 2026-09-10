@@ -29,10 +29,13 @@ them as plaintext. The browser does not use
 localStorage, IndexedDB, cache storage, external resources, or credential-bearing URLs.
 
 The checked-in fixtures and `context-console demo` exercise producer → store → read API evidence
-without launching a provider or game. The browser evidence loads the same checked-in synthetic
-bundle from a loopback static server and records the rendered projection, comparison, keyboard
-flow, and browser-storage state. The companion harness branch supplies the actual Exo,
+without launching a provider or game. `context-console integrated-demo` extends that synthetic
+path through `MemoryCapture`, an authenticated `ReadApi` projection, and the browser's same-origin
+`/demo/*` requests; its metrics expose every stage and the zero provider/game counters. The browser
+evidence also loads the checked-in synthetic bundle from a loopback static server and records the
+rendered projection, comparison, keyboard flow, and browser-storage state. The companion harness branch supplies the actual Exo,
 generic-provider, Astra, and Ollama capture seams. Its bounded fake-process bridge oracle uses
 production source `316c8bd1814d9f9762a08c534898ec827365c91a` and is recorded on the companion
 evidence branch tracked by PR #51; live provider receipts, game launches, integrated
-producer-to-browser execution, and native storage behavior remain unverified.
+producer-to-browser execution through the actual harness, and native storage behavior remain
+unverified.

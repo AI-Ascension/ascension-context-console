@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use context_service::demo;
+use context_service::{demo, run_integrated_demo};
 use std::env;
 use std::fs;
 use std::io::{self, Read};
@@ -16,6 +16,14 @@ fn run() -> Result<(), String> {
     let mut arguments = env::args().skip(1);
     match arguments.next().as_deref() {
         Some("demo") => demo().map_err(|error| error.to_string()),
+        Some("integrated-demo") => {
+            let port = arguments
+                .next()
+                .map(|value| value.parse::<u16>().map_err(|_| "invalid port".to_owned()))
+                .transpose()?
+                .unwrap_or(0);
+            run_integrated_demo(port)
+        }
         Some("inspect") => {
             let bytes = match arguments.next() {
                 Some(path) => fs::read(path).map_err(|_| "cannot read snapshot path".to_owned())?,
@@ -46,7 +54,7 @@ fn run() -> Result<(), String> {
             Ok(())
         }
         Some("help") => {
-            println!("context-console health|demo|inspect [snapshot.json]");
+            println!("context-console health|demo|integrated-demo [port]|inspect [snapshot.json]");
             Ok(())
         }
         Some(command) => Err(format!("unsupported command: {command}")),

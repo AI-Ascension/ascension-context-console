@@ -29,3 +29,8 @@ at `/web/`. It reads only the checked-in synthetic bundle. A local Chromium run 
 [`docs/evidence/browser-ui-20260910.json`](docs/evidence/browser-ui-20260910.json) with desktop and
 narrow screenshots. See [docs/DEMO.md](docs/DEMO.md), [docs/API.md](docs/API.md), and
 [docs/SECURITY.md](docs/SECURITY.md) for the evidence boundary and operational limits.
+
+The integrated synthetic review is available through `context-console integrated-demo 0`. It
+serves the browser and routes its declared `/demo/*` artifacts through the authenticated read API
+after producer and memory-capture stages. The browser audit script records process counters and
+terminates the local server after the run.

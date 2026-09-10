@@ -17,6 +17,8 @@ offline CLI and browser fixtures are synthetic evidence. The companion harness p
 evidence introduced at `1136255`) record bounded
 Astra and Ollama process runs against synthetic fake downstreams; those runs
 match the accepted baseline at the captured handoff and failure boundaries. No real provider or
-game receipt, native storage check, or cross-platform behavior is implied. A local Chromium run is
-recorded in `docs/evidence/browser-ui-20260910.json` with desktop and narrow screenshots; it uses
-only the checked-in synthetic bundle and loopback requests.
+game receipt, native storage check, or cross-platform behavior is implied. Local Chromium runs are
+recorded in `docs/evidence/browser-ui-20260910.json` and
+`docs/evidence/integrated-browser-ui-20260910.json` with desktop and narrow screenshots. The
+integrated record additionally covers the synthetic producer, memory capture, authenticated API
+projection, and browser request counters; both runs use loopback requests only.
