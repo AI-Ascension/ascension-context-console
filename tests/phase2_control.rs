@@ -430,6 +430,49 @@ fn preview_pause_commit_resume_fences_the_old_plan_and_reuses_receipts() {
 }
 
 #[test]
+fn preview_reports_unknown_total_budget_until_operator_acknowledges_it() {
+    let mut plane = ControlPlane::synthetic();
+    let created = draft(&mut plane);
+    let pause = command(
+        &plane,
+        "pause",
+        "pause-budget-ack",
+        plane.state().control_version,
+    );
+    plane.pause(pause).expect("pause");
+
+    let unacknowledged = plane
+        .create_preview(
+            scope(&plane),
+            &created.draft_id,
+            created.version,
+            true,
+            plane.state().control_version,
+            false,
+        )
+        .expect("unacknowledged preview");
+    assert!(!unacknowledged.applicable);
+    assert_eq!(unacknowledged.blockers, vec!["unknown_total_budget"]);
+    assert_eq!(unacknowledged.budget_status, "bounded_unknown_total");
+    assert!(!unacknowledged.unknown_total_risk_acknowledged);
+
+    let acknowledged = plane
+        .create_preview(
+            scope(&plane),
+            &created.draft_id,
+            created.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("acknowledged preview");
+    assert!(acknowledged.applicable);
+    assert!(acknowledged.blockers.is_empty());
+    assert_eq!(acknowledged.budget_status, "bounded_unknown_total");
+    assert!(acknowledged.unknown_total_risk_acknowledged);
+}
+
+#[test]
 fn boundary_change_rejects_a_committed_continuation() {
     let mut plane = ControlPlane::synthetic();
     let created = draft(&mut plane);

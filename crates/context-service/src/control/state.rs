@@ -636,6 +636,9 @@ impl ControlPlane {
         if applicable_requested && !held {
             blockers.push("run_not_held".to_owned());
         }
+        if applicable && !risk_ack {
+            blockers.push("unknown_total_budget".to_owned());
+        }
         let material = if blockers.is_empty() {
             render(&preview_id, &self.boundary, &draft, &self.items, self.now).ok()
         } else {
@@ -660,7 +663,7 @@ impl ControlPlane {
                 .as_ref()
                 .map_or_else(Vec::new, |value| value.components.clone()),
             selected_items: draft.selected_items.clone(),
-            budget_status: "within_known_local_limit".to_owned(),
+            budget_status: "bounded_unknown_total".to_owned(),
             unknown_total_risk_acknowledged: risk_ack,
             provider_added_context: "not_exposed".to_owned(),
             model_execution_id: material.as_ref().map(|_| self.id("execution")),

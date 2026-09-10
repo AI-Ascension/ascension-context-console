@@ -104,10 +104,12 @@ async function run() {
     } finally {
       await reconnect.close();
     }
+    await page.locator('#budget-risk-ack').check();
     await page.locator('#preview-draft').click();
     await page.waitForFunction(() => document.querySelector('#preview-badge').textContent === 'applicable');
     assert.equal(await page.locator('#commit-draft').isDisabled(), false);
     assert.notEqual(await page.locator('#prepared-digest').textContent(), 'unavailable');
+    assert.match(await page.locator('#preview-budget').textContent(), /bounded_unknown_total/);
     assert.match(await page.locator('#preview-diff').textContent(), /note-browser/);
     assert.match(await page.locator('#note-text').inputValue(), /<img src=/);
     assert.equal(await page.evaluate(() => window.__noteInjection), undefined);
@@ -314,6 +316,7 @@ async function run() {
         objective_and_note_delivered: true,
         pin_and_restore_are_typed_draft_operations: true,
         applicable_preview_has_digest: true,
+        unknown_total_capacity_acknowledged: true,
         commit_remains_paused: true,
         resume_is_explicit: true,
         zero_provider_calls: metrics.provider_calls === 0,

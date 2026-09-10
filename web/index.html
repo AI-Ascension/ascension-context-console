@@ -116,6 +116,10 @@
           <textarea id="note-text" rows="3" maxlength="4096" placeholder="Optional note; it remains operator attributed."></textarea>
           <label for="objective-text">Objective override (separate permission)</label>
           <textarea id="objective-text" rows="2" maxlength="512" placeholder="Requires the objective scope."></textarea>
+          <label class="checkbox-label" for="budget-risk-ack">
+            <input id="budget-risk-ack" type="checkbox">
+            Acknowledge that total provider token capacity is not measured; the local byte bound still applies.
+          </label>
         </div>
         <div class="restore-row">
           <label for="restore-source">Restore an earlier configuration into this draft</label>

@@ -448,7 +448,7 @@ async function removeNote() {
 async function makePreview() {
   if (!currentDraft) { setDraftMessage("Start a draft before previewing.", true); return; }
   try {
-    const preview = await controlJson("/previews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, applicable_requested: Boolean(controlState.pause_latched), expected_control_version: controlState.control_version, unknown_total_risk_acknowledged: false }) });
+    const preview = await controlJson("/previews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, applicable_requested: Boolean(controlState.pause_latched), expected_control_version: controlState.control_version, unknown_total_risk_acknowledged: document.querySelector("#budget-risk-ack").checked }) });
     renderPreview(preview);
     setDraftMessage(preview.applicable ? "Applicable preview is frozen for commit." : `Exploratory preview: ${preview.blockers.join(", ") || "run is not held"}.`);
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "preview failed", true); }
