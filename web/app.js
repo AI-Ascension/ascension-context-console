@@ -50,13 +50,20 @@ function validateEvents(events) {
 }
 
 function resolveBundleArtifact(value, field) {
+  const hasControlOrWhitespace = typeof value === "string"
+    && [...value].some((character) => {
+      const codePoint = character.codePointAt(0);
+      return codePoint <= 0x20 || codePoint === 0x7f;
+    });
   if (typeof value !== "string" || value.length === 0 || value.length > 256
-    || value.startsWith("/") || value.includes("\\") || value.includes("..")
+    || hasControlOrWhitespace || value.startsWith("/") || value.includes("\\") || value.includes("..")
     || value.includes("%") || value.includes("://")) {
     throw new Error(`offline bundle ${field} path is invalid`);
   }
   const url = new URL(value, bundleManifestUrl);
-  if (url.origin !== window.location.origin) throw new Error(`offline bundle ${field} origin is invalid`);
+  if (url.origin !== window.location.origin || url.search || url.hash) {
+    throw new Error(`offline bundle ${field} URL is invalid`);
+  }
   return url;
 }
 
