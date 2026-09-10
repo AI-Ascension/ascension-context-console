@@ -286,6 +286,136 @@ fn pinning_requires_selection_and_restore_is_a_new_configuration_draft() {
 }
 
 #[test]
+fn restore_keeps_prior_intervention_lineage_visible_after_a_new_commit() {
+    let mut plane = ControlPlane::synthetic();
+    let created = draft(&mut plane);
+    let edited = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &created.draft_id,
+                created.version,
+                vec![ControlOperation::IncludeItem {
+                    item: history_item(&plane),
+                }],
+            ),
+            "operator-first",
+            false,
+        )
+        .expect("first edit");
+    let pause = command(
+        &plane,
+        "pause",
+        "pause-lineage-first",
+        plane.state().control_version,
+    );
+    plane.pause(pause).expect("first pause");
+    let preview = plane
+        .create_preview(
+            scope(&plane),
+            &edited.draft_id,
+            edited.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("first preview");
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-lineage-first",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    plane.commit(commit).expect("first commit");
+    let first_revision = plane.state().active_revision_id.clone();
+    let first_relation = plane
+        .relations()
+        .into_iter()
+        .last()
+        .expect("first intervention relation");
+    let first_intervention = first_relation
+        .intervention_id
+        .clone()
+        .expect("first intervention id");
+
+    let mut resume = command(
+        &plane,
+        "resume",
+        "resume-lineage-first",
+        plane.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(first_revision.clone());
+    resume.expected_preview_id = Some(preview.preview_id);
+    plane.resume(resume).expect("first resume");
+
+    let restored_draft = draft(&mut plane);
+    let restored = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &restored_draft.draft_id,
+                restored_draft.version,
+                vec![ControlOperation::RestoreConfiguration {
+                    source_revision_id: "revision-1".to_owned(),
+                }],
+            ),
+            "operator-restore",
+            false,
+        )
+        .expect("restore prior configuration");
+    assert!(restored.selected_items.is_empty());
+
+    let pause = command(
+        &plane,
+        "pause",
+        "pause-lineage-restore",
+        plane.state().control_version,
+    );
+    plane.pause(pause).expect("restore pause");
+    let restored_preview = plane
+        .create_preview(
+            scope(&plane),
+            &restored.draft_id,
+            restored.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("restore preview");
+    let mut restored_commit = command(
+        &plane,
+        "commit",
+        "commit-lineage-restore",
+        plane.state().control_version,
+    );
+    restored_commit.expected_active_revision_id = Some(first_revision.clone());
+    restored_commit.preview_id = Some(restored_preview.preview_id.clone());
+    restored_commit.approved_manifest_sha256 = restored_preview.prepared_manifest_sha256;
+    plane
+        .commit(restored_commit)
+        .expect("commit restored configuration");
+
+    let relations = plane.relations();
+    assert_eq!(relations.len(), 2);
+    assert_eq!(
+        relations[0].intervention_id.as_deref(),
+        Some(first_intervention.as_str())
+    );
+    assert_ne!(
+        relations[1].intervention_id, relations[0].intervention_id,
+        "restoring creates a distinct intervention while retaining the prior relation"
+    );
+    assert!(plane.revisions().iter().any(|revision| {
+        revision.revision_id == first_revision
+            && revision.intervention_id == first_intervention
+            && revision.selected_items.len() == 1
+    }));
+}
+
+#[test]
 fn journal_recovery_rejects_tampered_or_duplicate_retained_items() {
     let plane = ControlPlane::synthetic();
     let journal = plane.export_journal().expect("journal");
