@@ -25,4 +25,5 @@ measurements, comparison result, and disclosure states. It never contacts a prov
 stores a capability in browser persistence, or renders fixture strings as HTML.
 
 This is source/synthetic evidence. It does not claim a live provider receipt, actual game launch,
-native storage enforcement, or an authorized Astra/Ollama downstream oracle.
+native storage enforcement, or browser execution. The companion harness repository separately
+records fake-only Astra/Ollama process fidelity against synthetic downstreams.

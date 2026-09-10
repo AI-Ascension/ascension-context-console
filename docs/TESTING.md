@@ -17,6 +17,9 @@ metadata-only telemetry. Harness tests cover the direct Exo session and generic 
 including prepared/write-failed states; bridge unit tests cover the final Astra and Ollama input
 component seams.
 
-The checked-in browser and CLI demo are offline synthetic evidence. Actual-process fake downstream
-oracles, differential pre/post behavior, native filesystem/process checks, and independent security
-review are separate evidence gates. They must not be inferred from these local tests.
+The checked-in browser and CLI demo are offline synthetic evidence. The companion harness branch
+records a bounded baseline/successor differential run for Astra and Ollama with synthetic fake
+downstreams; its machine-readable result is `docs/evidence/context-capture-fidelity-20260910.json`.
+That evidence covers the bridge handoff and failure cases only. It does not establish a real
+provider or game receipt, browser execution, native storage enforcement, or independent security
+review.
