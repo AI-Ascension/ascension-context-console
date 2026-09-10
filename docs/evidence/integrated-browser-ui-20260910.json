@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase1/t02-bootstrap",
-    "revision": "5412ab3014161cfb981174aba2d1441554f16f27"
+    "revision": "83eba775c91de52812948d9fb86dc43e244eebae"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:40711",
+  "base_url": "http://127.0.0.1:44429",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,13 +46,13 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:40711/web/",
-    "http://127.0.0.1:40711/web/styles.css",
-    "http://127.0.0.1:40711/web/app.js",
-    "http://127.0.0.1:40711/offline-bundle.json",
-    "http://127.0.0.1:40711/demo/snapshot",
-    "http://127.0.0.1:40711/demo/events",
-    "http://127.0.0.1:40711/demo/comparison"
+    "http://127.0.0.1:44429/web/",
+    "http://127.0.0.1:44429/web/styles.css",
+    "http://127.0.0.1:44429/web/app.js",
+    "http://127.0.0.1:44429/offline-bundle.json",
+    "http://127.0.0.1:44429/demo/snapshot",
+    "http://127.0.0.1:44429/demo/events",
+    "http://127.0.0.1:44429/demo/comparison"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -97,7 +97,7 @@
   "source_artifacts": [
     {
       "path": "crates/context-service/src/integrated_demo.rs",
-      "sha256": "1745a42f906b19f78933d86c5be5cc0298c3ba2b08571c507cbfc2e3777d8c57"
+      "sha256": "bc9a9402eff2ae19d9c1bc0ca835f0891ef107ec96037f5f0fb3bed72107ff3f"
     },
     {
       "path": "tools/integrated_browser_audit.cjs",
