@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 49,
+  "executed_row_count": 54,
   "rows": [
     {
       "id": "P2-F001",
@@ -507,10 +507,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f028_catalog_bytes_change_with_same_state_label_stales_preview",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust catalog-boundary regression kept the state label stable, changed the catalog digest, and rejected the old preview with preview_stale"
     },
     {
       "id": "P2-F029",
@@ -526,10 +526,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f029_provider_fingerprint_change_stales_preview",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust provider-boundary regression changed adapter, model, and configuration fingerprints and rejected the old preview with preview_stale"
     },
     {
       "id": "P2-F030",
@@ -602,10 +602,10 @@
         "P2-R025",
         "P2-R026"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "preview_reports_unknown_total_budget_until_operator_acknowledges_it; tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "tests/phase2_control.rs; docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "unknown provider capacity remains bounded_unknown_total; an applicable preview is blocked until the operator explicitly acknowledges the uncertainty, and the browser assertion records that acknowledgement"
     },
     {
       "id": "P2-F034",
@@ -618,10 +618,10 @@
         "P2-R005",
         "P2-R023"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser capability metadata reports optional images unsupported and a put_image operation is rejected with invalid_json before any commit"
     },
     {
       "id": "P2-F035",
@@ -1239,10 +1239,10 @@
         "P2-R047",
         "P2-R048"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "compiled_cli_denies_content_edit_without_a_durable_store",
+      "evidence_artifact": "tests/phase2_cli.rs",
+      "observed": "compiled CLI returned the durable-store denial and left the requested memory-only edit path absent, with no SQLite/WAL file created"
     },
     {
       "id": "P2-F070",

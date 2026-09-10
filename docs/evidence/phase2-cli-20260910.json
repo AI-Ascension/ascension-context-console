@@ -4,7 +4,7 @@
   "date": "2026-09-10",
   "repository": "AI-Ascension/ascension-context-console",
   "branch": "phase2/context-editing",
-  "source_revision": "46167a20b8d63d0b570c987a532fad1d05b88e69",
+  "source_revision": "62715332a08bda38b54f64b718043820ac3f3439",
   "command": "cargo test --locked --package context-service --test phase2_cli",
   "result": "passed",
   "tests": [
@@ -13,7 +13,8 @@
     "cli_store_starts_from_the_same_synthetic_scope",
     "compiled_cli_runs_the_durable_edit_preview_commit_resume_sequence",
     "compiled_cli_rejects_duplicate_and_oversized_stdin_without_mutation",
-    "compiled_cli_distinguishes_missing_durable_store"
+    "compiled_cli_distinguishes_missing_durable_store",
+    "compiled_cli_denies_content_edit_without_a_durable_store"
   ],
   "workflow": [
     "init",
@@ -37,6 +38,7 @@
     "oversized_stdin_rejected": true,
     "failed_edits_do_not_mutate": true,
     "durable_store_unavailable_exit_code": 5,
+    "memory_only_content_edit_denied_without_store": true,
     "provider_calls": 0,
     "game_launches": 0,
     "external_requests": 0
