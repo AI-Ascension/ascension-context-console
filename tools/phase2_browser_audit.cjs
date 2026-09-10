@@ -69,6 +69,8 @@ async function run() {
 
     await page.goto('/web/', { waitUntil: 'networkidle' });
     await page.waitForSelector('#control-panel:not([hidden])');
+    const offlineManifest = await page.evaluate(async () => (await fetch('/offline-bundle.json', { cache: 'no-store' })).json());
+    assert.equal(Object.values(offlineManifest).some((value) => typeof value === 'string' && (value.includes('/v2/') || value.includes('run-fixture-001'))), false);
     assert.equal(await page.locator('#management-badge').textContent(), 'management enabled');
     assert.equal(await page.locator('#control-status').textContent(), 'running');
     assert.equal(await page.locator('#durable-store').textContent(), 'supported');
@@ -222,8 +224,8 @@ async function run() {
     const evidence = {
       schema: 'ascension.phase2-browser-evidence.v1',
       evidence_id: 'PHASE2-BROWSER-20260910',
-      requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R044', 'P2-R045', 'P2-R046', 'P2-R050', 'P2-R052', 'P2-R053', 'P2-R059', 'P2-R064'],
-      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F075'],
+      requirement_ids: ['P2-R010', 'P2-R013', 'P2-R014', 'P2-R015', 'P2-R017', 'P2-R018', 'P2-R036', 'P2-R038', 'P2-R044', 'P2-R045', 'P2-R046', 'P2-R049', 'P2-R050', 'P2-R051', 'P2-R052', 'P2-R053', 'P2-R059', 'P2-R063', 'P2-R064'],
+      case_ids: ['P2-F001', 'P2-F003', 'P2-F004', 'P2-F005', 'P2-F007', 'P2-F010', 'P2-F011', 'P2-F012', 'P2-F017', 'P2-F022', 'P2-F031', 'P2-F073', 'P2-F075'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -270,6 +272,7 @@ async function run() {
         reconnect_preserves_pause_without_auto_resume: true,
         keyboard_activation: true,
         stale_preview_is_cleared_after_mutation: true,
+        offline_manifest_is_read_only: true,
       },
       artifacts: [
         { path: 'docs/evidence/phase2-browser-desktop-20260910.png', sha256: digest(desktopPath) },
