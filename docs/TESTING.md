@@ -28,6 +28,14 @@ The target `phase2_durable` tests cover encrypted journal reopen, wrong-key/tamp
 transaction rollback with outbox atomicity, additive schema repair with retained Phase 1 bytes,
 legacy active-state refusal, and immutable snapshot backup.
 
+`phase2_cli` includes direct reducer checks and a compiled-process workflow covering init, metadata
+capabilities, redacted eligible items, typed stdin draft editing, exploratory/applicable preview,
+pause, commit, and explicit resume. The process test verifies the
+`ascension.context-control.cli-result.v1` envelope and exercises separate command invocations
+against the durable fixture without provider or game effects. CLI stdin is capped at 16 KiB and
+uses the same duplicate-key/depth checks as the HTTP path; shell-facing exit classes are documented
+in [docs/API.md](API.md).
+
 The checked-in browser and CLI demo are offline synthetic evidence. A local Chromium run exercised
 the browser fixture at desktop (`1440x1000`) and narrow (`375x800`) viewports with reduced motion,
 keyboard comparison, same-origin-only requests, zero browser persistence, and no normal-flow

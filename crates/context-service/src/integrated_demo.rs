@@ -560,7 +560,7 @@ fn durable_error(_: DurableStoreError) -> ControlError {
     )
 }
 
-fn parse_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ControlError> {
+pub(crate) fn parse_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ControlError> {
     if body.is_empty() || body.len() > 16 * 1024 {
         return Err(ControlError::invalid(
             "body_too_large",

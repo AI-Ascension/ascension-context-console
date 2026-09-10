@@ -275,6 +275,17 @@ impl ControlPlane {
     }
 
     pub fn recover_journal(bytes: &[u8]) -> Result<Self, ControlError> {
+        Self::recover_journal_with_epoch(bytes, true)
+    }
+
+    pub(crate) fn recover_journal_without_epoch(bytes: &[u8]) -> Result<Self, ControlError> {
+        Self::recover_journal_with_epoch(bytes, false)
+    }
+
+    fn recover_journal_with_epoch(
+        bytes: &[u8],
+        increment_controller_epoch: bool,
+    ) -> Result<Self, ControlError> {
         #[derive(Deserialize)]
         struct Journal {
             schema: String,
@@ -307,10 +318,12 @@ impl ControlPlane {
             journal.plane.items.insert(key, item);
         }
         journal.plane.validate_journal_integrity()?;
-        journal.plane.state.controller_epoch =
-            journal.plane.state.controller_epoch.saturating_add(1);
-        journal.plane.boundary.controller_epoch = journal.plane.state.controller_epoch;
-        journal.plane.sync_boundary();
+        if increment_controller_epoch {
+            journal.plane.state.controller_epoch =
+                journal.plane.state.controller_epoch.saturating_add(1);
+            journal.plane.boundary.controller_epoch = journal.plane.state.controller_epoch;
+            journal.plane.sync_boundary();
+        }
         Ok(journal.plane)
     }
 

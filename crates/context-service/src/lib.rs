@@ -8,6 +8,7 @@
 //! primitives for end-to-end review.
 
 mod capture;
+mod cli;
 mod control;
 mod integrated_demo;
 mod observability;
@@ -19,6 +20,7 @@ pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,
 };
+pub use cli::run_phase2_cli;
 pub use control::{
     Boundary as ControlBoundary, CURRENT_DURABLE_STORE_SCHEMA_VERSION,
     Capabilities as ControlCapabilities, Command as ControlCommand, ControlError, ControlPlane,
@@ -45,6 +47,13 @@ pub use store::{
 };
 
 pub use integrated_demo::run as run_integrated_demo;
+
+/// Parse a management payload with the same bounded duplicate-key/depth checks used by the
+/// integrated HTTP fixture. The CLI uses this helper so private note text arrives through stdin
+/// and follows the exact control payload validation path.
+pub fn parse_control_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ControlError> {
+    integrated_demo::parse_json(body)
+}
 
 /// Run the deterministic, provider-free fixture demonstration.
 pub fn demo() -> Result<(), IngestError> {

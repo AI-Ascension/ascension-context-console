@@ -44,3 +44,21 @@ separate editor and objective capabilities, an exact loopback Origin/CSRF check,
 JSON, draft CAS versions, immutable previews, and idempotent command receipts. phase2-demo
 exercises the same control plane without a provider call, game launch, or external request.
 Contract schemas and their source pin are in contracts/context-control.
+
+The compiled fixture CLI uses that same typed reducer and encrypted journal:
+
+```text
+cargo run --locked --package context-service --bin context-console -- phase2-cli init /tmp/context-control.sqlite
+cargo run --locked --package context-service --bin context-console -- phase2-cli state /tmp/context-control.sqlite
+cargo run --locked --package context-service --bin context-console -- phase2-cli draft-create /tmp/context-control.sqlite
+```
+
+Use `phase2-cli --help` for the complete state, eligible, draft, preview, pause, commit, resume,
+revision, and command-status surface. `draft-edit` reads a typed patch from stdin so note text is
+not placed in process arguments. Output is JSON with schema
+`ascension.context-control.cli-result.v1`; eligible content is redacted unless
+`CONTEXT_CONSOLE_CONTENT_TOKEN=fixture-content-token` is explicitly set, and objective operations
+require `CONTEXT_CONSOLE_OBJECTIVE_TOKEN=fixture-objective-token`. The CLI is a bounded synthetic
+fixture: it makes no provider/game calls, uses a fixed local key, and does not claim production
+authentication or storage. Standalone commands use the persisted operator epoch; controller-owned
+recovery still increments the epoch and invalidates old continuation previews.

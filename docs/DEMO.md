@@ -19,6 +19,23 @@ applicable preview, commits a revision while paused, and resumes explicitly. Its
 the prepared manifest digest, separate commit/resume effects, `provider_calls=0`, and
 `game_launches=0`.
 
+The equivalent compiled CLI can run the same operations against its opt-in encrypted fixture:
+
+```text
+STORE=/tmp/context-control.sqlite
+cargo run --locked --package context-service --bin context-console -- phase2-cli init "$STORE"
+cargo run --locked --package context-service --bin context-console -- phase2-cli draft-create "$STORE"
+cargo run --locked --package context-service --bin context-console -- phase2-cli pause "$STORE" pause-demo
+cargo run --locked --package context-service --bin context-console -- phase2-cli state "$STORE"
+```
+
+`phase2-cli draft-edit` consumes a bounded typed patch from stdin, `eligible` redacts content by
+default, and the preview/commit/resume commands retain the same idempotency and boundary checks as
+the HTTP fixture. Its machine output is metadata-first JSON and every successful operation is
+persisted before output. Reopening an operator command preserves the durable operator epoch; an
+actual controller recovery uses the recovery API and fences continuation previews. No CLI command
+contacts a provider, game, network URL, or external process.
+
 The integrated management fixture starts with an opt-in encrypted SQLite control journal, reopens
 it to exercise controller-epoch recovery, and persists successful draft/preview/pause/commit/resume
 mutations before publishing its live projection. Run the local migration and rollback checks with:

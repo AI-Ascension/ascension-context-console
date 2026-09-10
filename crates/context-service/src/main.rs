@@ -2,6 +2,7 @@
 
 use context_service::{
     ControlCommand, ControlOperation, ControlPatch, ControlPlane, demo, run_integrated_demo,
+    run_phase2_cli,
 };
 use std::env;
 use std::fs;
@@ -10,8 +11,43 @@ use std::io::{self, Read};
 fn main() {
     if let Err(error) = run() {
         eprintln!("context console: {error}");
-        std::process::exit(2);
+        std::process::exit(error_exit_code(&error));
     }
+}
+
+fn error_exit_code(error: &str) -> i32 {
+    if [
+        "stale_",
+        "conflict",
+        "expired_",
+        "already_paused",
+        "run_not_ready",
+        "not_ready",
+        "preview_stale",
+    ]
+    .iter()
+    .any(|marker| error.contains(marker))
+    {
+        return 3;
+    }
+    if [
+        "authentication",
+        "permission",
+        "forbidden",
+        "protected_item",
+        "objective",
+        "content_permission",
+        "stopped",
+    ]
+    .iter()
+    .any(|marker| error.contains(marker))
+    {
+        return 4;
+    }
+    if error.contains("durable control store") || error.contains("database operation") {
+        return 5;
+    }
+    2
 }
 
 fn run() -> Result<(), String> {
@@ -27,6 +63,7 @@ fn run() -> Result<(), String> {
             run_integrated_demo(port)
         }
         Some("phase2-demo") => phase2_demo(),
+        Some("phase2-cli") => run_phase2_cli(arguments.collect()),
         Some("inspect") => {
             let bytes = match arguments.next() {
                 Some(path) => fs::read(path).map_err(|_| "cannot read snapshot path".to_owned())?,
@@ -58,7 +95,7 @@ fn run() -> Result<(), String> {
         }
         Some("help") => {
             println!(
-                "context-console health|demo|phase2-demo|integrated-demo [port]|inspect [snapshot.json]"
+                "context-console health|demo|phase2-demo|phase2-cli <command> ...|integrated-demo [port]|inspect [snapshot.json]"
             );
             Ok(())
         }

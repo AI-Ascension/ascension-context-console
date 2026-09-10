@@ -15,6 +15,30 @@ cargo run --locked --package context-service --bin context-console -- phase2-dem
 cargo run --locked --package context-service --bin context-console -- inspect fixtures/valid/snapshot-cli.json
 ```
 
+The compiled Phase 2 operator CLI uses a bounded encrypted SQLite fixture and the same typed
+control reducer as the HTTP workflow:
+
+```text
+STORE=/tmp/context-control.sqlite
+cargo run --locked --package context-service --bin context-console -- phase2-cli init "$STORE"
+cargo run --locked --package context-service --bin context-console -- phase2-cli capabilities "$STORE"
+cargo run --locked --package context-service --bin context-console -- phase2-cli eligible "$STORE"
+cargo run --locked --package context-service --bin context-console -- phase2-cli draft-create "$STORE"
+```
+
+Create a patch JSON file only when needed, and pipe it to `draft-edit` so note text does not enter
+shell history or process arguments. The command supports typed include/exclude/pin/unpin, notes,
+objective authorization, and restore operations. Then use `preview`, `pause`, `commit`, and
+`resume` with the returned draft/preview IDs; `draft-show`, `preview-show`, `revisions`, `events`,
+and `command` resolve authoritative state after a lost response. `eligible` returns metadata and a
+null `content` field by default; explicit content output requires the fixture content capability
+environment variable. Objective edits require the separate fixture objective capability variable.
+
+The CLI output schema is `ascension.context-control.cli-result.v1`. Exit codes are 0 for completed
+or accepted commands, 2 for usage/validation, 3 for stale/conflict, 4 for denied, and 5 when the
+durable store is unavailable. The fixture key and capability tokens are intentionally local test
+values; this command is provider-free, game-free, and not a production authentication boundary.
+
 `demo` ingests the CLI and metadata fixtures, appends the seven synthetic lifecycle events, issues
 an in-memory content grant, and makes one authenticated read-only API request. Its output includes
 `provider_calls=0`, `game_launches=0`, the snapshot identities, event count, and mutation-free API

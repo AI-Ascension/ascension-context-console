@@ -52,3 +52,26 @@ Objective overrides use the separate objective capability. Every command has a b
 key and command-window identity. The journal envelope preserves drafts, revisions, receipts,
 events, pause state, and selected bytes across a controller recovery; old boundary/plan epochs are
 fenced. The copied schemas are in `contracts/context-control`.
+
+The equivalent bounded operator CLI is exposed by the compiled `context-console` binary:
+
+```text
+context-console phase2-cli init <store>
+context-console phase2-cli state|capabilities|eligible [--include-content]|revisions|drafts|events <store>
+context-console phase2-cli draft-create <store>
+context-console phase2-cli draft-edit <store> [author] < patch.json
+context-console phase2-cli draft-show <store> <draft_id>
+context-console phase2-cli preview <store> <draft_id> <version> <applicable> [risk_ack]
+context-console phase2-cli preview-show <store> <preview_id>
+context-console phase2-cli pause <store> <idempotency_key>
+context-console phase2-cli commit <store> <idempotency_key> <preview_id>
+context-console phase2-cli resume <store> <idempotency_key> <preview_id>
+context-console phase2-cli command <store> <command_id>
+```
+
+Each mutating command reloads the encrypted journal, rechecks scope, versions, boundary, expiry,
+permissions, and budget through the reducer, then persists before reporting success. The machine
+JSON envelope is `ascension.context-control.cli-result.v1`; private content is redacted by default
+and note bodies are accepted only from stdin. Exit code 0 means the command completed or was
+accepted; 2 is usage/validation, 3 is a stale/conflict outcome, 4 is denied, and 5 is durable-store
+unavailability. This fixture CLI has no provider, game, URL, or process-execution capability.

@@ -117,6 +117,22 @@ impl DurableControlStore {
     }
 
     pub fn load(&self) -> Result<ControlPlane, DurableStoreError> {
+        self.load_with_recovery(true)
+    }
+
+    /// Loads the persisted operator projection without claiming a new controller incarnation.
+    ///
+    /// The standalone fixture CLI opens this way because each command is an operator request,
+    /// while controller-owned recovery continues to use [`Self::load`] and fences continuation
+    /// previews by incrementing the controller epoch.
+    pub fn load_for_operator(&self) -> Result<ControlPlane, DurableStoreError> {
+        self.load_with_recovery(false)
+    }
+
+    fn load_with_recovery(
+        &self,
+        recover_controller: bool,
+    ) -> Result<ControlPlane, DurableStoreError> {
         let (
             envelope,
             envelope_digest,
@@ -160,8 +176,12 @@ impl DurableControlStore {
             return Err(DurableStoreError::Corrupt);
         }
         let journal = self.decrypt(&envelope)?;
-        let plane =
-            ControlPlane::recover_journal(&journal).map_err(|_| DurableStoreError::Decode)?;
+        let plane = if recover_controller {
+            ControlPlane::recover_journal(&journal)
+        } else {
+            ControlPlane::recover_journal_without_epoch(&journal)
+        }
+        .map_err(|_| DurableStoreError::Decode)?;
         let state = plane.state();
         if state.scope.run_id != self.run_id
             || i64::from(plane.enabled()) != management_active
@@ -169,7 +189,12 @@ impl DurableControlStore {
             || state.control_version as i64 != control_version
             || i64::from(state.pause_latched) != paused
             || i64::from(state.stop_latched) != stopped
-            || state.controller_epoch as i64 != controller_epoch.saturating_add(1)
+            || state.controller_epoch as i64
+                != if recover_controller {
+                    controller_epoch.saturating_add(1)
+                } else {
+                    controller_epoch
+                }
             || state.gate_epoch as i64 != gate_epoch
             || state.plan_epoch as i64 != plan_epoch
             || state.last_sequence as i64 != last_sequence
