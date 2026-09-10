@@ -299,6 +299,124 @@ fn p2_f014_two_previews_have_one_serialized_commit_winner() {
 }
 
 #[test]
+fn p2_f045_host_evolution_while_held_marks_the_boundary_stale() {
+    let mut plane = ControlPlane::synthetic();
+    let pause = command(
+        &plane,
+        "pause",
+        "pause-host-evolution",
+        plane.state().control_version,
+    );
+    plane.pause(pause).expect("pause");
+    assert_eq!(plane.state().status, "paused_ready");
+    plane.advance_boundary();
+    assert_eq!(plane.state().status, "paused_stale");
+    let created = draft(&mut plane);
+    let preview = plane
+        .create_preview(
+            scope(&plane),
+            &created.draft_id,
+            created.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("stale held preview");
+    assert!(!preview.applicable);
+    assert_eq!(preview.blockers, vec!["run_not_held"]);
+}
+
+#[test]
+fn p2_f052_concurrent_resume_claims_have_one_winner() {
+    let mut plane = ControlPlane::synthetic();
+    let created = selected_draft(&mut plane);
+    let preview = applicable_preview(&mut plane, &created, "pause-concurrent-resume");
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-concurrent-resume",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    plane.commit(commit).expect("commit");
+
+    let expected_control_version = plane.state().control_version;
+    let expected_revision = plane.state().active_revision_id.clone();
+    let mut first = command(
+        &plane,
+        "resume",
+        "resume-concurrent-a",
+        expected_control_version,
+    );
+    first.expected_active_revision_id = Some(expected_revision.clone());
+    first.expected_preview_id = Some(preview.preview_id.clone());
+    let mut second = command(
+        &plane,
+        "resume",
+        "resume-concurrent-b",
+        expected_control_version,
+    );
+    second.expected_active_revision_id = Some(expected_revision);
+    second.expected_preview_id = Some(preview.preview_id);
+
+    plane.resume(first).expect("first resume claim");
+    assert_eq!(
+        plane
+            .resume(second)
+            .expect_err("second concurrent claim must lose")
+            .code,
+        "stale_control"
+    );
+    assert_eq!(
+        plane
+            .events()
+            .iter()
+            .filter(|event| event.event_type == "input.submitted")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn p2_f058_no_edit_resume_after_drain_releases_without_new_input() {
+    let mut plane = ControlPlane::synthetic();
+    let created = draft(&mut plane);
+    let preview = applicable_preview(&mut plane, &created, "pause-no-edit-drain");
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-no-edit-drain",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    let receipt = plane.commit(commit).expect("no-edit commit");
+    assert_eq!(receipt.effect, "no_change");
+    assert!(plane.prepared_input().is_none());
+
+    let mut resume = command(
+        &plane,
+        "resume",
+        "resume-no-edit-drain",
+        plane.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(plane.state().active_revision_id);
+    resume.expected_preview_id = Some(preview.preview_id);
+    plane.resume(resume).expect("no-edit resume");
+    assert_eq!(
+        plane
+            .events()
+            .iter()
+            .filter(|event| event.event_type == "input.submitted")
+            .count(),
+        0
+    );
+}
+
+#[test]
 fn p2_f015_protected_item_cannot_be_excluded_or_selected() {
     let mut plane = ControlPlane::synthetic();
     let created = draft(&mut plane);
