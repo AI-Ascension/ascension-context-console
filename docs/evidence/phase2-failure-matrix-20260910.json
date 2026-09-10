@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 47,
+  "executed_row_count": 48,
   "rows": [
     {
       "id": "P2-F001",
@@ -103,10 +103,10 @@
         "P2-R045",
         "P2-R046"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser strict-schema probe rejected forged actor and role fields with invalid_json and left the draft version unchanged"
     },
     {
       "id": "P2-F007",
