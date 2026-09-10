@@ -10,7 +10,7 @@
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
-    "phase2_control_tests": 7,
+    "phase2_control_tests": 10,
     "phase2_demo": {
       "status": "passed",
       "provider_calls": 0,

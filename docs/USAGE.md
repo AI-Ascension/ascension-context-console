@@ -46,6 +46,10 @@ The checked-in browser evidence was captured with Chromium `153.0.8010.12` at de
 viewports. See [`docs/evidence/browser-ui-20260910.json`](evidence/browser-ui-20260910.json) and
 the adjacent screenshots for the exact request, storage, keyboard, and comparison outcomes.
 
+The additive journal recovery and safe deactivation procedure is in
+[`docs/MIGRATION.md`](MIGRATION.md). It preserves Phase 1 snapshots and keeps a deactivated
+management fixture read-only.
+
 The browser bundle is synthetic evidence. A successful parse, demo, or render does not prove a live
 capture, provider receipt, persistent encrypted storage, native-platform behavior, or target-game
 compatibility. Do not put credentials or raw private captures in fixtures.

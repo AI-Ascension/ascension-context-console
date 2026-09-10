@@ -76,7 +76,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R052 | executed | Relations bind revision, preview, snapshot, execution, attempt and intervention IDs. |
 | P2-R053 | source-reviewed | Intervention lineage is retained on revisions and relations after restore. |
 | P2-R054 | unverified | The fixture is in-memory; no native storage migration rehearsal is claimed. |
-| P2-R055 | unverified | No production deactivation/rollback script is claimed for the synthetic fixture. |
+| P2-R055 | executed | Safe deactivation preserves revision, pause, plan epoch and journal; writes fail closed. |
 | P2-R056 | executed | Target fault/state tests and bounded reference model cover ordering and rejection transitions. |
 | P2-R057 | executed | Compiled Astra/Ollama/Exo fake peers verify final serialized input. |
 | P2-R058 | executed | Target demo and control tests report zero provider calls/game launches for management operations. |

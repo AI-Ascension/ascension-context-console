@@ -136,6 +136,31 @@ impl ControlPlane {
         self.enabled
     }
 
+    /// Disables new management writes while retaining the active revision, pause latch, journal,
+    /// and read projections. This is the safe fixture rollback/deactivation operation.
+    pub fn deactivate(&mut self) {
+        self.enabled = false;
+        self.record_event(
+            "management.disabled",
+            None,
+            None,
+            Some(&self.state.active_revision_id.clone()),
+            Some("safe_deactivation"),
+        );
+    }
+
+    /// Re-enables the management fixture without changing its revision or scheduler state.
+    pub fn activate(&mut self) {
+        self.enabled = true;
+        self.record_event(
+            "management.enabled",
+            None,
+            None,
+            Some(&self.state.active_revision_id.clone()),
+            Some("explicit_activation"),
+        );
+    }
+
     pub fn scope(&self) -> &Scope {
         &self.scope
     }
@@ -351,6 +376,11 @@ impl ControlPlane {
             .drafts
             .get(&patch.draft_id)
             .ok_or_else(|| ControlError::invalid("draft_not_found", "draft is unavailable"))?;
+        if parse_time(&record.draft.expires_at).is_none()
+            || parse_time(&record.draft.expires_at).unwrap_or(0) <= self.now
+        {
+            return Err(ControlError::conflict("expired_draft", "draft has expired"));
+        }
         if record.draft.version != patch.expected_draft_version {
             return Err(ControlError::conflict(
                 "stale_draft",
@@ -411,6 +441,11 @@ impl ControlPlane {
             ));
         }
         let draft = self.get_draft(draft_id)?;
+        if parse_time(&draft.expires_at).is_none()
+            || parse_time(&draft.expires_at).unwrap_or(0) <= self.now
+        {
+            return Err(ControlError::conflict("expired_draft", "draft has expired"));
+        }
         if draft.version != expected_draft_version {
             return Err(ControlError::conflict(
                 "stale_draft",
@@ -562,6 +597,8 @@ impl ControlPlane {
             || !preview.preview.applicable
             || preview.preview.prepared_manifest_sha256.as_deref()
                 != command.approved_manifest_sha256.as_deref()
+            || parse_time(&preview.preview.expires_at).is_none()
+            || parse_time(&preview.preview.expires_at).unwrap_or(0) <= self.now
             || preview.preview.boundary != self.boundary
         {
             return Err(ControlError::conflict(
@@ -570,6 +607,33 @@ impl ControlPlane {
             ));
         }
         let draft = self.get_draft(&preview.preview.draft_id)?;
+        let current_revision = self
+            .revisions
+            .get(&self.state.active_revision_id)
+            .ok_or_else(|| {
+                ControlError::invalid("revision_not_found", "active revision is unavailable")
+            })?;
+        if draft.selected_items == current_revision.selected_items
+            && draft.pinned_item_ids == current_revision.pinned_item_ids
+            && draft.note_items == current_revision.note_items
+            && draft.objective_item == current_revision.objective_item
+        {
+            if let Some(entry) = self.previews.get_mut(preview_id) {
+                entry.consumed = true;
+            }
+            self.continuation_preview_id = Some(preview_id.to_owned());
+            self.prepared_input = None;
+            let receipt = self.receipt(&command, "no_change", None);
+            self.save_command(&command, &receipt);
+            self.record_event(
+                "revision.no_change",
+                Some(&receipt.command_id),
+                Some(preview_id),
+                Some(&self.state.active_revision_id.clone()),
+                Some("configuration_identical"),
+            );
+            return Ok(receipt);
+        }
         let revision_id = self.id("revision");
         let intervention_id = self.id("intervention");
         let revision = Revision {
@@ -681,6 +745,14 @@ impl ControlPlane {
             let continuation = self.previews.get(preview_id).ok_or_else(|| {
                 ControlError::conflict("preview_stale", "approved continuation is unavailable")
             })?;
+            if parse_time(&continuation.preview.expires_at).is_none()
+                || parse_time(&continuation.preview.expires_at).unwrap_or(0) <= self.now
+            {
+                return Err(ControlError::conflict(
+                    "preview_stale",
+                    "approved continuation has expired",
+                ));
+            }
             if !same_external_boundary(&continuation.preview.boundary, &self.boundary) {
                 return Err(ControlError::conflict(
                     "preview_stale",
@@ -739,6 +811,12 @@ impl ControlPlane {
             self.state.status = "paused_stale".to_owned();
         }
         self.invalidate_all_previews("boundary_changed");
+    }
+
+    /// Advances the deterministic fixture clock so expiry and command-window behavior can be
+    /// exercised without depending on wall-clock sleeps.
+    pub fn advance_time(&mut self, seconds: u64) {
+        self.now = self.now.saturating_add(seconds);
     }
 
     pub fn validate_plan_epoch(&self, epoch: u64) -> Result<(), ControlError> {
