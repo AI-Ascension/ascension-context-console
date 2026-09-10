@@ -7,7 +7,8 @@
   },
   "target": {
     "evidence_commit": "f3b20a90d9e0a67b379cf046e57a692805dace0f",
-    "phase2_source_revision": "a43d42f0bf31f2d19720922d155be4385e08a759",
+    "phase2_source_revision": "94930040ae8d5f2ad050ceeeff3979afdfbc86f8",
+    "phase1_acceptance_tests": 5,
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
