@@ -151,6 +151,154 @@ fn p2_f013_two_operators_have_one_cas_winner() {
 }
 
 #[test]
+fn p2_f008_permission_revoked_after_preview_blocks_commit() {
+    let mut plane = ControlPlane::synthetic();
+    let created = selected_draft(&mut plane);
+    let preview = applicable_preview(&mut plane, &created, "pause-permission-preview");
+    plane.deactivate();
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-permission-preview",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id);
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    assert_eq!(
+        plane
+            .commit(commit)
+            .expect_err("revoked management permission must block commit")
+            .code,
+        "management_disabled"
+    );
+    assert_eq!(plane.state().active_revision_id, "revision-1");
+    assert!(plane.state().pause_latched);
+}
+
+#[test]
+fn p2_f009_permission_revoked_after_commit_blocks_resume() {
+    let mut plane = ControlPlane::synthetic();
+    let created = selected_draft(&mut plane);
+    let preview = applicable_preview(&mut plane, &created, "pause-permission-commit");
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-permission-commit",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    plane.commit(commit).expect("commit before revocation");
+    plane.deactivate();
+
+    let mut resume = command(
+        &plane,
+        "resume",
+        "resume-permission-commit",
+        plane.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(plane.state().active_revision_id);
+    resume.expected_preview_id = Some(preview.preview_id);
+    assert_eq!(
+        plane
+            .resume(resume)
+            .expect_err("revoked management permission must block resume")
+            .code,
+        "management_disabled"
+    );
+    assert!(plane.state().pause_latched);
+    assert_eq!(plane.state().status, "paused_committed");
+}
+
+#[test]
+fn p2_f014_two_previews_have_one_serialized_commit_winner() {
+    let mut plane = ControlPlane::synthetic();
+    let first = selected_draft(&mut plane);
+    let second_created = draft(&mut plane);
+    let second = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &second_created.draft_id,
+                second_created.version,
+                vec![
+                    ControlOperation::IncludeItem {
+                        item: history_item(&plane),
+                    },
+                    ControlOperation::PutNote {
+                        note_id: "operator-b-note".to_owned(),
+                        expected_note_version: None,
+                        text: "second operator configuration".to_owned(),
+                        expires_at: "2030-01-01T00:00:00Z".to_owned(),
+                    },
+                ],
+            ),
+            "operator-b",
+            false,
+        )
+        .expect("second operator draft");
+    let pause = command(
+        &plane,
+        "pause",
+        "pause-two-previews",
+        plane.state().control_version,
+    );
+    plane.pause(pause).expect("pause");
+    let first_preview = plane
+        .create_preview(
+            scope(&plane),
+            &first.draft_id,
+            first.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("first preview");
+    let second_preview = plane
+        .create_preview(
+            scope(&plane),
+            &second.draft_id,
+            second.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("second preview");
+    let expected_control_version = plane.state().control_version;
+    let expected_revision = plane.state().active_revision_id.clone();
+    let mut first_commit = command(
+        &plane,
+        "commit",
+        "commit-two-previews-a",
+        expected_control_version,
+    );
+    first_commit.expected_active_revision_id = Some(expected_revision.clone());
+    first_commit.preview_id = Some(first_preview.preview_id);
+    first_commit.approved_manifest_sha256 = first_preview.prepared_manifest_sha256;
+    let mut second_commit = command(
+        &plane,
+        "commit",
+        "commit-two-previews-b",
+        expected_control_version,
+    );
+    second_commit.expected_active_revision_id = Some(expected_revision);
+    second_commit.preview_id = Some(second_preview.preview_id);
+    second_commit.approved_manifest_sha256 = second_preview.prepared_manifest_sha256;
+
+    plane.commit(first_commit).expect("first serialized winner");
+    assert_eq!(
+        plane
+            .commit(second_commit)
+            .expect_err("second stale operator must lose")
+            .code,
+        "stale_revision"
+    );
+    assert_ne!(plane.state().active_revision_id, "revision-1");
+}
+
+#[test]
 fn p2_f015_protected_item_cannot_be_excluded_or_selected() {
     let mut plane = ControlPlane::synthetic();
     let created = draft(&mut plane);
