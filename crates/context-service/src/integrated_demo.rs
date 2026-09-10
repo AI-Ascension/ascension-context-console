@@ -8,13 +8,17 @@
 //! directly. No provider, game, URL fetch, or arbitrary process path is available here.
 
 use crate::capture::{CaptureConfig, CaptureMode, CaptureSink, MemoryCapture, PreparedCapture};
-use crate::control::{Command, ControlError, ControlPlane, Patch, Scope};
+use crate::control::{
+    Command, ControlError, ControlPlane, DurableControlStore, DurableStoreError, Patch, Scope,
+};
 use crate::read_api::{ApiError, HttpRequest, HttpResponse, ReadApi, read_request_bytes};
 use crate::store::{CapturePrivilege, IngestError, ReadGrant, Store};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+use std::fs;
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 const TOKEN: &[u8] = b"integrated-demo-token";
@@ -25,6 +29,7 @@ const COMPARISON_ID: &str = "snapshot-fixture-cli-001";
 const EDITOR_TOKEN: &[u8] = b"fixture-editor-token";
 const OBJECTIVE_TOKEN: &[u8] = b"fixture-objective-token";
 const CSRF_TOKEN: &str = "fixture-csrf-token";
+const DURABLE_STORE_KEY: [u8; 32] = [0x42; 32];
 
 /// Run the bounded integrated demonstration until the operator terminates the process.
 pub fn run(port: u16) -> Result<(), String> {
@@ -66,6 +71,8 @@ struct DemoState {
     browser_requests: usize,
     api_requests: usize,
     control: ControlPlane,
+    control_store: DurableControlStore,
+    control_store_path: PathBuf,
 }
 
 impl DemoState {
@@ -115,6 +122,32 @@ impl DemoState {
             now,
         )
         .map_err(|_| IngestError::Capacity)?;
+        let mut control = ControlPlane::synthetic();
+        let nonce = now
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let control_store_path = std::env::temp_dir().join(format!(
+            "ascension-context-console-control-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let mut control_store =
+            DurableControlStore::create(&control_store_path, DURABLE_STORE_KEY, &control)
+                .map_err(|_| IngestError::Capacity)?;
+        control_store
+            .copy_phase1_snapshot(SNAPSHOT_ID, producer_snapshot)
+            .map_err(|_| IngestError::Capacity)?;
+        control_store
+            .copy_phase1_snapshot(COMPARISON_ID, producer_comparison)
+            .map_err(|_| IngestError::Capacity)?;
+        drop(control_store);
+        let control_store = DurableControlStore::open(
+            &control_store_path,
+            DURABLE_STORE_KEY,
+            control.scope().run_id.clone(),
+        )
+        .map_err(|_| IngestError::Capacity)?;
+        control = control_store.load().map_err(|_| IngestError::Capacity)?;
         Ok(Self {
             store,
             grant,
@@ -126,7 +159,9 @@ impl DemoState {
             producer_events: producer_event_count,
             browser_requests: 0,
             api_requests: 0,
-            control: ControlPlane::synthetic(),
+            control,
+            control_store,
+            control_store_path,
         })
     }
 
@@ -293,6 +328,7 @@ impl DemoState {
                 ,"management_enabled":self.control.enabled()
                 ,"control_status":self.control.state().status
                 ,"control_events":self.control.events().len()
+                ,"durable_control_store":"supported"
             }))
             .unwrap_or_else(|_| b"{}".to_vec()),
         )
@@ -342,7 +378,7 @@ impl DemoState {
         }
         let tail = &segments[4..];
         let result = match (request.method.as_str(), tail) {
-            ("GET", ["capabilities"]) => serde_json::to_value(self.control.capabilities())
+            ("GET", ["capabilities"]) => serde_json::to_value(self.capabilities())
                 .map_err(|_| ControlError::invalid("encoding", "capabilities encoding failed")),
             ("GET", ["state"]) => serde_json::to_value(self.control.state())
                 .map_err(|_| ControlError::invalid("encoding", "state encoding failed")),
@@ -382,19 +418,19 @@ impl DemoState {
             }
             ("POST", ["previews"]) => self.create_control_preview(&request.body),
             ("POST", ["commits"]) => parse_json::<Command>(&request.body)
-                .and_then(|command| self.control.commit(command))
+                .and_then(|command| self.mutate_control(|control| control.commit(command)))
                 .and_then(|receipt| {
                     serde_json::to_value(receipt)
                         .map_err(|_| ControlError::invalid("encoding", "receipt encoding failed"))
                 }),
             ("POST", ["pause"]) => parse_json::<Command>(&request.body)
-                .and_then(|command| self.control.pause(command))
+                .and_then(|command| self.mutate_control(|control| control.pause(command)))
                 .and_then(|receipt| {
                     serde_json::to_value(receipt)
                         .map_err(|_| ControlError::invalid("encoding", "receipt encoding failed"))
                 }),
             ("POST", ["resume"]) => parse_json::<Command>(&request.body)
-                .and_then(|command| self.control.resume(command))
+                .and_then(|command| self.mutate_control(|control| control.resume(command)))
                 .and_then(|receipt| {
                     serde_json::to_value(receipt)
                         .map_err(|_| ControlError::invalid("encoding", "receipt encoding failed"))
@@ -418,16 +454,17 @@ impl DemoState {
             expected_active_revision_id: String,
         }
         let request: Request = parse_json(body)?;
-        self.control
-            .create_draft(
+        self.mutate_control(|control| {
+            control.create_draft(
                 request.scope,
                 &request.expected_active_revision_id,
                 "operator-fixture",
             )
-            .and_then(|draft| {
-                serde_json::to_value(draft)
-                    .map_err(|_| ControlError::invalid("encoding", "draft encoding failed"))
-            })
+        })
+        .and_then(|draft| {
+            serde_json::to_value(draft)
+                .map_err(|_| ControlError::invalid("encoding", "draft encoding failed"))
+        })
     }
 
     fn edit_control_draft(
@@ -443,8 +480,8 @@ impl DemoState {
                 "draft path and body differ",
             ));
         }
-        self.control
-            .apply_patch(
+        self.mutate_control(|control| {
+            control.apply_patch(
                 patch,
                 if objective_authorized {
                     "objective-fixture"
@@ -453,10 +490,11 @@ impl DemoState {
                 },
                 objective_authorized,
             )
-            .and_then(|draft| {
-                serde_json::to_value(draft)
-                    .map_err(|_| ControlError::invalid("encoding", "draft encoding failed"))
-            })
+        })
+        .and_then(|draft| {
+            serde_json::to_value(draft)
+                .map_err(|_| ControlError::invalid("encoding", "draft encoding failed"))
+        })
     }
 
     fn create_control_preview(&mut self, body: &[u8]) -> Result<serde_json::Value, ControlError> {
@@ -471,8 +509,8 @@ impl DemoState {
             unknown_total_risk_acknowledged: bool,
         }
         let request: Request = parse_json(body)?;
-        self.control
-            .create_preview(
+        self.mutate_control(|control| {
+            control.create_preview(
                 request.scope,
                 &request.draft_id,
                 request.expected_draft_version,
@@ -480,11 +518,46 @@ impl DemoState {
                 request.expected_control_version,
                 request.unknown_total_risk_acknowledged,
             )
-            .and_then(|preview| {
-                serde_json::to_value(preview)
-                    .map_err(|_| ControlError::invalid("encoding", "preview encoding failed"))
-            })
+        })
+        .and_then(|preview| {
+            serde_json::to_value(preview)
+                .map_err(|_| ControlError::invalid("encoding", "preview encoding failed"))
+        })
     }
+
+    fn capabilities(&self) -> crate::control::Capabilities {
+        let mut capabilities = self.control.capabilities();
+        capabilities.durable_control_store = "supported".to_owned();
+        capabilities
+    }
+
+    fn mutate_control<T>(
+        &mut self,
+        mutation: impl FnOnce(&mut ControlPlane) -> Result<T, ControlError>,
+    ) -> Result<T, ControlError> {
+        let mut candidate = self.control.clone();
+        let result = mutation(&mut candidate)?;
+        self.control_store
+            .persist(&candidate)
+            .map_err(durable_error)?;
+        self.control = candidate;
+        Ok(result)
+    }
+}
+
+impl Drop for DemoState {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.control_store_path);
+        let _ = fs::remove_file(self.control_store_path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(self.control_store_path.with_extension("sqlite-shm"));
+    }
+}
+
+fn durable_error(_: DurableStoreError) -> ControlError {
+    ControlError::invalid(
+        "durable_store_unavailable",
+        "control state could not be durably persisted",
+    )
 }
 
 fn parse_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ControlError> {

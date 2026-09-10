@@ -12,6 +12,8 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 chacha20poly1305.workspace = true
+getrandom.workspace = true
+rusqlite.workspace = true
 
 [lib]
 path = "src/lib.rs"
@@ -34,3 +36,7 @@ path = "../../tests/phase2_control.rs"
 [[test]]
 name = "phase2_failure_matrix"
 path = "../../tests/phase2_failure_matrix.rs"
+
+[[test]]
+name = "phase2_durable"
+path = "../../tests/phase2_durable.rs"

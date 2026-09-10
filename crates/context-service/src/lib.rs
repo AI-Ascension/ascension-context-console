@@ -20,10 +20,12 @@ pub use capture::{
     NoopCapture, PreparedCapture, TransportState,
 };
 pub use control::{
-    Boundary as ControlBoundary, Capabilities as ControlCapabilities, Command as ControlCommand,
-    ControlError, ControlPlane, Draft as ControlDraft, EligibleItem as ControlEligibleItem,
-    Event as ControlEvent, ItemRef as ControlItemRef, Operation as ControlOperation,
-    Patch as ControlPatch, Preview as ControlPreview, PreviewComponent as ControlPreviewComponent,
+    Boundary as ControlBoundary, CURRENT_DURABLE_STORE_SCHEMA_VERSION,
+    Capabilities as ControlCapabilities, Command as ControlCommand, ControlError, ControlPlane,
+    Draft as ControlDraft, DurableControlStore, DurableStoreError, DurableStoreFailpoint,
+    DurableStoreSnapshot, EligibleItem as ControlEligibleItem, Event as ControlEvent,
+    ItemRef as ControlItemRef, Operation as ControlOperation, Patch as ControlPatch,
+    Preview as ControlPreview, PreviewComponent as ControlPreviewComponent,
     Receipt as ControlReceipt, Relation as ControlRelation, Revision as ControlRevision,
     Scope as ControlScope, State as ControlState,
 };

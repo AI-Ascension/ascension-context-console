@@ -71,7 +71,7 @@ async function run() {
     await page.waitForSelector('#control-panel:not([hidden])');
     assert.equal(await page.locator('#management-badge').textContent(), 'management enabled');
     assert.equal(await page.locator('#control-status').textContent(), 'running');
-    assert.equal(await page.locator('#durable-store').textContent(), 'unverified');
+    assert.equal(await page.locator('#durable-store').textContent(), 'supported');
     assert.ok(await page.locator('#eligible-rows input[type=checkbox]').count() >= 1);
 
     await page.locator('#create-draft').click();
@@ -175,6 +175,7 @@ async function run() {
     assert.equal(metrics.game_launches, 0);
     assert.equal(metrics.external_requests, 0);
     assert.equal(metrics.management_enabled, true);
+    assert.equal(metrics.durable_control_store, 'supported');
     assert.ok(metrics.control_events >= 7);
 
     const storage = await page.evaluate(async () => ({
