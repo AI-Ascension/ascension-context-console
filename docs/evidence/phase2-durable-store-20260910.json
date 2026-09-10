@@ -4,7 +4,7 @@
   "date": "2026-09-10",
   "repository": "AI-Ascension/ascension-context-console",
   "branch": "phase2/context-editing",
-  "source_revision": "f1f8ac0d72b8d451e5d3b81b18233eb73a9675b6",
+  "source_revision": "1394348c8b315e5a6e1a1fe6dffc3ef4a6273946",
   "command": "cargo test --locked --package context-service --test phase2_durable",
   "result": "passed",
   "tests": [

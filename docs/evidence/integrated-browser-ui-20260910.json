@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "f1f8ac0d72b8d451e5d3b81b18233eb73a9675b6"
+    "revision": "1394348c8b315e5a6e1a1fe6dffc3ef4a6273946"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:36261",
+  "base_url": "http://127.0.0.1:42909",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,17 +46,17 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:36261/web/",
-    "http://127.0.0.1:36261/web/styles.css",
-    "http://127.0.0.1:36261/web/app.js",
-    "http://127.0.0.1:36261/offline-bundle.json",
-    "http://127.0.0.1:36261/demo/snapshot",
-    "http://127.0.0.1:36261/demo/events",
-    "http://127.0.0.1:36261/demo/comparison",
-    "http://127.0.0.1:36261/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:36261/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:36261/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:36261/v2/runs/fixture-run/context-control/revisions"
+    "http://127.0.0.1:42909/web/",
+    "http://127.0.0.1:42909/web/styles.css",
+    "http://127.0.0.1:42909/web/app.js",
+    "http://127.0.0.1:42909/offline-bundle.json",
+    "http://127.0.0.1:42909/demo/snapshot",
+    "http://127.0.0.1:42909/demo/events",
+    "http://127.0.0.1:42909/demo/comparison",
+    "http://127.0.0.1:42909/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:42909/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:42909/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:42909/v2/runs/fixture-run/context-control/revisions"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -113,7 +113,7 @@
     },
     {
       "path": "web/app.js",
-      "sha256": "88c00a85154b8b75b250bd5f01b5e28a3ed7ba7b76edd674c0720af41d54f211"
+      "sha256": "ad0d81e3d6da779a8752bb283826c8b2afc407a25b7b84d4dadc20d05bba1cb7"
     },
     {
       "path": "fixtures/valid/snapshot-metadata.json",
