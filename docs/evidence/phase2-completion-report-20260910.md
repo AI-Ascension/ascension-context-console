@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `dde4b7806eb64b7a25e52b4bc20b11e37261f922`, evidence handoff `5222157855b27b656cf099bede22c2f78f216458`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4c79e83d27691e265a4649b7361a111f617c3f79`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `b6617a53a8f81ea72e61fe4113f5fe1d20245c4d`, evidence handoff pending the final evidence commit, final branch head pending the metadata reconciliation commit. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4c79e83d27691e265a4649b7361a111f617c3f79`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane never calls a provider or game; the companion seam proves prepared bytes through fake Exo/Astra/Ollama peers. Real provider, host, deployment and soak evidence is not claimed.
 
@@ -16,6 +16,13 @@ pause, commit-while-paused, explicit resume, control events, authorization denia
 provider/game effects, storage, network, keyboard and narrow-layout assertions. Native depth-2/3
 Luna/max descendants and reservation metadata remain unavailable;
 see `docs/evidence/phase2-native-preflight-20260910.json`.
+
+The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
+failure rows. Eight rows have executable evidence: seven browser cases (`P2-F001`, `P2-F003`,
+`P2-F005`, `P2-F011`, `P2-F017`, `P2-F022`, and `P2-F031`) plus the Rust resume guard
+(`P2-F039`); the other 72 remain explicitly marked
+`required_not_executed` because the fixture has no dedicated fault injection or live provider,
+storage, migration, and process-ownership harness for them.
 
 ## Requirement index
 
@@ -44,7 +51,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R019 | executed | Prepared renderer and dispatch seam tests pass. |
 | P2-R020 | source-reviewed | Boundary, revision, adapter, model/configuration and manifest fields are bound in code. |
 | P2-R021 | executed | Compiled Exo test asserts the approved prepared bytes are sent once. |
-| P2-R022 | source-reviewed | Resume clears the continuation and later callers must assemble fresh state at the harness seam. |
+| P2-R022 | executed | `preview_pause_commit_resume_fences_the_old_plan_and_reuses_receipts` asserts the prepared continuation is cleared after the one submitted input. |
 | P2-R023 | source-reviewed | Unsupported images/provider-added context/direct game dispatch are explicitly rejected or excluded. |
 | P2-R024 | source-reviewed | Unavailable, protected, non-UTF8 and expired content fail closed in render paths. |
 | P2-R025 | source-reviewed | Mandatory protected state is rendered before optional selected content; over-limit input fails. |
@@ -98,9 +105,9 @@ prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin
 actual serialized Ollama/Astra bridge inputs. The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows; this handoff records the exercised product cases and leaves scenarios
-requiring production storage, live providers, native orchestration, or unavailable fault injection
-explicitly outside the evidence boundary.
+failure matrix has 80 rows. The row-level ledger records eight executed cases and 72
+`required_not_executed` rows; scenarios requiring production storage, live providers, native
+orchestration, or unavailable fault injection remain outside the evidence boundary.
 
 No production migration or rollback claim is made because this fixture uses bounded in-memory state;
 the additive journal recovery and safe deactivation behavior are tested, while a native encrypted
