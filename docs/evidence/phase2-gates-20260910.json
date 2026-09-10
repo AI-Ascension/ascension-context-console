@@ -31,7 +31,7 @@
     },
     "browser_audit": {
       "status": "passed",
-      "source_revision": "c516ff4a61d0613b3083407db2ade69590d415d9",
+      "source_revision": "416597cbe09e59fbeac4b6d0c9dd3b60ff53d98b",
       "command": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
       "workflow": "draft_saved_exploratory_preview_pause_applicable_preview_commit_paused_explicit_resume_restore_as_draft",
       "provider_calls": 0,
@@ -42,7 +42,7 @@
     },
     "integrated_browser_audit": {
       "status": "passed",
-      "source_revision": "c516ff4a61d0613b3083407db2ade69590d415d9",
+      "source_revision": "416597cbe09e59fbeac4b6d0c9dd3b60ff53d98b",
       "evidence_artifact": "docs/evidence/integrated-browser-ui-20260910.json"
     },
     "failure_matrix": {
