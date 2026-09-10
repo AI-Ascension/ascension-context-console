@@ -2,9 +2,9 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5772183da7854aee75676f01550a6436e7dc992a`, evidence handoff `db811faa369ea1d0d06edc159b7b27b7072ddf28`. The final branch head is the commit carrying this report and the reconciled gate metadata. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4c79e83d27691e265a4649b7361a111f617c3f79`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5772183da7854aee75676f01550a6436e7dc992a`, evidence handoff `db811faa369ea1d0d06edc159b7b27b7072ddf28`. The final branch head is the commit carrying this report and the reconciled gate metadata. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `4047b5bd5f28e2fc847220bb5a97a90eb3929329`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
-The implementation is disabled outside the synthetic management fixture. The target control plane never calls a provider or game; the companion seam proves prepared bytes through fake Exo/Astra/Ollama peers. Real provider, host, deployment and soak evidence is not claimed.
+The implementation is disabled outside the synthetic management fixture. The target control plane never calls a provider or game; the companion seam proves prepared bytes through fake Exo/Astra/Ollama peers and exercises an opt-in encrypted SQLite journal with local migration, rollback, and deactivation tests. Real provider, host, deployment and soak evidence is not claimed.
 
 ## Gates and demonstrations
 
@@ -104,16 +104,18 @@ objective authorization, typed pin/exclude/restore, protected identity aliases,
 exploratory/applicable preview, pause/commit/resume, stale boundaries, idempotent receipts,
 command-window expiry, changed-body conflicts, journal tamper/recovery, disabled mode, and stop
 dominance. The companion tests cover
-prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, and
-actual serialized Ollama/Astra bridge inputs. The package’s bounded reference model additionally
+prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
+serialized Ollama/Astra bridge inputs, and seven durable-store migration/integrity cases. The
+package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
 failure matrix has 80 rows. The row-level ledger records 25 executed cases and 55
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 
-No production migration or rollback claim is made because this fixture uses bounded in-memory state;
-the additive journal recovery and safe deactivation behavior are tested, while a native encrypted
-store migration and old-binary refusal still require implementation. Schema fixtures were executed
+No target production migration or rollback claim is made because this fixture uses bounded
+in-memory state; the companion’s additive encrypted journal recovery and safe deactivation behavior
+are local component evidence, while target integration, native filesystem behavior, and target
+old-binary refusal still require implementation. Schema fixtures were executed
 with `jsonschema`; native depth/reservation controls remain unavailable in this environment. A
 maintainer should review the two draft PRs and rerun the documented gates before release work.
