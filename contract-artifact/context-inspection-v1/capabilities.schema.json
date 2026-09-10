@@ -1,0 +1,72 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "ascension.context-capabilities.v1"
+    },
+    "product_phase": {
+      "const": 1
+    },
+    "application_boundary_inspection": {
+      "const": true
+    },
+    "provider_added_context": {
+      "const": "not_exposed"
+    },
+    "capture_modes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "off",
+          "metadata",
+          "memory",
+          "private"
+        ]
+      }
+    },
+    "content_read_requires_approval": {
+      "const": true
+    },
+    "context_edit": {
+      "const": false
+    },
+    "context_compact": {
+      "const": false
+    },
+    "pause_resume": {
+      "const": false
+    },
+    "provider_submit": {
+      "const": false
+    },
+    "game_dispatch": {
+      "const": false
+    },
+    "actual_adapter_images": {
+      "enum": [
+        "supported_at_named_boundary",
+        "unsupported",
+        "unverified"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "product_phase",
+    "application_boundary_inspection",
+    "provider_added_context",
+    "capture_modes",
+    "content_read_requires_approval",
+    "context_edit",
+    "context_compact",
+    "pause_resume",
+    "provider_submit",
+    "game_dispatch",
+    "actual_adapter_images"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ascension:context-inspection:capabilities:v1"
+}

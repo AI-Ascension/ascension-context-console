@@ -1,0 +1,8 @@
+{
+  "metric": "input_tokens",
+  "value": null,
+  "source": "unavailable",
+  "scope": "prepared_input",
+  "measurement_revision": null,
+  "provider_turn_ref": null
+}

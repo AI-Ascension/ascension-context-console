@@ -1,0 +1,14 @@
+{
+  "model": "fixture-model",
+  "stream": false,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Original synthetic fixture instruction."
+    },
+    {
+      "role": "user",
+      "content": "{\"visible_fixture_value\":7}"
+    }
+  ]
+}

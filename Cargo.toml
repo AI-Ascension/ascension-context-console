@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "crates/context-reader",
+    "crates/context-service",
+    "tools/repo-policy",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/AI-Ascension/ascension-context-console"
+rust-version = "1.97.1"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.dependencies]
+context-reader = { path = "crates/context-reader" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.10.9"
+chacha20poly1305 = "0.10.1"

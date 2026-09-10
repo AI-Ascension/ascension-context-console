@@ -1,0 +1,19 @@
+{
+  "schema": "ascension.context-capabilities.v1",
+  "product_phase": 1,
+  "application_boundary_inspection": true,
+  "provider_added_context": "not_exposed",
+  "capture_modes": [
+    "off",
+    "metadata",
+    "memory",
+    "private"
+  ],
+  "content_read_requires_approval": true,
+  "context_edit": false,
+  "context_compact": false,
+  "pause_resume": false,
+  "provider_submit": false,
+  "game_dispatch": false,
+  "actual_adapter_images": "unsupported"
+}

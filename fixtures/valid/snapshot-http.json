@@ -1,0 +1,74 @@
+{
+  "schema": "ascension.context-snapshot.v1",
+  "snapshot_id": "snapshot-fixture-http-001",
+  "identity": {
+    "run_id": "run-fixture-001",
+    "episode_id": "episode-fixture-001",
+    "agent_id": "agent-fixture-001",
+    "model_execution_id": "execution-fixture-001",
+    "provider_attempt_id": "attempt-fixture-002"
+  },
+  "producer": {
+    "repository": "AI-Ascension/sts2-harness",
+    "revision": "fc44d3ef65fefa6d13ecd5f690e5335a6ef60080",
+    "adapter_revision": "fixture-seed-v1",
+    "evidence": "synthetic"
+  },
+  "boundary": "adapter.http_body",
+  "capture_mode": "memory",
+  "provider": {
+    "name": "fixture",
+    "model": "fixture-model",
+    "additional_context": "not_exposed"
+  },
+  "recorded_at": "2026-09-09T00:00:00Z",
+  "application_capture_complete": true,
+  "incomplete_reasons": [],
+  "parent_snapshot_id": null,
+  "components": [
+    {
+      "component_id": "component-fixture-body",
+      "ordinal": 0,
+      "kind": "serialized_http_body",
+      "role": null,
+      "media_type": "application/json",
+      "observed_bytes": 250,
+      "content_status": "complete",
+      "content_ref": "blob-fixture-http",
+      "sha256": "a3bbe75323f436ff863f2446d422be6786a2cacb467b52351724ae06fa1d1492",
+      "origin": "operator_fixture",
+      "measurement": {
+        "metric": "input_tokens",
+        "value": null,
+        "source": "unavailable",
+        "scope": "component",
+        "measurement_revision": null,
+        "provider_turn_ref": null
+      }
+    }
+  ],
+  "mapping": [
+    {
+      "upstream_field": "observation",
+      "transformation": "rendered_as_text",
+      "component_ids": [
+        "component-fixture-body"
+      ]
+    },
+    {
+      "upstream_field": "objective",
+      "transformation": "omitted",
+      "component_ids": []
+    }
+  ],
+  "input_measurement": {
+    "metric": "input_tokens",
+    "value": null,
+    "source": "unavailable",
+    "scope": "prepared_input",
+    "measurement_revision": null,
+    "provider_turn_ref": null
+  },
+  "model_context_limit_tokens": null,
+  "model_limit_source": "unavailable"
+}

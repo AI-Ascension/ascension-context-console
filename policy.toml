@@ -1,0 +1,23 @@
+policy_version = 1
+
+[capture]
+default_mode = "off"
+max_queue_entries = 128
+max_manifest_bytes = 1048576
+max_components = 128
+
+[retention]
+memory_ring_bytes = 67108864
+metadata_ttl_hours = 168
+content_ttl_hours = 24
+persistent_content_quota_bytes = 536870912
+
+[network]
+bind = "127.0.0.1"
+origin = "exact-loopback"
+wildcard_cors = false
+
+[security]
+reader_has_provider_credentials = false
+reader_has_game_credentials = false
+management_routes = false

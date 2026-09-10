@@ -1,0 +1,24 @@
+[package]
+name = "context-reader"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Bounded read-only validation and projections for Context Console snapshots"
+
+[dependencies]
+serde.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "context-reader"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[[test]]
+name = "context_reader_smoke"
+path = "../../tests/context_reader_smoke.rs"

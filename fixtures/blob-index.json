@@ -1,0 +1,29 @@
+{
+  "schema": "ascension.fixture-blob-index.v1",
+  "blobs": {
+    "blob-fixture-stdin": {
+      "path": "fixtures/blobs/fixture-stdin.txt",
+      "bytes": 158,
+      "sha256": "e3f1ca4f3932cac979252d6fc558c8f6cc72fd82112b3c68e474deebba64b9d0",
+      "provenance": "original_synthetic_fixture"
+    },
+    "blob-fixture-schema": {
+      "path": "fixtures/blobs/fixture-output-schema.json",
+      "bytes": 216,
+      "sha256": "16fa7cf7652450e677ca2ae4b323fbdb57f6d63d847be381efdffa5c8c88601f",
+      "provenance": "original_synthetic_fixture"
+    },
+    "blob-fixture-config": {
+      "path": "fixtures/blobs/fixture-configuration.json",
+      "bytes": 93,
+      "sha256": "142d9c8fd2f6251806d07a6ffc7106364127b85a5a976eea9bfb384459b4fef7",
+      "provenance": "original_synthetic_fixture"
+    },
+    "blob-fixture-http": {
+      "path": "fixtures/blobs/fixture-http-body.json",
+      "bytes": 250,
+      "sha256": "a3bbe75323f436ff863f2446d422be6786a2cacb467b52351724ae06fa1d1492",
+      "provenance": "original_synthetic_fixture"
+    }
+  }
+}
