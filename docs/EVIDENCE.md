@@ -12,7 +12,7 @@ Every result has a bounded evidence class:
 
 The accepted harness source pin used by the fixtures is
 `fc44d3ef65fefa6d13ecd5f690e5335a6ef60080`. Current local Rust gates are source evidence. The
-offline CLI and browser fixtures are synthetic evidence. The companion harness commit `f3746ed`
-also records bounded Astra and Ollama process runs against synthetic fake downstreams; those runs
+offline CLI and browser fixtures are synthetic evidence. The companion harness source `f3746ed`
+and evidence commit `875568a` record bounded Astra and Ollama process runs against synthetic fake downstreams; those runs
 match the accepted baseline at the captured handoff and failure boundaries. No real provider or
 game receipt, browser execution, native storage check, or independent review is implied.
