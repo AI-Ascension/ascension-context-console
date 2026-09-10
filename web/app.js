@@ -453,7 +453,7 @@ async function commitDraft() {
     const receipt = await controlJson("/commits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("commit", { expected_active_revision_id: controlState.active_revision_id, preview_id: currentPreview.preview_id, approved_manifest_sha256: currentPreview.prepared_manifest_sha256 })) });
     currentPreview = null;
     await refreshControl();
-    setDraftMessage(`Commit ${receipt.status}: revision ${receipt.active_revision_id} is durable while paused.`);
+    setDraftMessage(`Commit ${receipt.status}: revision ${receipt.active_revision_id} is committed while paused.`);
   } catch (error) { setDraftMessage(error instanceof Error ? error.message : "commit failed", true); }
 }
 

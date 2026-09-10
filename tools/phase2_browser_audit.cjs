@@ -99,7 +99,7 @@ async function run() {
 
     await page.locator('#commit-draft').click();
     await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'paused_committed');
-    assert.match(await page.locator('#draft-message').textContent(), /durable while paused/);
+    assert.match(await page.locator('#draft-message').textContent(), /committed while paused/);
     await page.locator('#resume-run').click();
     await page.waitForFunction(() => document.querySelector('#control-status').textContent === 'running');
     assert.match(await page.locator('#draft-message').textContent(), /Resume/);
