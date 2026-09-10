@@ -35,7 +35,25 @@
   "native_capacity_result": {
     "status": "unavailable",
     "reason": "Native lead attempts did not receive child-agent spawn or messaging controls, so coordinator and specialist descendants could not be created.",
-    "action": "No fabricated ancestry, model setting, or effort setting is claimed; root completed the bounded implementation and recorded the limitation."
+    "action": "No fabricated ancestry, model setting, or effort setting is claimed; root completed the bounded implementation and recorded the limitation.",
+    "continuation_recheck": {
+      "date": "2026-09-10",
+      "status": "unchanged",
+      "observed_parent_thread": "01a089fd-0c23-7061-8b6c-a8d5b8aa4835",
+      "observed_lead_thread": "01a08cdc-408c-73c0-adc5-fedbdcd16a53",
+      "observed_depth": 1,
+      "requested_model": "gpt-5.6-luna",
+      "requested_effort": "max",
+      "native_controls": {
+        "spawn": "unavailable",
+        "follow_up": "unavailable",
+        "messaging": "unavailable",
+        "reservation": "unavailable",
+        "agent_list": "unavailable"
+      },
+      "codex_agents_exit_code": 2,
+      "child_handle": "none"
+    }
   },
   "evidence_class": [
     "local-observation",
