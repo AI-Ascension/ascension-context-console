@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `5018295ed647d4a3658d19d940354825cf0c46a1`, evidence handoff `a059df0725b9f7044d5ab4e53209e64ba424969a`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `0c9033f7d4f7dc151b01247e2e56900c38fddc56`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `c516ff4a61d0613b3083407db2ade69590d415d9`, evidence handoff will be pinned after this evidence commit. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `0c9033f7d4f7dc151b01247e2e56900c38fddc56`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -31,7 +31,7 @@ content redaction, explicit content permission, typed stdin editing, duplicate-k
 machine schema and makes zero provider, game, or external requests.
 
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Sixty-three rows have executable evidence: the browser cases (`P2-F001`,
+failure rows. Sixty-nine rows have executable evidence: the browser cases (`P2-F001`,
 `P2-F003`, `P2-F004`, `P2-F005`, `P2-F006`, `P2-F007`, `P2-F010`, `P2-F011`, `P2-F012`, `P2-F017`,
 `P2-F022`, `P2-F031`, `P2-F033`, `P2-F034`, `P2-F073`, `P2-F074`, `P2-F075`, and `P2-F076`) plus the companion
 disabled-mode Astra/Ollama fidelity artifact and named Rust
@@ -46,7 +46,7 @@ resume-claim, and no-edit-resume regressions cover `P2-F008`, `P2-F009`, `P2-F01
 unsupported-image, and no-store edit
 regressions cover `P2-F028`, `P2-F029`, `P2-F033`, `P2-F034`, and `P2-F069`; the renderer
 budget regression covers `P2-F032`; prepared-manifest recovery covers `P2-F037`, and the durable
-lost-reply regression covers `P2-F048`. The other 17 remain
+lost-reply regression covers `P2-F048`. The other 11 remain
 explicitly marked `required_not_executed` because they require crash windows not injected here,
 live provider/game effects, native ownership controls, or other evidence outside this fixture.
 
@@ -127,9 +127,11 @@ The 16 target control tests plus 25 row-level failure tests cover protected edit
 objective authorization, typed pin/exclude/restore, protected identity aliases,
 exploratory/applicable preview, pause/commit/resume, stale boundaries, idempotent receipts,
 command-window expiry, changed-body conflicts, journal tamper/recovery, disabled mode, and stop
-dominance. The seven target durable-store tests cover encrypted reopen, wrong-key and tamper
-rejection, transaction rollback with outbox atomicity, additive migration, legacy refusal, and
-immutable snapshot backup. The companion tests cover
+dominance. The 13 target durable-store tests cover encrypted reopen, wrong-key and tamper
+rejection, transaction rollback with outbox atomicity, additive migration, legacy refusal,
+immutable snapshot backup, deterministic disk-full rejection, audit append rollback, post-commit
+acknowledgement-loss recovery with outbox deduplication, watchdog pause preservation, dropped
+outbox reconciliation, and journal flood rejection. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and eight durable-store migration/integrity cases, including
 replacement-owner fencing for old live handles, documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/0c9033f7d4f7dc151b01247e2e56900c38fddc56/docs/evidence/context-control-store-20260910.md).
@@ -139,7 +141,7 @@ paths, including a denied edit that leaves no durable file or WAL behind.
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records 63 executed cases and 17
+failure matrix has 80 rows. The row-level ledger records 69 executed cases and 11
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 

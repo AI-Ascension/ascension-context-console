@@ -4,7 +4,7 @@
   "date": "2026-09-10",
   "repository": "AI-Ascension/ascension-context-console",
   "branch": "phase2/context-editing",
-  "source_revision": "5018295ed647d4a3658d19d940354825cf0c46a1",
+  "source_revision": "c516ff4a61d0613b3083407db2ade69590d415d9",
   "command": "cargo test --locked --package context-service --test phase2_durable",
   "result": "passed",
   "tests": [
@@ -70,6 +70,59 @@
         "replaying the exact command returns its original receipt",
         "no second revision is created"
       ]
+    },
+    {
+      "test_id": "commit_transaction_disk_full_failpoint_preserves_old_revision",
+      "status": "passed",
+      "assertions": [
+        "deterministic disk-full failpoint rejects the candidate transaction",
+        "the prior active revision and plan epoch remain authoritative",
+        "the failed transaction adds no outbox rows"
+      ]
+    },
+    {
+      "test_id": "audit_append_failure_rolls_back_journal_and_outbox",
+      "status": "passed",
+      "assertions": [
+        "audit/outbox append failpoint rejects before commit",
+        "the previous encrypted journal projection remains active",
+        "no orphaned outbox event is left after the failed append"
+      ]
+    },
+    {
+      "test_id": "crash_after_commit_before_outbox_publication_retains_revision_and_deduplicates",
+      "status": "passed",
+      "assertions": [
+        "post-commit acknowledgement loss still retains the new active revision",
+        "reopen reads the committed journal and unpublished outbox",
+        "replaying the exact projection does not duplicate outbox rows"
+      ]
+    },
+    {
+      "test_id": "watchdog_restart_preserves_a_healthy_pause_without_auto_resume",
+      "status": "passed",
+      "assertions": [
+        "restart preserves the durable pause latch",
+        "recovered status is paused_ready",
+        "recovery emits no input.submitted event or semantic resume"
+      ]
+    },
+    {
+      "test_id": "dropped_outbox_event_is_rebuilt_from_authoritative_journal",
+      "status": "passed",
+      "assertions": [
+        "a deleted outbox row does not alter the authoritative journal",
+        "reconciliation persists the missing event from journal state",
+        "the rebuilt outbox count returns to the original bounded set"
+      ]
+    },
+    {
+      "test_id": "journal_event_flood_is_rejected_before_recovery",
+      "status": "passed",
+      "assertions": [
+        "a 4097-event journal is rejected with journal_invalid",
+        "recovery does not materialize an over-bound event list"
+      ]
     }
   ],
   "storage": {
@@ -96,7 +149,7 @@
   "source_artifacts": [
     {
       "path": "crates/context-service/src/control/durable.rs",
-      "sha256": "cd5d5915d43874b00e13bb7185b81ed94659d8f5120ad2c1175b645382bc54c3"
+      "sha256": "666b5910c7ed406955c6658b218350432983ae2aca4d579ab055b2ec0057ea5a"
     },
     {
       "path": "crates/context-service/src/control/durable_ops.rs",
@@ -108,11 +161,11 @@
     },
     {
       "path": "crates/context-service/src/control/durable_types.rs",
-      "sha256": "6008a54808c9eadd8681bbb8705edc5c5dd7b8a93d4a19514efcc98dab6161bf"
+      "sha256": "f8664e70c544be2d51d8923eb190497c058de391c02d17ddf22b51fa5fd1daf4"
     },
     {
       "path": "tests/phase2_durable.rs",
-      "sha256": "3dd414300716f740f7a16c3b26378070469377e5a32adf34238f32b861e9f40b"
+      "sha256": "3fa85708105626775b3f43d5a83218c777cd6e6caf504310119c378978410e14"
     }
   ],
   "limits": [

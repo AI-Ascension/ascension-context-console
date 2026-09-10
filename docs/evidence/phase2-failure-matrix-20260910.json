@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 63,
+  "executed_row_count": 69,
   "rows": [
     {
       "id": "P2-F001",
@@ -854,10 +854,10 @@
         "P2-R035",
         "P2-R036"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "commit_transaction_disk_full_failpoint_preserves_old_revision",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust deterministic disk-full failpoint rejected the candidate transaction and preserved the active revision, plan epoch, and outbox set"
     },
     {
       "id": "P2-F048",
@@ -890,10 +890,10 @@
         "P2-R035",
         "P2-R036"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "audit_append_failure_rolls_back_journal_and_outbox",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust audit/outbox append failpoint rejected before commit and left the previous encrypted journal projection and outbox unchanged"
     },
     {
       "id": "P2-F050",
@@ -1080,10 +1080,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "crash_after_commit_before_outbox_publication_retains_revision_and_deduplicates",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust post-commit acknowledgement-loss failpoint retained the new revision after reopen and deduplicated the outbox on exact replay"
     },
     {
       "id": "P2-F061",
@@ -1165,10 +1165,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "watchdog_restart_preserves_a_healthy_pause_without_auto_resume",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust restart recovery preserved paused_ready and emitted no input.submitted event or semantic resume"
     },
     {
       "id": "P2-F066",
@@ -1275,10 +1275,10 @@
         "P2-R047",
         "P2-R048"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "journal_event_flood_is_rejected_before_recovery",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust recovery rejected a 4097-event journal with journal_invalid before materializing an over-bound event list"
     },
     {
       "id": "P2-F072",
@@ -1292,10 +1292,10 @@
         "P2-R053",
         "P2-R064"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "dropped_outbox_event_is_rebuilt_from_authoritative_journal",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust reconciliation rebuilt a deleted outbox row from the authoritative journal without a UI-guess command replay"
     },
     {
       "id": "P2-F073",

@@ -7,13 +7,13 @@
   },
   "target": {
     "evidence_commit": "a059df0725b9f7044d5ab4e53209e64ba424969a",
-    "phase2_source_revision": "5018295ed647d4a3658d19d940354825cf0c46a1",
+    "phase2_source_revision": "c516ff4a61d0613b3083407db2ade69590d415d9",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
     "cargo_test_workspace_all_targets_all_features_locked": "passed",
     "phase2_control_tests": 16,
-    "durable_store_tests": 7,
+    "durable_store_tests": 13,
     "durable_store_evidence": "docs/evidence/phase2-durable-store-20260910.json",
     "cli_evidence": "docs/evidence/phase2-cli-20260910.json",
     "phase2_demo": {
@@ -30,7 +30,7 @@
     },
     "browser_audit": {
       "status": "passed",
-      "source_revision": "5018295ed647d4a3658d19d940354825cf0c46a1",
+      "source_revision": "c516ff4a61d0613b3083407db2ade69590d415d9",
       "command": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
       "workflow": "draft_saved_exploratory_preview_pause_applicable_preview_commit_paused_explicit_resume_restore_as_draft",
       "provider_calls": 0,
@@ -41,14 +41,14 @@
     },
     "integrated_browser_audit": {
       "status": "passed",
-      "source_revision": "5018295ed647d4a3658d19d940354825cf0c46a1",
+      "source_revision": "c516ff4a61d0613b3083407db2ade69590d415d9",
       "evidence_artifact": "docs/evidence/integrated-browser-ui-20260910.json"
     },
     "failure_matrix": {
       "evidence_artifact": "docs/evidence/phase2-failure-matrix-20260910.json",
       "rows": 80,
-      "executed": 63,
-      "required_not_executed": 17
+      "executed": 69,
+      "required_not_executed": 11
     }
   },
   "companion": {
