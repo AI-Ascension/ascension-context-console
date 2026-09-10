@@ -120,6 +120,7 @@ impl DurableControlStore {
         let (
             envelope,
             envelope_digest,
+            management_active,
             active_revision_id,
             control_version,
             paused,
@@ -131,23 +132,24 @@ impl DurableControlStore {
         ) = self
             .connection
             .query_row(
-                "SELECT envelope, envelope_digest, active_revision_id, control_version,
-                        pause_latched, stop_latched, controller_epoch, gate_epoch, plan_epoch,
-                        last_sequence
+                "SELECT envelope, envelope_digest, management_active, active_revision_id,
+                        control_version, pause_latched, stop_latched, controller_epoch,
+                        gate_epoch, plan_epoch, last_sequence
                  FROM context_control_journal WHERE run_id = ?1",
                 [self.run_id.as_str()],
                 |row| {
                     Ok((
                         row.get::<_, Vec<u8>>(0)?,
                         row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, i64>(3)?,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, String>(3)?,
                         row.get::<_, i64>(4)?,
                         row.get::<_, i64>(5)?,
                         row.get::<_, i64>(6)?,
                         row.get::<_, i64>(7)?,
                         row.get::<_, i64>(8)?,
                         row.get::<_, i64>(9)?,
+                        row.get::<_, i64>(10)?,
                     ))
                 },
             )
@@ -162,6 +164,7 @@ impl DurableControlStore {
             ControlPlane::recover_journal(&journal).map_err(|_| DurableStoreError::Decode)?;
         let state = plane.state();
         if state.scope.run_id != self.run_id
+            || i64::from(plane.enabled()) != management_active
             || state.active_revision_id != active_revision_id
             || state.control_version as i64 != control_version
             || i64::from(state.pause_latched) != paused

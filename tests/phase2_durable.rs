@@ -76,20 +76,21 @@ fn encrypted_journal_reopens_with_phase1_snapshots_and_outbox() {
 
 #[test]
 fn wrong_key_and_tampering_fail_closed() {
-    let path = path("auth");
+    let database = path("auth");
     let plane = ControlPlane::synthetic();
-    DurableControlStore::create(&path, [9_u8; 32], &plane).expect("create");
-    let wrong = DurableControlStore::open(&path, [8_u8; 32], "fixture-run").expect("open wrong");
+    DurableControlStore::create(&database, [9_u8; 32], &plane).expect("create");
+    let wrong =
+        DurableControlStore::open(&database, [8_u8; 32], "fixture-run").expect("open wrong");
     assert_eq!(
         wrong.load().expect_err("wrong key must fail"),
         DurableStoreError::AuthenticationFailed
     );
     assert!(matches!(
-        DurableControlStore::open(&path, [0_u8; 32], "fixture-run"),
+        DurableControlStore::open(&database, [0_u8; 32], "fixture-run"),
         Err(DurableStoreError::InvalidKey)
     ));
     {
-        let connection = rusqlite::Connection::open(&path).expect("tamper sqlite");
+        let connection = rusqlite::Connection::open(&database).expect("tamper sqlite");
         connection
             .execute(
                 "UPDATE context_control_journal SET envelope_digest = '00' WHERE run_id = ?1",
@@ -97,12 +98,32 @@ fn wrong_key_and_tampering_fail_closed() {
             )
             .expect("tamper digest");
     }
-    let tampered = DurableControlStore::open(&path, [9_u8; 32], "fixture-run").expect("reopen");
+    let tampered = DurableControlStore::open(&database, [9_u8; 32], "fixture-run").expect("reopen");
     assert_eq!(
         tampered.load().expect_err("tampered digest must fail"),
         DurableStoreError::Corrupt
     );
-    cleanup(&path);
+    cleanup(&database);
+    let mode_path = path("auth-mode");
+    DurableControlStore::create(&mode_path, [9_u8; 32], &plane).expect("create mode store");
+    {
+        let connection = rusqlite::Connection::open(&mode_path).expect("tamper mode sqlite");
+        connection
+            .execute(
+                "UPDATE context_control_journal SET management_active = 0 WHERE run_id = ?1",
+                ["fixture-run"],
+            )
+            .expect("tamper mode");
+    }
+    let mode_tampered = DurableControlStore::open(&mode_path, [9_u8; 32], "fixture-run")
+        .expect("reopen mode tamper");
+    assert_eq!(
+        mode_tampered
+            .load()
+            .expect_err("tampered management mode must fail"),
+        DurableStoreError::Corrupt
+    );
+    cleanup(&mode_path);
 }
 
 #[test]
