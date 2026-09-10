@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 55,
+  "executed_row_count": 58,
   "rows": [
     {
       "id": "P2-F001",
@@ -139,10 +139,10 @@
         "P2-R045",
         "P2-R046"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f008_permission_revoked_after_preview_blocks_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust deactivation after an applicable preview denied commit with management_disabled and preserved the paused revision"
     },
     {
       "id": "P2-F009",
@@ -157,10 +157,10 @@
         "P2-R045",
         "P2-R046"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f009_permission_revoked_after_commit_blocks_resume",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust deactivation after commit denied resume with management_disabled and kept the run paused_committed"
     },
     {
       "id": "P2-F010",
@@ -246,10 +246,10 @@
         "P2-R035",
         "P2-R036"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f014_two_previews_have_one_serialized_commit_winner",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust serialized two prepared previews; the first commit won and the second stale operator received stale_revision without a second revision"
     },
     {
       "id": "P2-F015",

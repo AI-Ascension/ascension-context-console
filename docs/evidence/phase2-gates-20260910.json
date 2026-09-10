@@ -7,7 +7,7 @@
   },
   "target": {
     "evidence_commit": "677eb1258164041854a319736a90d8ba9360ab2a",
-    "phase2_source_revision": "df0a40a0959f12f447ff80f226630e3520410ad2",
+    "phase2_source_revision": "eb542e11d97f83f938578e8949ab9916fa4136c4",
     "cargo_fmt_locked_check": "passed",
     "repo_policy_strict": "passed",
     "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
@@ -30,7 +30,7 @@
     },
     "browser_audit": {
       "status": "passed",
-      "source_revision": "df0a40a0959f12f447ff80f226630e3520410ad2",
+      "source_revision": "eb542e11d97f83f938578e8949ab9916fa4136c4",
       "command": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
       "workflow": "draft_saved_exploratory_preview_pause_applicable_preview_commit_paused_explicit_resume_restore_as_draft",
       "provider_calls": 0,
@@ -41,14 +41,14 @@
     },
     "integrated_browser_audit": {
       "status": "passed",
-      "source_revision": "df0a40a0959f12f447ff80f226630e3520410ad2",
+      "source_revision": "eb542e11d97f83f938578e8949ab9916fa4136c4",
       "evidence_artifact": "docs/evidence/integrated-browser-ui-20260910.json"
     },
     "failure_matrix": {
       "evidence_artifact": "docs/evidence/phase2-failure-matrix-20260910.json",
       "rows": 80,
-      "executed": 55,
-      "required_not_executed": 25
+      "executed": 58,
+      "required_not_executed": 22
     }
   },
   "companion": {

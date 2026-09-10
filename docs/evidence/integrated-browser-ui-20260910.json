@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "df0a40a0959f12f447ff80f226630e3520410ad2"
+    "revision": "eb542e11d97f83f938578e8949ab9916fa4136c4"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:38359",
+  "base_url": "http://127.0.0.1:42843",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,17 +46,17 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:38359/web/",
-    "http://127.0.0.1:38359/web/styles.css",
-    "http://127.0.0.1:38359/web/app.js",
-    "http://127.0.0.1:38359/offline-bundle.json",
-    "http://127.0.0.1:38359/demo/snapshot",
-    "http://127.0.0.1:38359/demo/events",
-    "http://127.0.0.1:38359/demo/comparison",
-    "http://127.0.0.1:38359/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:38359/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:38359/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:38359/v2/runs/fixture-run/context-control/revisions"
+    "http://127.0.0.1:42843/web/",
+    "http://127.0.0.1:42843/web/styles.css",
+    "http://127.0.0.1:42843/web/app.js",
+    "http://127.0.0.1:42843/offline-bundle.json",
+    "http://127.0.0.1:42843/demo/snapshot",
+    "http://127.0.0.1:42843/demo/events",
+    "http://127.0.0.1:42843/demo/comparison",
+    "http://127.0.0.1:42843/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:42843/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:42843/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:42843/v2/runs/fixture-run/context-control/revisions"
   ],
   "external_requests": [],
   "fixture_requests": [],
