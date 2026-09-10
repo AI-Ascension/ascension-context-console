@@ -1,0 +1,90 @@
+{
+  "schema": "ascension.browser-ui-evidence.v1",
+  "source_revision": "working-tree-after-c8e0a60",
+  "evidence_class": ["synthetic", "native"],
+  "tool": "Playwright 1.63.0",
+  "browser": "153.0.8010.12",
+  "execution": "headless Chromium against a loopback static server",
+  "server_origin": "http://127.0.0.1:8765",
+  "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+  "viewport_desktop": {
+    "width": 1440,
+    "height": 1000
+  },
+  "viewport_narrow": {
+    "width": 375,
+    "height": 800
+  },
+  "reduced_motion": true,
+  "status": "Synthetic offline bundle loaded",
+  "boundary": "adapter.cli_input",
+  "component_count": 3,
+  "timeline_count": 7,
+  "comparison": "The retained snapshots have the same ordered component measurements. This view does not imply a cache hit.",
+  "requests": [
+    "http://127.0.0.1:8765/web/",
+    "http://127.0.0.1:8765/web/styles.css",
+    "http://127.0.0.1:8765/web/app.js",
+    "http://127.0.0.1:8765/offline-bundle.json",
+    "http://127.0.0.1:8765/fixtures/valid/snapshot-metadata.json",
+    "http://127.0.0.1:8765/fixtures/valid/events.jsonl",
+    "http://127.0.0.1:8765/fixtures/valid/snapshot-cli.json"
+  ],
+  "external_requests": [],
+  "storage": {
+    "localStorageEntries": 0,
+    "sessionStorageEntries": 0,
+    "indexedDbDatabases": 0,
+    "cacheNames": []
+  },
+  "horizontal_overflow_narrow": false,
+  "keyboard_focus_id": "compare-button",
+  "console_errors": [],
+  "page_errors": [],
+  "assertions": {
+    "synthetic_status": true,
+    "boundary_visible": true,
+    "ordered_components_visible": true,
+    "timeline_visible": true,
+    "comparison_keyboard_enter": true,
+    "no_external_requests": true,
+    "no_browser_persistence": true,
+    "no_horizontal_overflow_narrow": true,
+    "adversarial_payload_text_only": true,
+    "adversarial_payload_no_markup": true,
+    "adversarial_payload_no_script": true,
+    "manifest_path_rejected": true
+  },
+  "fixture_sha256": {
+    "snapshot": "a60a32e6df0caea7f627b7bcae982b1828e8a3b56b5f8dd3c668c45fe9a28d74",
+    "comparison": "d42cffbc87f63fa7c68a7e8edc04f291a4912da02a5ddece9a7cbff8d4a366f0",
+    "events": "04f029a5f1343d59ccfbdc94e6b45e1f38a5e9e71ced5b597ac697737fcdb69d",
+    "app": "12ef7f49a2def319a5a416cdc82c50d93c2805147933ecdc9b0423cae04ba523",
+    "bundle_manifest": "2b916bee2ccd84c97bebde391d1c97d86a71c34a7c77d0533212f84c550c7029"
+  },
+  "adversarial_payload": {
+    "payload": "<img src=x onerror=window.__payloadExecuted=true>",
+    "text_content_preserved": true,
+    "markup_nodes_created": false,
+    "script_executed": false,
+    "external_requests": [],
+    "console_errors": [],
+    "page_errors": []
+  },
+  "manifest_path_rejection": {
+    "external_requests": [],
+    "console_errors": [],
+    "page_errors": [],
+    "rejected_before_fetch": true
+  },
+  "screenshots": {
+    "desktop": {
+      "path": "docs/evidence/browser-desktop-20260910.png",
+      "sha256": "9451995eb549b6ad7ffcf04b5c83dd0e0c1d840055a8a605d96368e436b80245"
+    },
+    "narrow": {
+      "path": "docs/evidence/browser-narrow-20260910.png",
+      "sha256": "5aeb722841d533ca83362f84fa9aa32c9b1c6a115c7c5a14b69a60aae3cabfc1"
+    }
+  }
+}

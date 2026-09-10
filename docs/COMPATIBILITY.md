@@ -1,8 +1,9 @@
 # Compatibility
 
 Phase 1 supports Linux source builds with Rust 1.97.1 and offline synthetic fixtures. The reader
-and store are platform-neutral Rust components. Browser checks are limited to standards-compliant
-modern browsers in the tested local environment.
+and store are platform-neutral Rust components. The checked-in browser evidence was captured on
+Linux with Chromium `153.0.8010.12` at `1440x1000` and `375x800`, with reduced motion enabled.
+The browser checks cover the synthetic same-origin bundle in that environment.
 
 Provider, game-host, Windows, deployment and external observability compatibility is unverified.
 The console does not launch a provider or game and cannot repair adapter differences. Map/image

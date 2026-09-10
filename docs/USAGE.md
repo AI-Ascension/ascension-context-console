@@ -26,8 +26,13 @@ python3 -m http.server 8000
 ```
 
 Open `http://127.0.0.1:8000/web/`. Do not open the page from a `file:` URL; browsers correctly
-restrict cross-file fetches. The page performs one read-only request and displays metadata, ordered
-components and adapter mappings. It does not contact a provider or a game.
+restrict cross-file fetches. The page reads the same-origin `offline-bundle.json` manifest and its
+declared artifacts, then displays metadata, ordered components and adapter mappings. It does not
+contact a provider or a game.
+
+The checked-in browser evidence was captured with Chromium `153.0.8010.12` at desktop and narrow
+viewports. See [`docs/evidence/browser-ui-20260910.json`](evidence/browser-ui-20260910.json) and
+the adjacent screenshots for the exact request, storage, keyboard, and comparison outcomes.
 
 The browser bundle is synthetic evidence. A successful parse, demo, or render does not prove a live
 capture, provider receipt, persistent encrypted storage, native-platform behavior, or target-game

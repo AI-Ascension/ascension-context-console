@@ -2,9 +2,7 @@
 
 const MAX_FIXTURE_BYTES = 1024 * 1024;
 const MAX_EVENTS = 256;
-const snapshotUrl = new URL("../fixtures/valid/snapshot-metadata.json", document.baseURI);
-const compareUrl = new URL("../fixtures/valid/snapshot-cli.json", document.baseURI);
-const eventsUrl = new URL("../fixtures/valid/events.jsonl", document.baseURI);
+const bundleManifestUrl = new URL("../offline-bundle.json", document.baseURI);
 const status = document.querySelector("#status");
 
 function showText(selector, value) {
@@ -49,6 +47,29 @@ function validateEvents(events) {
       throw new Error("event contains a forbidden content field");
     }
   });
+}
+
+function resolveBundleArtifact(value, field) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 256
+    || value.startsWith("/") || value.includes("\\") || value.includes("..")
+    || value.includes("%") || value.includes("://")) {
+    throw new Error(`offline bundle ${field} path is invalid`);
+  }
+  const url = new URL(value, bundleManifestUrl);
+  if (url.origin !== window.location.origin) throw new Error(`offline bundle ${field} origin is invalid`);
+  return url;
+}
+
+function validateBundleManifest(manifest) {
+  if (!manifest || typeof manifest !== "object" || manifest.schema !== "ascension.offline-bundle.v1"
+    || manifest.evidence !== "synthetic") {
+    throw new Error("unsupported offline bundle manifest");
+  }
+  return {
+    snapshotUrl: resolveBundleArtifact(manifest.snapshot, "snapshot"),
+    compareUrl: resolveBundleArtifact(manifest.comparison, "comparison"),
+    eventsUrl: resolveBundleArtifact(manifest.events, "events"),
+  };
 }
 
 function render(snapshot, events) {
@@ -128,15 +149,16 @@ async function loadJson(url) {
   return JSON.parse(await boundedText(await fetch(url, { cache: "no-store" })));
 }
 
-async function loadEvents() {
+async function loadEvents(eventsUrl) {
   const text = await boundedText(await fetch(eventsUrl, { cache: "no-store" }));
   return text.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line));
 }
 
 async function loadFixture() {
-  const [snapshot, events] = await Promise.all([loadJson(snapshotUrl), loadEvents()]);
+  const bundle = validateBundleManifest(await loadJson(bundleManifestUrl));
+  const [snapshot, events] = await Promise.all([loadJson(bundle.snapshotUrl), loadEvents(bundle.eventsUrl)]);
   const rendered = render(snapshot, events);
-  const comparison = await loadJson(compareUrl);
+  const comparison = await loadJson(bundle.compareUrl);
   validateSnapshot(comparison);
   document.querySelector("#compare-button").addEventListener("click", () => {
     const left = rendered.components.map((component) => `${component.component_id}:${component.observed_bytes}`).join("|");

@@ -6,10 +6,10 @@ validates their semantic invariants, and returns immutable projections with comp
 usage, and lineage summaries. It keeps no raw JSON in the reader projection and never follows a
 caller-provided filesystem path for content.
 
-The browser page in `web/` reads the checked-in synthetic metadata, comparison, and event fixtures
-with same-origin, cache-disabled fetches. It uses `textContent` for all untrusted values and renders
-ordered components, mapping, timeline, measurements, comparison, and disclosure states. The page
-does not write browser persistence or make provider/game calls.
+The browser page in `web/` reads the checked-in synthetic artifacts named by the bounded
+`offline-bundle.json` manifest with same-origin, cache-disabled fetches. It uses `textContent` for
+all untrusted values and renders ordered components, mapping, timeline, measurements, comparison,
+and disclosure states. The page does not write browser persistence or make provider/game calls.
 
 The supported capture vocabulary is explicit:
 

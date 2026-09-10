@@ -1,0 +1,7 @@
+{
+  "schema": "ascension.offline-bundle.v1",
+  "evidence": "synthetic",
+  "snapshot": "fixtures/valid/snapshot-metadata.json",
+  "comparison": "fixtures/valid/snapshot-cli.json",
+  "events": "fixtures/valid/events.jsonl"
+}

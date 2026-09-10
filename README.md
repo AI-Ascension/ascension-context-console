@@ -25,6 +25,7 @@ cargo run --locked --package context-service --bin context-console -- demo
 ```
 
 The browser fixture can be served from the repository root with any static file server and opened
-at `/web/`. It reads only the checked-in synthetic bundle. See [docs/DEMO.md](docs/DEMO.md),
-[docs/API.md](docs/API.md), and [docs/SECURITY.md](docs/SECURITY.md) for the evidence boundary and
-operational limits.
+at `/web/`. It reads only the checked-in synthetic bundle. A local Chromium run is recorded in
+[`docs/evidence/browser-ui-20260910.json`](docs/evidence/browser-ui-20260910.json) with desktop and
+narrow screenshots. See [docs/DEMO.md](docs/DEMO.md), [docs/API.md](docs/API.md), and
+[docs/SECURITY.md](docs/SECURITY.md) for the evidence boundary and operational limits.
