@@ -147,7 +147,18 @@ fn partial_additive_schema_is_repaired_and_newer_schema_is_rejected() {
             .execute_batch(
                 "CREATE TABLE context_control_meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
                  INSERT INTO context_control_meta(key, value) VALUES ('schema', 'ascension.context-control.sqlite.v1');
-                 INSERT INTO context_control_meta(key, value) VALUES ('schema_version', '1');",
+                 INSERT INTO context_control_meta(key, value) VALUES ('schema_version', '1');
+                 CREATE TABLE context_control_phase1_snapshots (
+                     run_id TEXT NOT NULL,
+                     snapshot_id TEXT NOT NULL,
+                     snapshot BLOB NOT NULL,
+                     digest TEXT NOT NULL,
+                     PRIMARY KEY (run_id, snapshot_id)
+                 );
+                 INSERT INTO context_control_phase1_snapshots
+                     (run_id, snapshot_id, snapshot, digest)
+                 VALUES ('fixture-run', 'legacy-snapshot', X'6c65676163792050686173652031206279746573',
+                         '972999d7f17c30172ee8855045106c73d2ee765e94da85fa5da7074d14a48623');",
             )
             .expect("partial marker");
     }
@@ -157,6 +168,20 @@ fn partial_additive_schema_is_repaired_and_newer_schema_is_rejected() {
         store.snapshot().expect_err("journal not invented"),
         DurableStoreError::Missing
     );
+    drop(store);
+    let connection = rusqlite::Connection::open(&migration_path).expect("reopen migrated sqlite");
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT snapshot FROM context_control_phase1_snapshots
+                 WHERE run_id = 'fixture-run' AND snapshot_id = 'legacy-snapshot'",
+                [],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .expect("legacy snapshot"),
+        b"legacy Phase 1 bytes"
+    );
+    drop(connection);
     cleanup(&migration_path);
 
     let newer = path("newer");
