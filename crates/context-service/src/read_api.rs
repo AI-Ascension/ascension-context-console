@@ -236,6 +236,11 @@ impl<'a> ReadApi<'a> {
                 json!({"error":"get_body_not_allowed","read_only":true}),
             );
         }
+        // Query keys are deliberately not percent-decoded. Rejecting escapes across the complete
+        // target prevents an encoded credential key such as `%74oken` from bypassing the URL rule.
+        if request.target.contains('%') {
+            return HttpResponse::json(400, json!({"error":"percent_escape_not_allowed"}));
+        }
         if request.header("host") != Some(self.expected_host.as_str()) {
             return HttpResponse::json(400, json!({"error":"host_not_allowed"}));
         }
@@ -708,6 +713,20 @@ mod tests {
             &HttpRequest {
                 method: "GET".to_owned(),
                 target: "/v1/capabilities?token=api-token".to_owned(),
+                headers: vec![
+                    ("host".to_owned(), "127.0.0.1:0".to_owned()),
+                    ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),
+                    ("authorization".to_owned(), "Bearer api-token".to_owned()),
+                ],
+                body: Vec::new(),
+            },
+            UNIX_EPOCH,
+        );
+        assert_eq!(response.status, 400);
+        let response = api.handle_at(
+            &HttpRequest {
+                method: "GET".to_owned(),
+                target: "/v1/capabilities?%74oken=api-token".to_owned(),
                 headers: vec![
                     ("host".to_owned(), "127.0.0.1:0".to_owned()),
                     ("origin".to_owned(), "http://127.0.0.1:0".to_owned()),

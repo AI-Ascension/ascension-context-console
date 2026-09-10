@@ -235,6 +235,7 @@ pub struct Store {
     config: StoreConfig,
     entries: BTreeMap<String, StoredSnapshot>,
     events: BTreeMap<String, StoredEvent>,
+    event_scope_sequences: BTreeMap<(String, String), u64>,
     content: BTreeMap<String, Vec<u8>>,
     content_bytes: usize,
     revoked: BTreeMap<[u8; 32], ()>,
@@ -249,6 +250,8 @@ struct StoredSnapshot {
 struct StoredEvent {
     digest: [u8; 32],
     event: CaptureEvent,
+    scope: Option<(String, String)>,
+    scope_sequence: Option<u64>,
 }
 
 impl Store {
@@ -266,6 +269,7 @@ impl Store {
             config,
             entries: BTreeMap::new(),
             events: BTreeMap::new(),
+            event_scope_sequences: BTreeMap::new(),
             content: BTreeMap::new(),
             content_bytes: 0,
             revoked: BTreeMap::new(),
@@ -338,11 +342,30 @@ impl Store {
         if self.events.len() >= MAX_EVENTS {
             return Err(IngestError::Capacity);
         }
+        let scope = event
+            .snapshot_id
+            .as_deref()
+            .and_then(|snapshot_id| self.entries.get(snapshot_id))
+            .map(|snapshot| {
+                let projection = snapshot.snapshot.projection();
+                (
+                    projection.identity.agent_id.clone(),
+                    projection.identity.run_id.clone(),
+                )
+            });
+        let scope_sequence = scope.as_ref().map(|scope| {
+            let next = self.event_scope_sequences.entry(scope.clone()).or_default();
+            let sequence = *next;
+            *next = next.saturating_add(1);
+            sequence
+        });
         self.events.insert(
             event.event_id.clone(),
             StoredEvent {
                 digest,
                 event: event.clone(),
+                scope,
+                scope_sequence,
             },
         );
         Ok(event)
@@ -449,33 +472,30 @@ impl Store {
             return Err(ReadError::TooLarge);
         }
         self.authorize(token, grant, now)?;
-        let mut scoped_events: Vec<CaptureEvent> = self
+        let scope_project = grant.project();
+        let mut scoped_events: Vec<(u64, CaptureEvent)> = self
             .events
             .values()
             .filter_map(|stored| {
-                let event = &stored.event;
-                let snapshot_matches = event
-                    .snapshot_id
-                    .as_deref()
-                    .and_then(|id| self.entries.get(id))
-                    .is_some_and(|snapshot| {
-                        let projection = snapshot.snapshot.projection();
-                        projection.identity.run_id == run_id && grant.permits_scope(projection)
-                    });
-                snapshot_matches.then_some(event.clone())
+                let (project, event_run) = stored.scope.as_ref()?;
+                if project != scope_project || event_run != run_id {
+                    return None;
+                }
+                let sequence = stored.scope_sequence?;
+                let mut event = stored.event.clone();
+                event.sequence = sequence;
+                Some((sequence, event))
             })
             .collect();
-        scoped_events.sort_by_key(|event| event.sequence);
+        scoped_events.sort_by_key(|(sequence, _)| *sequence);
 
         // Producer sequences are intentionally not exposed: they are usually global to a
-        // producer, so filtering them by project/run would reveal hidden event positions. Assign
-        // a fresh contiguous cursor within this authorized run scope instead.
+        // producer, so filtering them by project/run would reveal hidden event positions. The
+        // immutable append ordinal is assigned once when an event enters this run scope, so a
+        // late producer sequence cannot reorder or invalidate a reconnect cursor.
         let mut events = scoped_events
             .into_iter()
-            .enumerate()
-            .filter_map(|(local_sequence, mut event)| {
-                let local_sequence = local_sequence as u64;
-                event.sequence = local_sequence;
+            .filter_map(|(local_sequence, event)| {
                 after_sequence
                     .is_none_or(|cursor| local_sequence > cursor)
                     .then_some(event)
@@ -488,9 +508,8 @@ impl Store {
         } else {
             None
         };
-        // The page's `gap` flag cannot be inferred from producer sequence jumps after scope
-        // filtering. Any producer-side capture gap remains an explicit `capture.gap` event in the
-        // page; this flag is reserved for a future scope-local retention watermark.
+        // Producer-side capture gaps remain explicit `capture.gap` events. This flag is reserved
+        // for a future scope-local retention watermark.
         let gap = false;
         Ok(EventPage {
             events,
@@ -948,6 +967,75 @@ mod tests {
                 .expect("scoped empty page")
                 .events
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn event_cursor_remains_stable_when_a_late_producer_sequence_arrives() {
+        let mut store = Store::default();
+        store.ingest(CLI_FIXTURE).expect("fixture snapshot");
+        let append = |store: &mut Store, event_id: &str, sequence: u64| {
+            store
+                .append_event(
+                    &serde_json::to_vec(&serde_json::json!({
+                        "schema":"ascension.context-event.v1",
+                        "event_id":event_id,
+                        "producer_id":"producer-ordered",
+                        "sequence":sequence,
+                        "snapshot_id":"snapshot-fixture-cli-001",
+                        "provider_attempt_id":null,
+                        "observed_at":"2026-09-09T00:00:00Z",
+                        "event_type":"snapshot.prepared",
+                        "details":{}
+                    }))
+                    .expect("event bytes"),
+                )
+                .expect("event");
+        };
+        append(&mut store, "event-ordered-0", 0);
+        append(&mut store, "event-ordered-2", 2);
+        let grant = ReadGrant::issue(
+            b"fixture-token",
+            "agent-fixture-001",
+            Some("run-fixture-001".to_owned()),
+            CapturePrivilege::Metadata,
+            Duration::from_secs(60),
+            NOW,
+        )
+        .expect("grant");
+        let first_page = store
+            .events(b"fixture-token", &grant, "run-fixture-001", None, 1, NOW)
+            .expect("first page");
+        assert_eq!(
+            first_page
+                .events
+                .iter()
+                .map(|event| event.event_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["event-ordered-0"]
+        );
+        assert_eq!(first_page.next_cursor, Some(0));
+
+        // The producer's missing sequence arrives after the page was issued. Its immutable
+        // scope ordinal follows the already visible event and cannot be skipped by cursor 0.
+        append(&mut store, "event-ordered-1", 1);
+        let second_page = store
+            .events(
+                b"fixture-token",
+                &grant,
+                "run-fixture-001",
+                first_page.next_cursor,
+                10,
+                NOW,
+            )
+            .expect("second page");
+        assert_eq!(
+            second_page
+                .events
+                .iter()
+                .map(|event| (event.event_id.as_str(), event.sequence))
+                .collect::<Vec<_>>(),
+            vec![("event-ordered-2", 1), ("event-ordered-1", 2)]
         );
     }
 
