@@ -2,7 +2,7 @@
 
 This is the review record for the Phase 2 draft branches. Phase 1 was merged first, then the existing target repositories were extended; no Phase 2 branch was merged, released, deployed, or used against a live provider/game.
 
-Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `c516ff4a61d0613b3083407db2ade69590d415d9`, evidence handoff `ff7b01718a34c0dd658f1853ad8b85a1c2f3ac83`. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `0c9033f7d4f7dc151b01247e2e56900c38fddc56`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
+Target: [ascension-context-console PR #3](https://github.com/AI-Ascension/ascension-context-console/pull/3), implementation source `c516ff4a61d0613b3083407db2ade69590d415d9`, evidence handoff will be pinned after this evidence update. Companion: [sts2-harness PR #60](https://github.com/AI-Ascension/sts2-harness/pull/60) at `8674874feccfbf995ed0aa5a8ec8390d9dac137b`. The target and companion heads are cross-linked in both PR bodies. Contract source pins and SHA-256 values are in `contracts/context-control/README.md`.
 
 The implementation is disabled outside the synthetic management fixture. The target control plane
 never calls a provider or game; its integrated fixture now starts from an opt-in encrypted SQLite
@@ -31,7 +31,7 @@ content redaction, explicit content permission, typed stdin editing, duplicate-k
 machine schema and makes zero provider, game, or external requests.
 
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Sixty-nine rows have executable evidence: the browser cases (`P2-F001`,
+failure rows. Seventy-nine rows have executable evidence: the browser cases (`P2-F001`,
 `P2-F003`, `P2-F004`, `P2-F005`, `P2-F006`, `P2-F007`, `P2-F010`, `P2-F011`, `P2-F012`, `P2-F017`,
 `P2-F022`, `P2-F031`, `P2-F033`, `P2-F034`, `P2-F073`, `P2-F074`, `P2-F075`, and `P2-F076`) plus the companion
 disabled-mode Astra/Ollama fidelity artifact and named Rust
@@ -46,9 +46,12 @@ resume-claim, and no-edit-resume regressions cover `P2-F008`, `P2-F009`, `P2-F01
 unsupported-image, and no-store edit
 regressions cover `P2-F028`, `P2-F029`, `P2-F033`, `P2-F034`, and `P2-F069`; the renderer
 budget regression covers `P2-F032`; prepared-manifest recovery covers `P2-F037`, and the durable
-lost-reply regression covers `P2-F048`. The other 11 remain
-explicitly marked `required_not_executed` because they require crash windows not injected here,
-live provider/game effects, native ownership controls, or other evidence outside this fixture.
+lost-reply regression covers `P2-F048`. The companion control-race fixtures cover pause admission,
+provider/game drain, unknown-operation blocking, multi-participant readiness, late-provider plan
+fencing, and boundary-change resume fencing for `P2-F040` through `P2-F044`, `P2-F056`, and
+`P2-F057`; the companion recovery fixtures cover `P2-F061` through `P2-F063`. The sole remaining
+row, `P2-F080`, remains explicitly marked `required_not_executed` because live provider/host
+checks are unavailable and must not be represented by synthetic evidence.
 
 ## Requirement index
 
@@ -84,7 +87,7 @@ Statuses mean: **executed** has a local executable assertion or gate; **source-r
 | P2-R026 | source-reviewed | Provider-added context is explicitly `not_exposed`; no fabricated token occupancy is emitted. |
 | P2-R027 | executed | Pause latch and durable pause event are covered by target/harness control tests. |
 | P2-R028 | executed | Pause/commit/plan admission tests fence new work. |
-| P2-R029 | source-reviewed | Unresolved-operation fields block readiness; no clear-ledger path exists. |
+| P2-R029 | executed | Harness admission, settlement, and retained-unknown tests block readiness until the original operation is reconciled; no clear-ledger path exists. |
 | P2-R030 | executed | Applicable preview requires paused-ready and quiescent state. |
 | P2-R031 | executed | `p2_f051_old_plan_epoch_is_rejected_after_commit` asserts plan-epoch fencing after commit. |
 | P2-R032 | executed | Explicit no-edit resume path is covered by the target state machine. |
@@ -134,16 +137,16 @@ acknowledgement-loss recovery with outbox deduplication, watchdog pause preserva
 outbox reconciliation, and journal flood rejection. The companion tests cover
 prepared Exo bytes, legacy parity, controller recovery, invalid UTF-8/expiry/pin rejection, actual
 serialized Ollama/Astra bridge inputs, and eight durable-store migration/integrity cases, including
-replacement-owner fencing for old live handles, documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/0c9033f7d4f7dc151b01247e2e56900c38fddc56/docs/evidence/context-control-store-20260910.md).
+replacement-owner fencing for old live handles, the control-race fixtures, and the recovery fixtures,
+documented in the [companion evidence record](https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/docs/evidence/context-control-store-20260910.md).
 The compiled target CLI suite adds seven tests for durable command sequencing, explicit content
 permission, stdin parsing bounds, unavailable-store exit classification, and no-mutation rejection
 paths, including a denied edit that leaves no durable file or WAL behind.
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records 69 executed cases and 11
-`required_not_executed` rows; scenarios requiring production storage, live providers, native
-orchestration, or unavailable fault injection remain outside the evidence boundary.
+failure matrix has 80 rows. The row-level ledger records 79 executed cases and one
+`required_not_executed` row; live provider/host checks remain outside the evidence boundary.
 
 No target production migration or rollback claim is made. The target’s encrypted SQLite migration,
 rollback, backup, and legacy-active refusal are local component evidence in the integrated fixture;

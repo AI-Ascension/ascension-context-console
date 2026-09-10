@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 69,
+  "executed_row_count": 79,
   "rows": [
     {
       "id": "P2-F001",
@@ -379,7 +379,7 @@
       ],
       "evidence_status": "executed",
       "test_id": "renderer_rejects_unreadable_expired_and_unselected_pinned_content",
-      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/0c9033f7d4f7dc151b01247e2e56900c38fddc56/crates/harness/tests/context_control.rs",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control.rs",
       "observed": "selected and pinned content at its expiry returned ExpiredItem without bypassing TTL"
     },
     {
@@ -547,7 +547,7 @@
       ],
       "evidence_status": "executed",
       "test_id": "renderer_rejects_content_digest_mismatch_for_selected_note_and_objective",
-      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/c7ff0ad2ff9b397ea5eccba1bb2fc81113dee354/crates/harness/tests/context_control.rs",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control.rs",
       "observed": "companion renderer recomputed selected, note, and objective digests and rejected same-reference byte substitution"
     },
     {
@@ -727,10 +727,10 @@
         "P2-R029",
         "P2-R030"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "pause_admission_race_has_one_order_and_drains_provider_before_ready",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "Harness ControlAuthority admitted before pause or rejected after the pause barrier; no post-barrier operation entered the unresolved ledger"
     },
     {
       "id": "P2-F041",
@@ -745,10 +745,10 @@
         "P2-R029",
         "P2-R030"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "pause_admission_race_has_one_order_and_drains_provider_before_ready",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "Pause remained PauseRequested while the provider attempt was unresolved and became PausedReady only after that same attempt settled"
     },
     {
       "id": "P2-F042",
@@ -763,10 +763,10 @@
         "P2-R029",
         "P2-R030"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "unsettled_game_operation_and_unknown_mutation_block_readiness",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "The game operation stayed in unresolved_operations until explicit settlement; pause did not report ready early"
     },
     {
       "id": "P2-F043",
@@ -781,10 +781,10 @@
         "P2-R029",
         "P2-R030"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "unsettled_game_operation_and_unknown_mutation_block_readiness",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "An unknown operation was retained and resume was rejected until the original operation was explicitly reconciled"
     },
     {
       "id": "P2-F044",
@@ -799,10 +799,10 @@
         "P2-R029",
         "P2-R030"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "multiple_participant_operations_cannot_report_run_wide_readiness_early",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "Two participant operation identities kept run-wide status PauseRequested until both operations settled"
     },
     {
       "id": "P2-F045",
@@ -1010,10 +1010,10 @@
         "P2-R031",
         "P2-R037"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "old_provider_completion_is_discarded_after_commit_advances_the_plan_epoch",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "A late provider completion with the old plan epoch returned obsolete_plan and left the new revision authoritative"
     },
     {
       "id": "P2-F057",
@@ -1028,10 +1028,10 @@
         "P2-R038",
         "P2-R039"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "game_boundary_change_invalidates_the_final_resume_check",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "A game-boundary generation change made the final resume check return preview_stale"
     },
     {
       "id": "P2-F058",
@@ -1097,10 +1097,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f061_crash_after_resume_claim_keeps_unknown_and_denies_new_input",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/phase2_recovery.rs",
+      "observed": "An interrupted resume reopened as InterruptedUnknown and the decision admission rejected a new input"
     },
     {
       "id": "P2-F062",
@@ -1114,10 +1114,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f062_provider_write_timeout_retains_ambiguous_attempt_without_retransmit",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/phase2_recovery.rs",
+      "observed": "An unknown provider outcome stayed pending and a second dispatch of the same operation was rejected"
     },
     {
       "id": "P2-F063",
@@ -1131,10 +1131,10 @@
         "P2-R054",
         "P2-R055"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "p2_f063_game_dispatch_reconciles_the_same_operation_without_a_new_id",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/phase2_recovery.rs",
+      "observed": "Game dispatch uncertainty reconciled under the original operation ID and left no pending operation"
     },
     {
       "id": "P2-F064",
@@ -1150,7 +1150,7 @@
       ],
       "evidence_status": "executed",
       "test_id": "replacement_owner_fences_the_old_live_handle",
-      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/0c9033f7d4f7dc151b01247e2e56900c38fddc56/crates/harness/tests/context_control_migration.rs",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_migration.rs",
       "observed": "companion migration test fences old reads and writes after replacement ownership is claimed"
     },
     {
@@ -1407,7 +1407,7 @@
       ],
       "evidence_status": "executed",
       "test_id": "actual_fake_codex_receives_the_same_prepared_components_as_capture; enabled_management_context_reaches_the_compiled_http_body",
-      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/0c9033f7d4f7dc151b01247e2e56900c38fddc56/crates/harness/src/bin/support/sts2_astra_bridge_tests.rs",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/src/bin/support/sts2_astra_bridge_tests.rs",
       "observed": "compiled Astra and Ollama bridge paths delivered management-enabled content to isolated fake peers and compared boundary bytes"
     },
     {
