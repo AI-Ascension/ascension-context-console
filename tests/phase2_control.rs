@@ -324,6 +324,48 @@ fn journal_recovery_rejects_tampered_or_duplicate_retained_items() {
             .code,
         "journal_invalid"
     );
+
+    let mut prepared_plane = ControlPlane::synthetic();
+    let created = draft(&mut prepared_plane);
+    let pause = command(
+        &prepared_plane,
+        "pause",
+        "pause-manifest-tamper",
+        prepared_plane.state().control_version,
+    );
+    prepared_plane.pause(pause).expect("pause");
+    let preview = prepared_plane
+        .create_preview(
+            scope(&prepared_plane),
+            &created.draft_id,
+            created.version,
+            true,
+            prepared_plane.state().control_version,
+            true,
+        )
+        .expect("prepared preview");
+    assert!(preview.applicable);
+    let mut tampered_manifest: Value =
+        serde_json::from_slice(&prepared_plane.export_journal().expect("prepared journal"))
+            .expect("prepared journal JSON");
+    let preview_record = tampered_manifest
+        .get_mut("plane")
+        .and_then(Value::as_object_mut)
+        .and_then(|plane| plane.get_mut("previews"))
+        .and_then(Value::as_object_mut)
+        .and_then(|previews| previews.get_mut(&preview.preview_id))
+        .and_then(Value::as_object_mut)
+        .and_then(|record| record.get_mut("material"))
+        .and_then(Value::as_object_mut)
+        .expect("prepared material");
+    preview_record.insert("manifest_sha256".to_owned(), Value::String("0".repeat(64)));
+    let tampered_manifest = serde_json::to_vec(&tampered_manifest).expect("tampered manifest");
+    assert_eq!(
+        ControlPlane::recover_journal(&tampered_manifest)
+            .expect_err("manifest digest mismatch must be rejected")
+            .code,
+        "journal_invalid"
+    );
 }
 
 #[test]
