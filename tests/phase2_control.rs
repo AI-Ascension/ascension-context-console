@@ -732,3 +732,67 @@ fn expired_command_window_rejects_replay_without_mutation() {
     assert_eq!(plane.state().status, "running");
     assert!(!plane.state().pause_latched);
 }
+
+#[test]
+fn p2_f039_resume_cannot_bypass_the_approved_preview_identity() {
+    let mut plane = ControlPlane::synthetic();
+    let created = draft(&mut plane);
+    let created = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &created.draft_id,
+                created.version,
+                vec![ControlOperation::IncludeItem {
+                    item: history_item(&plane),
+                }],
+            ),
+            "operator-fixture",
+            false,
+        )
+        .expect("select immutable history");
+    let pause = command(
+        &plane,
+        "pause",
+        "pause-preview-required",
+        plane.state().control_version,
+    );
+    plane.pause(pause).expect("pause");
+    let preview = plane
+        .create_preview(
+            scope(&plane),
+            &created.draft_id,
+            created.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("preview");
+    let mut commit = command(
+        &plane,
+        "commit",
+        "commit-preview-required",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(plane.state().active_revision_id);
+    commit.preview_id = Some(preview.preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    plane.commit(commit).expect("commit");
+
+    let mut resume = command(
+        &plane,
+        "resume",
+        "resume-preview-required",
+        plane.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(plane.state().active_revision_id);
+    assert_eq!(
+        plane
+            .resume(resume)
+            .expect_err("resume without an approved preview must fail")
+            .code,
+        "preview_required"
+    );
+    assert!(plane.state().pause_latched);
+    assert!(plane.prepared_input().is_some());
+}

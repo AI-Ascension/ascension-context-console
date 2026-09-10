@@ -895,13 +895,31 @@ impl ControlPlane {
                 "resume requires a quiescent paused boundary",
             ));
         }
-        if let Some(expected) = command.expected_preview_id.as_deref()
-            && self.continuation_preview_id.as_deref() != Some(expected)
-        {
-            return Err(ControlError::conflict(
-                "preview_stale",
-                "approved continuation is unavailable",
-            ));
+        match (
+            self.continuation_preview_id.as_deref(),
+            command.expected_preview_id.as_deref(),
+        ) {
+            (Some(_), None) => {
+                return Err(ControlError::invalid(
+                    "preview_required",
+                    "resume must name the approved continuation",
+                ));
+            }
+            (Some(current), Some(expected)) => {
+                if current != expected {
+                    return Err(ControlError::conflict(
+                        "preview_stale",
+                        "approved continuation is unavailable",
+                    ));
+                }
+            }
+            (None, Some(_)) => {
+                return Err(ControlError::conflict(
+                    "preview_stale",
+                    "approved continuation is unavailable",
+                ));
+            }
+            (None, None) => {}
         }
         if let Some(preview_id) = self.continuation_preview_id.as_deref() {
             let continuation = self.previews.get(preview_id).ok_or_else(|| {
