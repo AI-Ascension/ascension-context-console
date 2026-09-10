@@ -47,8 +47,8 @@
     "failure_matrix": {
       "evidence_artifact": "docs/evidence/phase2-failure-matrix-20260910.json",
       "rows": 80,
-      "executed": 44,
-      "required_not_executed": 36
+      "executed": 47,
+      "required_not_executed": 33
     }
   },
   "companion": {

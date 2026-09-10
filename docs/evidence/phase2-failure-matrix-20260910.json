@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 44,
+  "executed_row_count": 47,
   "rows": [
     {
       "id": "P2-F001",
@@ -905,10 +905,10 @@
       "requirements": [
         "P2-R050"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser asserted commit remains paused and resume is an explicit follow-up action"
     },
     {
       "id": "P2-F051",
@@ -976,10 +976,10 @@
         "P2-R038",
         "P2-R039"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "boundary_change_rejects_a_committed_continuation",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust boundary-change regression kept the committed run fenced and rejected resume with preview_stale"
     },
     {
       "id": "P2-F055",
@@ -1256,10 +1256,10 @@
         "P2-R013",
         "P2-R016"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "expired_items_and_previews_cannot_be_approved_or_committed",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust expiry regression made an expired selected item non-applicable and rejected a later commit with preview_stale"
     },
     {
       "id": "P2-F071",

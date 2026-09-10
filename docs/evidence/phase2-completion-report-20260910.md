@@ -29,14 +29,16 @@ the 16 KiB input bound. The CLI emits the documented machine schema and makes ze
 or external requests.
 
 The checked-in `docs/evidence/phase2-failure-matrix-20260910.json` enumerates all 80 package
-failure rows. Forty-four rows have executable evidence: the browser cases (`P2-F001`,
+failure rows. Forty-seven rows have executable evidence: the browser cases (`P2-F001`,
 `P2-F003`, `P2-F004`, `P2-F005`, `P2-F007`, `P2-F010`, `P2-F011`, `P2-F012`, `P2-F017`,
 `P2-F022`, `P2-F031`, `P2-F073`, `P2-F074`, `P2-F075`, and `P2-F076`) plus named Rust
 regressions for CAS, protected identity, restore, authorization, preview freshness/expiry,
 idempotency, plan fencing, stop dominance, safe deactivation, and the approved-resume guard, plus
 target durable-store regressions for transaction rollback, wrong-key/tamper rejection, additive
 schema repair with Phase 1 byte retention, legacy active-state refusal, and companion owner fencing
-for `P2-F064`, plus the companion expired-pin and compiled fake-peer bridge regressions. The other 36 remain
+for `P2-F064`, plus the companion expired-pin and compiled fake-peer bridge regressions. The target
+boundary-change, expiry, and browser commit/resume regressions cover `P2-F050`, `P2-F054`, and
+`P2-F070`. The other 33 remain
 explicitly marked `required_not_executed` because they require crash windows not injected here,
 live provider/game effects, native ownership controls, or other evidence outside this fixture.
 
@@ -129,7 +131,7 @@ paths.
 The package’s bounded reference model additionally
 checked 12,389 transitions and eight targeted scenarios across 1,802 states; it does not validate
 Rust storage, authentication, provider behavior, game effects, or native topology. The package
-failure matrix has 80 rows. The row-level ledger records 44 executed cases and 36
+failure matrix has 80 rows. The row-level ledger records 47 executed cases and 33
 `required_not_executed` rows; scenarios requiring production storage, live providers, native
 orchestration, or unavailable fault injection remain outside the evidence boundary.
 
