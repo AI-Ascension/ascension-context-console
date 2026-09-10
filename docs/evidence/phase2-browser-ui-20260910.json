@@ -35,12 +35,14 @@
     "P2-F022",
     "P2-F031",
     "P2-F073",
-    "P2-F075"
+    "P2-F074",
+    "P2-F075",
+    "P2-F076"
   ],
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "46167a20b8d63d0b570c987a532fad1d05b88e69"
+    "revision": "65634891bb300a8c9fe8c6fb1b3ff605175a634c"
   },
   "command": {
     "server": "cargo run --locked --package context-service --bin context-console -- integrated-demo 0",
@@ -54,7 +56,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:35133",
+  "base_url": "http://127.0.0.1:45831",
   "workflow": [
     "draft_created",
     "draft_saved",
@@ -77,6 +79,7 @@
     "resume.accepted",
     "input.claimed",
     "input.submitted",
+    "draft.updated",
     "draft.updated"
   ],
   "security": {
@@ -118,45 +121,50 @@
     }
   },
   "requests": [
-    "http://127.0.0.1:35133/web/",
-    "http://127.0.0.1:35133/web/styles.css",
-    "http://127.0.0.1:35133/web/app.js",
-    "http://127.0.0.1:35133/offline-bundle.json",
-    "http://127.0.0.1:35133/demo/snapshot",
-    "http://127.0.0.1:35133/demo/events",
-    "http://127.0.0.1:35133/demo/comparison",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:35133/offline-bundle.json",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/drafts",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/previews",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/pause",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/previews",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/commits",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/resume",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/drafts",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/drafts",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/drafts",
-    "http://127.0.0.1:35133/v2/runs/other-run/context-control/state",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/events",
-    "http://127.0.0.1:35133/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:35133/demo/metrics"
+    "http://127.0.0.1:45831/web/",
+    "http://127.0.0.1:45831/web/styles.css",
+    "http://127.0.0.1:45831/web/app.js",
+    "http://127.0.0.1:45831/offline-bundle.json",
+    "http://127.0.0.1:45831/demo/snapshot",
+    "http://127.0.0.1:45831/demo/events",
+    "http://127.0.0.1:45831/demo/comparison",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:45831/offline-bundle.json",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/previews",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/pause",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/previews",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/commits",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/resume",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts/draft-1",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts/draft-1/operations",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/drafts",
+    "http://127.0.0.1:45831/v2/runs/other-run/context-control/state",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/events",
+    "http://127.0.0.1:45831/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:45831/demo/metrics"
   ],
   "storage": {
     "localStorageEntries": 0,
@@ -165,7 +173,9 @@
     "cacheNames": []
   },
   "horizontal_overflow_narrow": false,
-  "console_errors": [],
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 409 (Internal Server Error)"
+  ],
   "security_console_errors": [
     "Failed to load resource: the server responded with a status of 403 (Forbidden)",
     "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -174,10 +184,10 @@
   ],
   "page_errors": [],
   "integration_metrics": {
-    "api_requests": 41,
-    "browser_requests": 51,
+    "api_requests": 46,
+    "browser_requests": 56,
     "capture_records": 2,
-    "control_events": 12,
+    "control_events": 13,
     "control_status": "running",
     "durable_control_store": "supported",
     "external_requests": 0,
@@ -211,16 +221,17 @@
     "reconnect_preserves_pause_without_auto_resume": true,
     "keyboard_activation": true,
     "stale_preview_is_cleared_after_mutation": true,
-    "offline_manifest_is_read_only": true
+    "offline_manifest_is_read_only": true,
+    "conflict_error_is_shown": true
   },
   "artifacts": [
     {
       "path": "docs/evidence/phase2-browser-desktop-20260910.png",
-      "sha256": "2afb4b2b58862c243e90b7944b58f4dcaae58e9f794f80be441a3f50026973bc"
+      "sha256": "9dc5f02ba57ead8512137490deb31a5f5db0a9ed3671a6a174d0b1efb43d5275"
     },
     {
       "path": "docs/evidence/phase2-browser-narrow-20260910.png",
-      "sha256": "6dcd50daefafb5e7b21526c4a9164e0401c5534d968a73182cdeebd60fad8657"
+      "sha256": "5c23cb3c829909eac79ccbc569a81baf3c313d742745a3f6950a5468db15b1f2"
     }
   ]
 }

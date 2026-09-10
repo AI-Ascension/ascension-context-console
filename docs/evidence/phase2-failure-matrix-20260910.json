@@ -4,7 +4,7 @@
   "repository": "AI-Ascension/ascension-context-console",
   "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
   "row_count": 80,
-  "executed_row_count": 39,
+  "executed_row_count": 44,
   "rows": [
     {
       "id": "P2-F001",
@@ -211,10 +211,10 @@
         "P2-R051",
         "P2-R063"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser offline manifest contained no live control route or run identifier and exposes read-only bundle data"
     },
     {
       "id": "P2-F013",
@@ -377,10 +377,10 @@
         "P2-R013",
         "P2-R016"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "renderer_rejects_unreadable_expired_and_unselected_pinned_content",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/7580619964ad73fd107031fb5bf6a1a6f5c9e3ec/crates/harness/tests/context_control.rs",
+      "observed": "selected and pinned content at its expiry returned ExpiredItem without bypassing TTL"
     },
     {
       "id": "P2-F022",
@@ -1324,10 +1324,10 @@
       "requirements": [
         "P2-R059"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser rendered the adversarial note as text with no script execution or external request"
     },
     {
       "id": "P2-F075",
@@ -1354,10 +1354,10 @@
       "requirements": [
         "P2-R059"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser asserted keyboard activation, narrow layout without overflow, and a visible stale-draft conflict error"
     },
     {
       "id": "P2-F077",
@@ -1405,10 +1405,10 @@
         "P2-R057",
         "P2-R058"
       ],
-      "evidence_status": "required_not_executed",
-      "test_id": null,
-      "evidence_artifact": null,
-      "observed": "no dedicated product fixture executed"
+      "evidence_status": "executed",
+      "test_id": "actual_fake_codex_receives_the_same_prepared_components_as_capture; enabled_management_context_reaches_the_compiled_http_body",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/7580619964ad73fd107031fb5bf6a1a6f5c9e3ec/crates/harness/src/bin/support/sts2_astra_bridge_tests.rs",
+      "observed": "compiled Astra and Ollama bridge paths delivered management-enabled content to isolated fake peers and compared boundary bytes"
     },
     {
       "id": "P2-F080",
