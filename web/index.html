@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+    <title>Context Console · offline inspector</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Phase 1 · read-only inspector</p>
+        <h1>Context Console</h1>
+        <p class="lede">A bounded, read-only view of application-controlled context at a named boundary.</p>
+        <p id="status" class="status" role="status" aria-live="polite">Loading offline bundle…</p>
+      </header>
+
+      <section id="error" class="panel error" hidden aria-labelledby="error-title">
+        <h2 id="error-title">Fixture unavailable</h2>
+        <p id="error-message"></p>
+      </section>
+
+      <section id="summary" class="panel" hidden aria-labelledby="summary-title">
+        <div class="section-heading">
+          <h2 id="summary-title">Snapshot</h2>
+          <span id="capture-badge" class="badge"></span>
+        </div>
+        <dl class="facts">
+          <div><dt>Snapshot</dt><dd id="snapshot-id"></dd></div>
+          <div><dt>Boundary</dt><dd id="boundary"></dd></div>
+          <div><dt>Provider model</dt><dd id="provider-model"></dd></div>
+          <div><dt>Recorded</dt><dd id="recorded-at"></dd></div>
+          <div><dt>Components</dt><dd id="component-count"></dd></div>
+          <div><dt>Input measurement</dt><dd id="measurement"></dd></div>
+          <div><dt>Model limit</dt><dd id="model-limit"></dd></div>
+          <div><dt>Evidence</dt><dd id="evidence"></dd></div>
+        </dl>
+        <p id="incomplete" class="callout"></p>
+      </section>
+
+      <section id="components" class="panel" hidden aria-labelledby="components-title">
+        <div class="section-heading">
+          <h2 id="components-title">Ordered components</h2>
+          <span class="muted">content stays unavailable in metadata mode</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Order</th><th scope="col">Kind</th><th scope="col">Bytes</th><th scope="col">Status</th></tr>
+            </thead>
+            <tbody id="component-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="mapping" class="panel" hidden aria-labelledby="mapping-title">
+        <h2 id="mapping-title">Adapter mapping</h2>
+        <ul id="mapping-list" class="mapping-list"></ul>
+      </section>
+
+      <section id="timeline" class="panel" hidden aria-labelledby="timeline-title">
+        <div class="section-heading">
+          <h2 id="timeline-title">Lifecycle timeline</h2>
+          <span class="muted">local-write evidence is not provider receipt</span>
+        </div>
+        <ol id="timeline-list" class="timeline"></ol>
+      </section>
+
+      <section id="comparison" class="panel" hidden aria-labelledby="comparison-title">
+        <div class="section-heading">
+          <h2 id="comparison-title">Read-only comparison</h2>
+          <button id="compare-button" type="button">Compare retained view</button>
+        </div>
+        <p id="comparison-result" class="callout">Comparison is a local view and cannot apply or submit context.</p>
+      </section>
+
+      <section id="states" class="panel" aria-labelledby="states-title">
+        <h2 id="states-title">Disclosure states</h2>
+        <p class="state-grid">
+          <span><strong>Loading</strong> waits for the bounded offline bundle.</span>
+          <span><strong>Empty</strong> means no retained snapshot is available.</span>
+          <span><strong>Denied</strong> means a read capability is missing or expired.</span>
+          <span><strong>Offline</strong> is explicit when the local bundle cannot be read.</span>
+          <span><strong>Expired</strong> content remains metadata with its retention state.</span>
+          <span><strong>Capture</strong> is boundary-scoped.</span>
+          <span><strong>Content</strong> may be unavailable or expired.</span>
+          <span><strong>Provider context</strong> is not exposed.</span>
+          <span><strong>Measurements</strong> remain unavailable when unreported.</span>
+        </p>
+      </section>
+
+      <footer>
+        Synthetic offline bundle · no provider or game call · read-only display
+      </footer>
+    </main>
+  </body>
+</html>

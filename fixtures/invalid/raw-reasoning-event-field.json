@@ -1,0 +1,13 @@
+{
+  "schema": "ascension.context-event.v1",
+  "event_id": "event-fixture-000",
+  "producer_id": "producer-fixture-001",
+  "sequence": 0,
+  "snapshot_id": "snapshot-fixture-cli-001",
+  "provider_attempt_id": "attempt-fixture-001",
+  "observed_at": "2026-09-09T00:00:00Z",
+  "event_type": "snapshot.prepared",
+  "details": {
+    "raw_provider_reasoning": "Synthetic forbidden field"
+  }
+}

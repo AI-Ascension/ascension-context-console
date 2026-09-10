@@ -1,0 +1,111 @@
+{
+  "schema": "ascension.context-snapshot.v1",
+  "snapshot_id": "snapshot-fixture-metadata-001",
+  "identity": {
+    "run_id": "run-fixture-001",
+    "episode_id": "episode-fixture-001",
+    "agent_id": "agent-fixture-001",
+    "model_execution_id": "execution-fixture-001",
+    "provider_attempt_id": "attempt-fixture-001"
+  },
+  "producer": {
+    "repository": "AI-Ascension/sts2-harness",
+    "revision": "fc44d3ef65fefa6d13ecd5f690e5335a6ef60080",
+    "adapter_revision": "fixture-seed-v1",
+    "evidence": "synthetic"
+  },
+  "boundary": "adapter.cli_input",
+  "capture_mode": "metadata",
+  "provider": {
+    "name": "fixture",
+    "model": "fixture-model",
+    "additional_context": "not_exposed"
+  },
+  "recorded_at": "2026-09-09T00:00:00Z",
+  "application_capture_complete": false,
+  "incomplete_reasons": [
+    "metadata_only"
+  ],
+  "parent_snapshot_id": null,
+  "components": [
+    {
+      "component_id": "component-fixture-stdin",
+      "ordinal": 0,
+      "kind": "stdin",
+      "role": null,
+      "media_type": "text/plain",
+      "observed_bytes": 158,
+      "content_status": "metadata_only",
+      "content_ref": null,
+      "sha256": null,
+      "origin": "operator_fixture",
+      "measurement": {
+        "metric": "input_tokens",
+        "value": null,
+        "source": "unavailable",
+        "scope": "component",
+        "measurement_revision": null,
+        "provider_turn_ref": null
+      }
+    },
+    {
+      "component_id": "component-fixture-schema",
+      "ordinal": 1,
+      "kind": "output_schema",
+      "role": null,
+      "media_type": "application/json",
+      "observed_bytes": 216,
+      "content_status": "metadata_only",
+      "content_ref": null,
+      "sha256": null,
+      "origin": "operator_fixture",
+      "measurement": {
+        "metric": "input_tokens",
+        "value": null,
+        "source": "unavailable",
+        "scope": "component",
+        "measurement_revision": null,
+        "provider_turn_ref": null
+      }
+    },
+    {
+      "component_id": "component-fixture-config",
+      "ordinal": 2,
+      "kind": "configuration",
+      "role": null,
+      "media_type": "application/json",
+      "observed_bytes": 93,
+      "content_status": "metadata_only",
+      "content_ref": null,
+      "sha256": null,
+      "origin": "operator_fixture",
+      "measurement": {
+        "metric": "input_tokens",
+        "value": null,
+        "source": "unavailable",
+        "scope": "component",
+        "measurement_revision": null,
+        "provider_turn_ref": null
+      }
+    }
+  ],
+  "mapping": [
+    {
+      "upstream_field": "observation",
+      "transformation": "rendered_as_text",
+      "component_ids": [
+        "component-fixture-stdin"
+      ]
+    }
+  ],
+  "input_measurement": {
+    "metric": "input_tokens",
+    "value": null,
+    "source": "unavailable",
+    "scope": "prepared_input",
+    "measurement_revision": null,
+    "provider_turn_ref": null
+  },
+  "model_context_limit_tokens": null,
+  "model_limit_source": "unavailable"
+}

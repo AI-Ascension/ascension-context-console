@@ -1,0 +1,119 @@
+{
+  "schema": "ascension.fixture-cases.v1",
+  "cases": [
+    {
+      "path": "fixtures/valid/snapshot-cli.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "valid",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/valid/snapshot-http.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "valid",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/valid/snapshot-metadata.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "valid",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/valid/capabilities.json",
+      "schema": "contracts/capabilities.schema.json",
+      "expected": "valid",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/valid/token-unavailable.json",
+      "schema": "contracts/token-measurement.schema.json",
+      "expected": "valid",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/valid/token-local.json",
+      "schema": "contracts/token-measurement.schema.json",
+      "expected": "valid",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/invalid/false-complete.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Redacted component cannot claim complete application capture.",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/invalid/duplicate-ordinal.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Ordinals must be unique and contiguous.",
+      "semantic_only": true
+    },
+    {
+      "path": "fixtures/invalid/duplicate-component-id.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Component IDs must be unique.",
+      "semantic_only": true
+    },
+    {
+      "path": "fixtures/invalid/digest-mismatch.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Stored component bytes do not match manifest digest.",
+      "semantic_only": true
+    },
+    {
+      "path": "fixtures/invalid/mapping-missing-component.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Mapping must reference only declared component IDs.",
+      "semantic_only": true
+    },
+    {
+      "path": "fixtures/invalid/metadata-content-reference.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Metadata-only mode must not expose raw content references.",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/invalid/missing-output-schema.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Complete CLI capture requires its output schema.",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/invalid/unknown-is-zero.json",
+      "schema": "contracts/context-snapshot.schema.json",
+      "expected": "invalid",
+      "reason": "Unavailable count must be null, not zero.",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/invalid/phase2-edit-enabled.json",
+      "schema": "contracts/capabilities.schema.json",
+      "expected": "invalid",
+      "reason": "Phase 1 cannot advertise edit capability.",
+      "semantic_only": false
+    },
+    {
+      "path": "fixtures/invalid/raw-reasoning-event-field.json",
+      "schema": "contracts/context-event.schema.json",
+      "expected": "invalid",
+      "reason": "Event details allowlist excludes raw reasoning/text payloads.",
+      "semantic_only": false
+    }
+  ],
+  "jsonl_cases": [
+    {
+      "path": "fixtures/valid/events.jsonl",
+      "schema": "contracts/context-event.schema.json",
+      "expected": "valid",
+      "records": 7
+    }
+  ]
+}

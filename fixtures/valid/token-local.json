@@ -1,0 +1,8 @@
+{
+  "metric": "input_tokens",
+  "value": 11,
+  "source": "local_tokenizer",
+  "scope": "component",
+  "measurement_revision": "synthetic-tokenizer-v1",
+  "provider_turn_ref": null
+}

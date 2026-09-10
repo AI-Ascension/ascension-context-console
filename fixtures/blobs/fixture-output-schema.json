@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "action_id": {
+      "type": "string",
+      "enum": [
+        "fixture-action-1"
+      ]
+    }
+  },
+  "required": [
+    "action_id"
+  ],
+  "additionalProperties": false
+}

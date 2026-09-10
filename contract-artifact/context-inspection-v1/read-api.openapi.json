@@ -1,0 +1,411 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ascension Context Console Phase 1 — proposed read API",
+    "version": "0.1.0-proposed",
+    "description": "Implementation seed only. No route is deployed by this package. All management methods are excluded. Ingest IPC is separate and not a browser authority."
+  },
+  "security": [
+    {
+      "readCapability": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Minimal liveness only; no session or content metadata.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect."
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "operationId": "capabilities",
+        "summary": "Read the Phase 1 capability contract.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./capabilities.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        }
+      }
+    },
+    "/v1/runs": {
+      "get": {
+        "operationId": "runs",
+        "summary": "List runs within authenticated project scope.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect."
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/runs/{run_id}/snapshots": {
+      "get": {
+        "operationId": "snapshots",
+        "summary": "List bounded immutable snapshots.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect."
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        },
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/runs/{run_id}/snapshots/{snapshot_id}": {
+      "get": {
+        "operationId": "snapshot",
+        "summary": "Get a scoped snapshot manifest.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./context-snapshot.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        },
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/runs/{run_id}/snapshots/{snapshot_id}/components/{component_id}": {
+      "get": {
+        "operationId": "component",
+        "summary": "Read an authorized retained component; opaque IDs only.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect."
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        },
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/runs/{run_id}/events": {
+      "get": {
+        "operationId": "events",
+        "summary": "Read bounded lifecycle event stream/replay.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect."
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        },
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/runs/{run_id}/compare": {
+      "get": {
+        "operationId": "compare",
+        "summary": "Compare two authorized snapshots without creating new input.",
+        "responses": {
+          "200": {
+            "description": "Authorized bounded result; no provider or gameplay effect."
+          },
+          "400": {
+            "description": "Sanitized invalid request."
+          },
+          "401": {
+            "description": "Missing or expired read capability."
+          },
+          "404": {
+            "description": "Not available within caller scope."
+          },
+          "429": {
+            "description": "Bounded read resource limit."
+          }
+        },
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "left",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "right",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "readCapability": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Short-lived project/run-scoped read capability. Never put in URL or persistent browser storage."
+      }
+    }
+  }
+}

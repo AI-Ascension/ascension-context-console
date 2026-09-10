@@ -1,0 +1,34 @@
+# Local review
+
+Use Rust 1.97.1 from `rust-toolchain.toml`. The reader accepts a bounded snapshot path or stdin:
+
+```text
+cargo run --locked --package context-reader -- fixtures/synthetic/snapshot.json
+cat fixtures/synthetic/snapshot.json | cargo run --locked --package context-reader --
+```
+
+The service CLI provides a provider-free integrated demonstration and a bounded inspection command:
+
+```text
+cargo run --locked --package context-service --bin context-console -- demo
+cargo run --locked --package context-service --bin context-console -- inspect fixtures/valid/snapshot-cli.json
+```
+
+`demo` ingests the CLI and metadata fixtures, appends the seven synthetic lifecycle events, issues
+an in-memory content grant, and makes one authenticated read-only API request. Its output includes
+`provider_calls=0`, `game_launches=0`, the snapshot identities, event count, and mutation-free API
+status.
+
+For a browser-only review, serve the repository root so the page can read its same-origin fixture:
+
+```text
+python3 -m http.server 8000
+```
+
+Open `http://127.0.0.1:8000/web/`. Do not open the page from a `file:` URL; browsers correctly
+restrict cross-file fetches. The page performs one read-only request and displays metadata, ordered
+components and adapter mappings. It does not contact a provider or a game.
+
+The browser bundle is synthetic evidence. A successful parse, demo, or render does not prove a live
+capture, provider receipt, persistent encrypted storage, native-platform behavior, or target-game
+compatibility. Do not put credentials or raw private captures in fixtures.

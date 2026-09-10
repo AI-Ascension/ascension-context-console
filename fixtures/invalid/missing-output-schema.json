@@ -1,0 +1,89 @@
+{
+  "schema": "ascension.context-snapshot.v1",
+  "snapshot_id": "snapshot-fixture-cli-001",
+  "identity": {
+    "run_id": "run-fixture-001",
+    "episode_id": "episode-fixture-001",
+    "agent_id": "agent-fixture-001",
+    "model_execution_id": "execution-fixture-001",
+    "provider_attempt_id": "attempt-fixture-001"
+  },
+  "producer": {
+    "repository": "AI-Ascension/sts2-harness",
+    "revision": "fc44d3ef65fefa6d13ecd5f690e5335a6ef60080",
+    "adapter_revision": "fixture-seed-v1",
+    "evidence": "synthetic"
+  },
+  "boundary": "adapter.cli_input",
+  "capture_mode": "memory",
+  "provider": {
+    "name": "fixture",
+    "model": "fixture-model",
+    "additional_context": "not_exposed"
+  },
+  "recorded_at": "2026-09-09T00:00:00Z",
+  "application_capture_complete": true,
+  "incomplete_reasons": [],
+  "parent_snapshot_id": null,
+  "components": [
+    {
+      "component_id": "component-fixture-stdin",
+      "ordinal": 0,
+      "kind": "stdin",
+      "role": null,
+      "media_type": "text/plain",
+      "observed_bytes": 158,
+      "content_status": "complete",
+      "content_ref": "blob-fixture-stdin",
+      "sha256": "e3f1ca4f3932cac979252d6fc558c8f6cc72fd82112b3c68e474deebba64b9d0",
+      "origin": "operator_fixture",
+      "measurement": {
+        "metric": "input_tokens",
+        "value": null,
+        "source": "unavailable",
+        "scope": "component",
+        "measurement_revision": null,
+        "provider_turn_ref": null
+      }
+    },
+    {
+      "component_id": "component-fixture-config",
+      "ordinal": 1,
+      "kind": "configuration",
+      "role": null,
+      "media_type": "application/json",
+      "observed_bytes": 93,
+      "content_status": "complete",
+      "content_ref": "blob-fixture-config",
+      "sha256": "142d9c8fd2f6251806d07a6ffc7106364127b85a5a976eea9bfb384459b4fef7",
+      "origin": "operator_fixture",
+      "measurement": {
+        "metric": "input_tokens",
+        "value": null,
+        "source": "unavailable",
+        "scope": "component",
+        "measurement_revision": null,
+        "provider_turn_ref": null
+      }
+    }
+  ],
+  "mapping": [
+    {
+      "upstream_field": "observation",
+      "transformation": "rendered_as_text",
+      "component_ids": [
+        "component-fixture-stdin"
+      ]
+    }
+  ],
+  "input_measurement": {
+    "metric": "input_tokens",
+    "value": null,
+    "source": "unavailable",
+    "scope": "prepared_input",
+    "measurement_revision": null,
+    "provider_turn_ref": null
+  },
+  "model_context_limit_tokens": null,
+  "model_limit_source": "unavailable"
+}

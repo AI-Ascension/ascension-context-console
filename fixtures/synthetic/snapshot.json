@@ -1,0 +1,72 @@
+{
+  "schema": "ascension.context-snapshot.v1",
+  "snapshot_id": "snapshot-t02-synthetic-001",
+  "identity": {
+    "run_id": "run-t02-001",
+    "episode_id": "episode-t02-001",
+    "agent_id": "agent-t02-reader",
+    "model_execution_id": "execution-t02-001",
+    "provider_attempt_id": "attempt-t02-001"
+  },
+  "producer": {
+    "repository": "AI-Ascension/sts2-harness",
+    "revision": "fc44d3ef65fefa6d13ecd5f690e5335a6ef60080",
+    "adapter_revision": "t02-fixture-v1",
+    "evidence": "synthetic"
+  },
+  "boundary": "adapter.http_body",
+  "capture_mode": "metadata",
+  "provider": {
+    "name": "fixture",
+    "model": "fixture-model",
+    "additional_context": "not_exposed"
+  },
+  "recorded_at": "2026-09-09T00:00:00Z",
+  "application_capture_complete": false,
+  "incomplete_reasons": ["metadata_only"],
+  "parent_snapshot_id": null,
+  "components": [
+    {
+      "component_id": "component-t02-body",
+      "ordinal": 0,
+      "kind": "serialized_http_body",
+      "role": null,
+      "media_type": "application/json",
+      "observed_bytes": 250,
+      "content_status": "metadata_only",
+      "content_ref": null,
+      "sha256": null,
+      "origin": "operator_fixture",
+      "measurement": {
+        "metric": "input_tokens",
+        "value": null,
+        "source": "unavailable",
+        "scope": "component",
+        "measurement_revision": null,
+        "provider_turn_ref": null
+      }
+    }
+  ],
+  "mapping": [
+    {
+      "upstream_field": "observation",
+      "transformation": "rendered_as_text",
+      "component_ids": ["component-t02-body"]
+    },
+    {
+      "upstream_field": "objective",
+      "transformation": "omitted",
+      "component_ids": []
+    }
+  ],
+  "input_measurement": {
+    "metric": "input_tokens",
+    "value": null,
+    "source": "unavailable",
+    "scope": "prepared_input",
+    "measurement_revision": null,
+    "provider_turn_ref": null
+  },
+  "model_context_limit_tokens": null,
+  "model_limit_source": "unavailable"
+}
