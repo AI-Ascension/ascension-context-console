@@ -1,0 +1,82 @@
+{
+  "schema": "ascension.phase2-gates.v1",
+  "date": "2026-09-10",
+  "phase1_source_pins": {
+    "target_main": "2e1bfe0d4e62ac7f1efcefe4b1cc940182146880",
+    "companion_main": "780f2d521508a2aadc76c4d779544d967955f102"
+  },
+  "target": {
+    "evidence_commit": "f3b20a90d9e0a67b379cf046e57a692805dace0f",
+    "phase2_source_revision": "94930040ae8d5f2ad050ceeeff3979afdfbc86f8",
+    "phase1_acceptance_tests": 5,
+    "cargo_fmt_locked_check": "passed",
+    "repo_policy_strict": "passed",
+    "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
+    "cargo_test_workspace_all_targets_all_features_locked": "passed",
+    "phase2_control_tests": 17,
+    "render_contract_tests": 2,
+    "durable_store_tests": 13,
+    "durable_store_evidence": "docs/evidence/phase2-durable-store-20260910.json",
+    "cli_evidence": "docs/evidence/phase2-cli-20260910.json",
+    "phase2_demo": {
+      "status": "passed",
+      "provider_calls": 0,
+      "game_launches": 0,
+      "prepared_manifest_sha256": "734b79c24a125e465e72be6004193345bc2aa3f6e290e18df88e49a19d316f9b"
+    },
+    "manual_http_checks": {
+      "capabilities_and_state": "passed",
+      "missing_or_wrong_origin": "rejected_csrf_rejected",
+      "duplicate_json_keys": "rejected_duplicate_json_key",
+      "valid_loopback_write": "passed"
+    },
+    "browser_audit": {
+      "status": "passed",
+      "source_revision": "416597cbe09e59fbeac4b6d0c9dd3b60ff53d98b",
+      "command": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/phase2_browser_audit.cjs",
+      "workflow": "draft_saved_exploratory_preview_pause_applicable_preview_commit_paused_explicit_resume_restore_as_draft",
+      "provider_calls": 0,
+      "game_launches": 0,
+      "external_requests": 0,
+      "typed_operations": "pin_and_restore",
+      "security_probes": "read_only_token_missing_csrf_cross_origin_duplicate_json_cross_scope_forged_actor_role_unsupported_image"
+    },
+    "integrated_browser_audit": {
+      "status": "passed",
+      "source_revision": "416597cbe09e59fbeac4b6d0c9dd3b60ff53d98b",
+      "evidence_artifact": "docs/evidence/integrated-browser-ui-20260910.json"
+    },
+    "failure_matrix": {
+      "evidence_artifact": "docs/evidence/phase2-failure-matrix-20260910.json",
+      "rows": 80,
+      "executed": 79,
+      "required_not_executed": 1
+    }
+  },
+  "companion": {
+    "branch_head": "8674874feccfbf995ed0aa5a8ec8390d9dac137b",
+    "phase2_source_revision": "8674874feccfbf995ed0aa5a8ec8390d9dac137b",
+    "cargo_fmt_locked_check": "passed",
+    "repo_policy_strict": "passed",
+    "cargo_clippy_all_targets_all_features_warnings_denied": "passed",
+    "cargo_test_workspace_all_targets_all_features_locked": "passed",
+    "context_control_tests": 12,
+    "context_control_migration_tests": 8,
+    "durable_store_evidence": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/docs/evidence/context-control-store-20260910.md",
+    "exo_adapter_tests": 6,
+    "ollama_bridge_tests": 8,
+    "astra_bridge_tests": 4
+  },
+  "package": {
+    "python3_tools_verify_package": "passed",
+    "bounded_reference_model": "passed_bounded_reference_only",
+    "schema_fixture_validation": {
+      "status": "passed",
+      "schema_files": 15,
+      "valid_vectors": 17,
+      "rejected_vectors": 28,
+      "semantic_rejections": 15,
+      "frozen_phase1_vectors": 3
+    }
+  }
+}

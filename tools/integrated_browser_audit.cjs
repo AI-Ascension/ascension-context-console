@@ -171,6 +171,28 @@ async function run() {
     const metricsResponse = await fetch(`${base}/demo/metrics`);
     assert.equal(metricsResponse.ok, true);
     const metrics = await metricsResponse.json();
+    const memoryHeaders = { Authorization: 'Bearer fixture-editor-token' };
+    const beforeMemorySnapshot = Buffer.from(
+      await (await fetch(`${base}/demo/snapshot`, { headers: memoryHeaders })).arrayBuffer(),
+    );
+    const memoryCapabilitiesResponse = await fetch(`${base}/v3/memory/capabilities`, {
+      headers: memoryHeaders,
+    });
+    assert.equal(memoryCapabilitiesResponse.ok, true);
+    const memoryCapabilities = await memoryCapabilitiesResponse.json();
+    const memoryStatusResponse = await fetch(`${base}/v3/memory/status`, {
+      headers: memoryHeaders,
+    });
+    assert.equal(memoryStatusResponse.ok, true);
+    const memoryStatus = await memoryStatusResponse.json();
+    const afterMemorySnapshot = Buffer.from(
+      await (await fetch(`${base}/demo/snapshot`, { headers: memoryHeaders })).arrayBuffer(),
+    );
+    assert.equal(memoryCapabilities.enabled, false);
+    assert.deepEqual(memoryCapabilities.supported_operations, []);
+    assert.equal(memoryStatus.inference_calls, 0);
+    assert.equal(memoryStatus.effect_class, 'local_read_no_inference');
+    assert.deepEqual(afterMemorySnapshot, beforeMemorySnapshot);
     assert.equal(metrics.producer_snapshots, 2);
     assert.equal(metrics.capture_records, 2);
     assert.equal(metrics.producer_events, 7);
@@ -192,7 +214,7 @@ async function run() {
       case_ids: ['INTEGRATED-NORMAL-001', 'INTEGRATED-ADVERSARIAL-001', 'INTEGRATED-MANIFEST-PATH-001'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
-        branch: 'phase1/t02-bootstrap',
+        branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
         revision: require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
       },
       platform: {
@@ -238,6 +260,13 @@ async function run() {
         page_errors: manifestPageErrors,
         rejected_before_fetch: true,
       },
+      memory_disabled_shadow: {
+        enabled: memoryCapabilities.enabled,
+        supported_operations: memoryCapabilities.supported_operations,
+        inference_calls: memoryStatus.inference_calls,
+        effect_class: memoryStatus.effect_class,
+        snapshot_bytes_unchanged: afterMemorySnapshot.equals(beforeMemorySnapshot),
+      },
       integration_metrics: metrics,
       source_artifacts: [
         { path: 'crates/context-service/src/integrated_demo.rs', sha256: sha256(path.join(root, 'crates/context-service/src/integrated_demo.rs')) },
@@ -264,6 +293,10 @@ async function run() {
         reduced_motion: reducedMotionMatch,
         no_browser_persistence: true,
         no_horizontal_overflow_narrow: true,
+        memory_disabled_shadow: memoryCapabilities.enabled === false
+          && memoryCapabilities.supported_operations.length === 0
+          && memoryStatus.inference_calls === 0
+          && afterMemorySnapshot.equals(beforeMemorySnapshot),
       },
       artifacts: [
         { path: 'docs/evidence/integrated-browser-desktop-20260910.png', sha256: sha256(desktopPath) },

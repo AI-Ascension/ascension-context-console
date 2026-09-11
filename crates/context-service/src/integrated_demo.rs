@@ -8,11 +8,18 @@
 //! directly. No provider, game, URL fetch, or arbitrary process path is available here.
 
 use crate::capture::{CaptureConfig, CaptureMode, CaptureSink, MemoryCapture, PreparedCapture};
+use crate::control::{
+    Command, ControlError, ControlPlane, DurableControlStore, DurableStoreError, Patch, Scope,
+};
 use crate::read_api::{ApiError, HttpRequest, HttpResponse, ReadApi, read_request_bytes};
 use crate::store::{CapturePrivilege, IngestError, ReadGrant, Store};
+use crate::{MemoryRoute, MemoryRouteError, MemoryScope};
 use serde_json::{Value, json};
+use std::collections::BTreeSet;
+use std::fs;
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 const TOKEN: &[u8] = b"integrated-demo-token";
@@ -20,6 +27,10 @@ const PROJECT: &str = "agent-fixture-001";
 const RUN: &str = "run-fixture-001";
 const SNAPSHOT_ID: &str = "snapshot-fixture-metadata-001";
 const COMPARISON_ID: &str = "snapshot-fixture-cli-001";
+const EDITOR_TOKEN: &[u8] = b"fixture-editor-token";
+const OBJECTIVE_TOKEN: &[u8] = b"fixture-objective-token";
+const CSRF_TOKEN: &str = "fixture-csrf-token";
+const DURABLE_STORE_KEY: [u8; 32] = [0x42; 32];
 
 /// Run the bounded integrated demonstration until the operator terminates the process.
 pub fn run(port: u16) -> Result<(), String> {
@@ -60,6 +71,10 @@ struct DemoState {
     producer_events: usize,
     browser_requests: usize,
     api_requests: usize,
+    control: ControlPlane,
+    control_store: DurableControlStore,
+    control_store_path: PathBuf,
+    memory: MemoryRoute,
 }
 
 impl DemoState {
@@ -109,6 +124,44 @@ impl DemoState {
             now,
         )
         .map_err(|_| IngestError::Capacity)?;
+        let mut control = ControlPlane::synthetic();
+        let nonce = now
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let control_store_path = std::env::temp_dir().join(format!(
+            "ascension-context-console-control-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let mut control_store =
+            DurableControlStore::create(&control_store_path, DURABLE_STORE_KEY, &control)
+                .map_err(|_| IngestError::Capacity)?;
+        control_store
+            .copy_phase1_snapshot(SNAPSHOT_ID, producer_snapshot)
+            .map_err(|_| IngestError::Capacity)?;
+        control_store
+            .copy_phase1_snapshot(COMPARISON_ID, producer_comparison)
+            .map_err(|_| IngestError::Capacity)?;
+        drop(control_store);
+        let control_store = DurableControlStore::open(
+            &control_store_path,
+            DURABLE_STORE_KEY,
+            control.scope().run_id.clone(),
+        )
+        .map_err(|_| IngestError::Capacity)?;
+        control = control_store.load().map_err(|_| IngestError::Capacity)?;
+        let control_scope = control.scope().clone();
+        let mut memory = MemoryRoute::new(
+            MemoryScope {
+                project_id: control_scope.project_id,
+                run_id: control_scope.run_id,
+                episode_id: control_scope.episode_id,
+                agent_id: control_scope.agent_id,
+            },
+            false,
+        );
+        memory.grant_search("fixture-editor-token");
+        memory.grant_review("fixture-objective-token");
         Ok(Self {
             store,
             grant,
@@ -120,6 +173,10 @@ impl DemoState {
             producer_events: producer_event_count,
             browser_requests: 0,
             api_requests: 0,
+            control,
+            control_store,
+            control_store_path,
+            memory,
         })
     }
 
@@ -133,7 +190,11 @@ impl DemoState {
                 br#"{"error":"get_body_not_allowed","read_only":true}"#.to_vec(),
             );
         }
-        if request.method != "GET" && !path.starts_with("/v1/") {
+        if request.method != "GET"
+            && !path.starts_with("/v1/")
+            && !path.starts_with("/v2/")
+            && !path.starts_with("/v3/memory/")
+        {
             return static_response(
                 405,
                 "application/json",
@@ -161,6 +222,8 @@ impl DemoState {
             "/demo/comparison" => self.api_snapshot(COMPARISON_ID),
             "/demo/events" => self.api_events(),
             "/demo/metrics" => self.metrics_response(),
+            _ if path.starts_with("/v2/") => self.control_request(request, path),
+            _ if path.starts_with("/v3/memory/") => self.memory_request(request, path),
             _ if path.starts_with("/v1/") => self.api_request(request),
             _ => static_response(
                 404,
@@ -282,10 +345,486 @@ impl DemoState {
                 "game_launches":0,
                 "external_requests":0,
                 "read_only":true
+                ,"management_enabled":self.control.enabled()
+                ,"control_status":self.control.state().status
+                ,"control_events":self.control.events().len()
+                ,"durable_control_store":"supported"
             }))
             .unwrap_or_else(|_| b"{}".to_vec()),
         )
     }
+
+    fn control_request(&mut self, request: &HttpRequest, path: &str) -> HttpResponse {
+        self.api_requests = self.api_requests.saturating_add(1);
+        let Some(token) = request
+            .header("authorization")
+            .and_then(|value| value.strip_prefix("Bearer "))
+        else {
+            return control_error_response(ControlError::forbidden(
+                "authentication_required",
+                "management capability is required",
+            ));
+        };
+        let objective_authorized = token.as_bytes() == OBJECTIVE_TOKEN;
+        if token.as_bytes() != EDITOR_TOKEN && !objective_authorized {
+            return control_error_response(ControlError::forbidden(
+                "authentication_failed",
+                "management capability is invalid",
+            ));
+        }
+        if request.method != "GET"
+            && (request.header("origin") != Some(self.expected_origin.as_str())
+                || request.header("x-csrf-token") != Some(CSRF_TOKEN))
+        {
+            return control_error_response(ControlError::forbidden(
+                "csrf_rejected",
+                "write origin proof is required",
+            ));
+        }
+        let segments = path
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect::<Vec<_>>();
+        if segments.len() < 5
+            || segments[0] != "v2"
+            || segments[1] != "runs"
+            || segments[2] != "fixture-run"
+            || segments[3] != "context-control"
+        {
+            return control_error_response(ControlError::invalid(
+                "route_not_found",
+                "management route is unavailable",
+            ));
+        }
+        let tail = &segments[4..];
+        let result = match (request.method.as_str(), tail) {
+            ("GET", ["capabilities"]) => serde_json::to_value(self.capabilities())
+                .map_err(|_| ControlError::invalid("encoding", "capabilities encoding failed")),
+            ("GET", ["state"]) => serde_json::to_value(self.control.state())
+                .map_err(|_| ControlError::invalid("encoding", "state encoding failed")),
+            ("GET", ["eligible-items"]) => {
+                serde_json::to_value(serde_json::json!({"items":self.control.eligible_items()}))
+                    .map_err(|_| {
+                        ControlError::invalid("encoding", "eligible items encoding failed")
+                    })
+            }
+            ("GET", ["revisions"]) => {
+                serde_json::to_value(serde_json::json!({"revisions":self.control.revisions()}))
+                    .map_err(|_| ControlError::invalid("encoding", "revisions encoding failed"))
+            }
+            ("GET", ["events"]) => {
+                serde_json::to_value(serde_json::json!({"events":self.control.events()}))
+                    .map_err(|_| ControlError::invalid("encoding", "events encoding failed"))
+            }
+            ("GET", ["drafts", draft_id]) => self.control.get_draft(draft_id).and_then(|draft| {
+                serde_json::to_value(draft)
+                    .map_err(|_| ControlError::invalid("encoding", "draft encoding failed"))
+            }),
+            ("GET", ["previews", preview_id]) => {
+                self.control.get_preview(preview_id).and_then(|preview| {
+                    serde_json::to_value(preview)
+                        .map_err(|_| ControlError::invalid("encoding", "preview encoding failed"))
+                })
+            }
+            ("GET", ["commands", command_id]) => {
+                self.control.command(command_id).and_then(|receipt| {
+                    serde_json::to_value(receipt)
+                        .map_err(|_| ControlError::invalid("encoding", "receipt encoding failed"))
+                })
+            }
+            ("POST", ["drafts"]) => self.create_control_draft(&request.body),
+            ("POST", ["drafts", draft_id, "operations"]) => {
+                self.edit_control_draft(draft_id, &request.body, objective_authorized)
+            }
+            ("POST", ["previews"]) => self.create_control_preview(&request.body),
+            ("POST", ["commits"]) => parse_json::<Command>(&request.body)
+                .and_then(|command| self.mutate_control(|control| control.commit(command)))
+                .and_then(|receipt| {
+                    serde_json::to_value(receipt)
+                        .map_err(|_| ControlError::invalid("encoding", "receipt encoding failed"))
+                }),
+            ("POST", ["pause"]) => parse_json::<Command>(&request.body)
+                .and_then(|command| self.mutate_control(|control| control.pause(command)))
+                .and_then(|receipt| {
+                    serde_json::to_value(receipt)
+                        .map_err(|_| ControlError::invalid("encoding", "receipt encoding failed"))
+                }),
+            ("POST", ["resume"]) => parse_json::<Command>(&request.body)
+                .and_then(|command| self.mutate_control(|control| control.resume(command)))
+                .and_then(|receipt| {
+                    serde_json::to_value(receipt)
+                        .map_err(|_| ControlError::invalid("encoding", "receipt encoding failed"))
+                }),
+            _ => Err(ControlError::invalid(
+                "route_not_found",
+                "management route is unavailable",
+            )),
+        };
+        match result {
+            Ok(value) => control_value_response(200, value),
+            Err(error) => control_error_response(error),
+        }
+    }
+
+    fn memory_request(&mut self, request: &HttpRequest, path: &str) -> HttpResponse {
+        let Some(token) = request
+            .header("authorization")
+            .and_then(|value| value.strip_prefix("Bearer "))
+        else {
+            return memory_error_response(MemoryRouteError::PermissionDenied);
+        };
+        if request.method != "GET"
+            && (request.header("origin") != Some(self.expected_origin.as_str())
+                || request.header("x-csrf-token") != Some(CSRF_TOKEN))
+        {
+            return memory_error_response(MemoryRouteError::PermissionDenied);
+        }
+        match self
+            .memory
+            .handle(&request.method, path, token, &request.body)
+        {
+            Ok(value) => control_value_response(200, value),
+            Err(error) => memory_error_response(error),
+        }
+    }
+
+    fn create_control_draft(&mut self, body: &[u8]) -> Result<serde_json::Value, ControlError> {
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Request {
+            scope: Scope,
+            expected_active_revision_id: String,
+        }
+        let request: Request = parse_json(body)?;
+        self.mutate_control(|control| {
+            control.create_draft(
+                request.scope,
+                &request.expected_active_revision_id,
+                "operator-fixture",
+            )
+        })
+        .and_then(|draft| {
+            serde_json::to_value(draft)
+                .map_err(|_| ControlError::invalid("encoding", "draft encoding failed"))
+        })
+    }
+
+    fn edit_control_draft(
+        &mut self,
+        draft_id: &str,
+        body: &[u8],
+        objective_authorized: bool,
+    ) -> Result<serde_json::Value, ControlError> {
+        let patch: Patch = parse_json(body)?;
+        if patch.draft_id != draft_id {
+            return Err(ControlError::invalid(
+                "draft_mismatch",
+                "draft path and body differ",
+            ));
+        }
+        self.mutate_control(|control| {
+            control.apply_patch(
+                patch,
+                if objective_authorized {
+                    "objective-fixture"
+                } else {
+                    "operator-fixture"
+                },
+                objective_authorized,
+            )
+        })
+        .and_then(|draft| {
+            serde_json::to_value(draft)
+                .map_err(|_| ControlError::invalid("encoding", "draft encoding failed"))
+        })
+    }
+
+    fn create_control_preview(&mut self, body: &[u8]) -> Result<serde_json::Value, ControlError> {
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Request {
+            scope: Scope,
+            draft_id: String,
+            expected_draft_version: u64,
+            applicable_requested: bool,
+            expected_control_version: u64,
+            unknown_total_risk_acknowledged: bool,
+        }
+        let request: Request = parse_json(body)?;
+        self.mutate_control(|control| {
+            control.create_preview(
+                request.scope,
+                &request.draft_id,
+                request.expected_draft_version,
+                request.applicable_requested,
+                request.expected_control_version,
+                request.unknown_total_risk_acknowledged,
+            )
+        })
+        .and_then(|preview| {
+            serde_json::to_value(preview)
+                .map_err(|_| ControlError::invalid("encoding", "preview encoding failed"))
+        })
+    }
+
+    fn capabilities(&self) -> crate::control::Capabilities {
+        let mut capabilities = self.control.capabilities();
+        capabilities.durable_control_store = "supported".to_owned();
+        capabilities
+    }
+
+    fn mutate_control<T>(
+        &mut self,
+        mutation: impl FnOnce(&mut ControlPlane) -> Result<T, ControlError>,
+    ) -> Result<T, ControlError> {
+        let mut candidate = self.control.clone();
+        let result = mutation(&mut candidate)?;
+        self.control_store
+            .persist(&candidate)
+            .map_err(durable_error)?;
+        self.control = candidate;
+        Ok(result)
+    }
+}
+
+impl Drop for DemoState {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.control_store_path);
+        let _ = fs::remove_file(self.control_store_path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(self.control_store_path.with_extension("sqlite-shm"));
+    }
+}
+
+fn durable_error(_: DurableStoreError) -> ControlError {
+    ControlError::invalid(
+        "durable_store_unavailable",
+        "control state could not be durably persisted",
+    )
+}
+
+pub(crate) fn parse_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ControlError> {
+    if body.is_empty() || body.len() > 16 * 1024 {
+        return Err(ControlError::invalid(
+            "body_too_large",
+            "management body exceeds its bound",
+        ));
+    }
+    validate_json_shape(body)?;
+    serde_json::from_slice(body)
+        .map_err(|_| ControlError::invalid("invalid_json", "management JSON is invalid"))
+}
+
+fn validate_json_shape(body: &[u8]) -> Result<(), ControlError> {
+    let mut parser = JsonGuard {
+        bytes: body,
+        offset: 0,
+    };
+    parser.value(0)?;
+    parser.space();
+    if parser.offset != body.len() {
+        return Err(ControlError::invalid(
+            "invalid_json",
+            "management JSON has trailing data",
+        ));
+    }
+    Ok(())
+}
+
+struct JsonGuard<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+}
+
+impl JsonGuard<'_> {
+    fn value(&mut self, depth: usize) -> Result<(), ControlError> {
+        if depth > 32 {
+            return Err(ControlError::invalid(
+                "json_depth",
+                "management JSON is too deeply nested",
+            ));
+        }
+        self.space();
+        match self.bytes.get(self.offset).copied() {
+            Some(b'{') => self.object(depth + 1),
+            Some(b'[') => self.array(depth + 1),
+            Some(b'"') => {
+                self.string()?;
+                Ok(())
+            }
+            Some(_) => self.primitive(),
+            None => Err(ControlError::invalid(
+                "invalid_json",
+                "management JSON is incomplete",
+            )),
+        }
+    }
+
+    fn object(&mut self, depth: usize) -> Result<(), ControlError> {
+        self.offset += 1;
+        self.space();
+        let mut keys = BTreeSet::new();
+        if self.take(b'}') {
+            return Ok(());
+        }
+        loop {
+            self.space();
+            let key = self.string()?;
+            if !keys.insert(key) {
+                return Err(ControlError::invalid(
+                    "duplicate_json_key",
+                    "duplicate JSON keys are rejected",
+                ));
+            }
+            self.space();
+            if !self.take(b':') {
+                return Err(ControlError::invalid(
+                    "invalid_json",
+                    "object member separator is missing",
+                ));
+            }
+            self.value(depth)?;
+            self.space();
+            if self.take(b'}') {
+                return Ok(());
+            }
+            if !self.take(b',') {
+                return Err(ControlError::invalid(
+                    "invalid_json",
+                    "object delimiter is missing",
+                ));
+            }
+        }
+    }
+
+    fn array(&mut self, depth: usize) -> Result<(), ControlError> {
+        self.offset += 1;
+        self.space();
+        if self.take(b']') {
+            return Ok(());
+        }
+        let mut count = 0_usize;
+        loop {
+            count = count.saturating_add(1);
+            if count > 256 {
+                return Err(ControlError::invalid(
+                    "json_items",
+                    "management JSON array is too large",
+                ));
+            }
+            self.value(depth)?;
+            self.space();
+            if self.take(b']') {
+                return Ok(());
+            }
+            if !self.take(b',') {
+                return Err(ControlError::invalid(
+                    "invalid_json",
+                    "array delimiter is missing",
+                ));
+            }
+        }
+    }
+
+    fn primitive(&mut self) -> Result<(), ControlError> {
+        let start = self.offset;
+        while let Some(byte) = self.bytes.get(self.offset).copied() {
+            if byte.is_ascii_whitespace() || matches!(byte, b',' | b']' | b'}') {
+                break;
+            }
+            self.offset += 1;
+        }
+        (self.offset > start)
+            .then_some(())
+            .ok_or_else(|| ControlError::invalid("invalid_json", "JSON value is incomplete"))
+    }
+
+    fn string(&mut self) -> Result<String, ControlError> {
+        let start = self.offset;
+        if !self.take(b'"') {
+            return Err(ControlError::invalid(
+                "invalid_json",
+                "JSON string is missing",
+            ));
+        }
+        let mut escaped = false;
+        while let Some(byte) = self.bytes.get(self.offset).copied() {
+            self.offset += 1;
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                return serde_json::from_slice(&self.bytes[start..self.offset])
+                    .map_err(|_| ControlError::invalid("invalid_json", "JSON string is invalid"));
+            }
+        }
+        Err(ControlError::invalid(
+            "invalid_json",
+            "JSON string is unterminated",
+        ))
+    }
+
+    fn space(&mut self) {
+        while self
+            .bytes
+            .get(self.offset)
+            .is_some_and(u8::is_ascii_whitespace)
+        {
+            self.offset += 1;
+        }
+    }
+
+    fn take(&mut self, expected: u8) -> bool {
+        if self.bytes.get(self.offset).copied() == Some(expected) {
+            self.offset += 1;
+            true
+        } else {
+            false
+        }
+    }
+}
+
+fn control_value_response(status: u16, value: serde_json::Value) -> HttpResponse {
+    let body = serde_json::to_vec(&value).unwrap_or_else(|_| b"{\"error\":\"encoding\"}".to_vec());
+    static_response(status, "application/json", body)
+}
+
+fn control_error_response(error: ControlError) -> HttpResponse {
+    let status = if error.code.contains("authentication") || error.code == "csrf_rejected" {
+        403
+    } else if error.code.contains("stale")
+        || error.code.contains("conflict")
+        || error.code.contains("already")
+        || error.code.contains("unresolved")
+        || error.code.contains("preview")
+    {
+        409
+    } else if error.code.contains("not_found") || error.code == "route_not_found" {
+        404
+    } else {
+        422
+    };
+    control_value_response(
+        status,
+        serde_json::json!({"error":{"code":error.code,"message":error.message}}),
+    )
+}
+
+fn memory_error_response(error: MemoryRouteError) -> HttpResponse {
+    let status = match error {
+        MemoryRouteError::PermissionDenied => 403,
+        MemoryRouteError::BodyTooLarge | MemoryRouteError::InvalidRequest => 400,
+        MemoryRouteError::MethodNotAllowed => 405,
+        MemoryRouteError::Unsupported => 404,
+    };
+    control_value_response(
+        status,
+        json!({
+            "schema": "ascension.context-memory.error.v1",
+            "error": error.to_string(),
+            "effect_class": "local_read_no_inference"
+        }),
+    )
 }
 
 fn read_request(stream: &mut TcpStream) -> Result<HttpRequest, ApiError> {

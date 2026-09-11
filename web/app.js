@@ -3,7 +3,18 @@
 const MAX_FIXTURE_BYTES = 1024 * 1024;
 const MAX_EVENTS = 256;
 const bundleManifestUrl = new URL("../offline-bundle.json", document.baseURI);
+const CONTROL_BASE = "/v2/runs/fixture-run/context-control";
+const MEMORY_BASE = "/v3/memory";
+const CONTROL_TOKEN = "fixture-editor-token";
+const OBJECTIVE_TOKEN = "fixture-objective-token";
+const CSRF_TOKEN = "fixture-csrf-token";
 const status = document.querySelector("#status");
+let controlState;
+let controlCapabilities;
+let currentDraft;
+let currentPreview;
+let approvedContinuationPreviewId;
+let commandCounter = 0;
 
 function showText(selector, value) {
   const node = document.querySelector(selector);
@@ -161,6 +172,407 @@ async function loadEvents(eventsUrl) {
   return text.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line));
 }
 
+async function controlJson(path, options = {}) {
+  const { token = CONTROL_TOKEN, ...requestOptions } = options;
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  if (requestOptions.method && requestOptions.method !== "GET") headers.set("X-CSRF-Token", CSRF_TOKEN);
+  const response = await fetch(`${CONTROL_BASE}${path}`, { ...requestOptions, headers, cache: "no-store" });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error?.message || value.error?.code || `control request returned ${response.status}`);
+  return value;
+}
+
+async function memoryJson(path, options = {}) {
+  const { token = CONTROL_TOKEN, ...requestOptions } = options;
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  if (requestOptions.method && requestOptions.method !== "GET") headers.set("X-CSRF-Token", CSRF_TOKEN);
+  const response = await fetch(`${MEMORY_BASE}${path}`, { ...requestOptions, headers, cache: "no-store" });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error || `memory request returned ${response.status}`);
+  return value;
+}
+
+function renderMemory(capabilities, memoryStatus) {
+  showText("#memory-badge", capabilities.enabled ? "enabled" : "disabled");
+  showText("#memory-capability", capabilities.enabled ? "enabled" : "disabled by default");
+  showText("#memory-retrieval", capabilities.local_lexical_retrieval);
+  showText("#memory-compaction", `${capabilities.extractive_compaction} · adapter ${capabilities.abstractive_adapter}`);
+  showText("#memory-approval", capabilities.phase2_approval_required ? "Phase 2 approval required" : "unavailable");
+  showText("#memory-generation", memoryStatus.corpus_generation);
+  showText("#memory-revocation", memoryStatus.revocation_epoch);
+  document.querySelector("#memory-panel").hidden = false;
+  document.querySelector("#compaction-panel").hidden = false;
+  const message = document.querySelector("#memory-message");
+  message.textContent = capabilities.enabled
+    ? "Lexical search is scoped to the pinned corpus and cutoff; reads do not call a provider."
+    : "Memory is disabled by default; no corpus is created and no inference is available.";
+  document.querySelector("#memory-search-button").disabled = !capabilities.enabled;
+}
+
+async function searchMemory(event) {
+  event.preventDefault();
+  const query = document.querySelector("#memory-query").value;
+  const body = {
+    schema: "ascension.context-memory.query.v1",
+    scope: scopeForControl(),
+    branch_id: "branch-a",
+    query,
+    cutoff: 10,
+    corpus_generation: 10,
+    ranker_version: "lexical-v1",
+    limit: 8,
+    max_candidates: 64,
+    effect_class: "local_read_no_inference",
+  };
+  try {
+    const value = await memoryJson("/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    document.querySelector("#memory-results").textContent = JSON.stringify({
+      coverage: value.coverage,
+      results: value.results,
+      inference_calls: value.inference_calls,
+    }, null, 2);
+  } catch (error) {
+    document.querySelector("#memory-results").textContent = error instanceof Error ? error.message : "search unavailable";
+  }
+}
+
+async function loadMemory() {
+  try {
+    const [capabilities, memoryStatus] = await Promise.all([
+      memoryJson("/capabilities"),
+      memoryJson("/status"),
+    ]);
+    renderMemory(capabilities, memoryStatus);
+    document.querySelector("#memory-search-form").addEventListener("submit", searchMemory);
+  } catch (error) {
+    document.querySelector("#memory-panel").hidden = false;
+    document.querySelector("#compaction-panel").hidden = false;
+    document.querySelector("#memory-message").textContent = error instanceof Error ? error.message : "memory facade unavailable";
+  }
+}
+
+function setManagementControls(enabled) {
+  ["create-draft", "save-draft", "preview-draft", "pause-run", "commit-draft", "resume-run", "restore-draft", "remove-note"]
+    .forEach((id) => { document.querySelector(`#${id}`).disabled = !enabled; });
+}
+
+function syncDraftSelections() {
+  if (!currentDraft) return;
+  const selected = new Set(currentDraft.selected_items.map(itemKey));
+  const pinned = new Set(currentDraft.pinned_item_ids);
+  document.querySelectorAll("#eligible-rows input.context-select").forEach((input) => {
+    input.checked = selected.has(input.dataset.item && itemKey(JSON.parse(input.dataset.item)));
+  });
+  document.querySelectorAll("#eligible-rows input.context-pin").forEach((input) => {
+    const item = JSON.parse(input.dataset.item);
+    const selectedItem = selected.has(itemKey(item));
+    input.checked = selectedItem && pinned.has(item.item_id);
+    input.disabled = !selectedItem;
+  });
+}
+
+function renderControl(capabilities, stateValue, items, revisions) {
+  controlCapabilities = capabilities;
+  controlState = stateValue;
+  showText("#management-badge", capabilities.enabled ? "management enabled" : "legacy mode");
+  showText("#control-status", stateValue.status);
+  showText("#active-revision", stateValue.active_revision_id);
+  showText("#control-version", stateValue.control_version);
+  showText("#pause-latch", stateValue.pause_latched ? "latched" : "open");
+  showText("#plan-epoch", stateValue.plan_epoch);
+  showText("#durable-store", capabilities.durable_control_store);
+  const rows = document.querySelector("#eligible-rows");
+  rows.replaceChildren();
+  items.items.forEach((entry) => {
+    const row = document.createElement("tr");
+    const useCell = document.createElement("td");
+    const pinCell = document.createElement("td");
+    if (entry.protected || !entry.content_available) {
+      useCell.textContent = "locked";
+      pinCell.textContent = "locked";
+    } else {
+      const useInput = document.createElement("input");
+      useInput.type = "checkbox";
+      useInput.className = "context-select";
+      useInput.dataset.item = JSON.stringify(entry.item);
+      useInput.setAttribute("aria-label", `Include ${entry.item.item_id}`);
+      const pinInput = document.createElement("input");
+      pinInput.type = "checkbox";
+      pinInput.className = "context-pin";
+      pinInput.dataset.item = JSON.stringify(entry.item);
+      pinInput.setAttribute("aria-label", `Pin ${entry.item.item_id}`);
+      useInput.addEventListener("change", () => {
+        pinInput.disabled = !useInput.checked;
+        if (!useInput.checked) pinInput.checked = false;
+      });
+      useCell.append(useInput);
+      pinCell.append(pinInput);
+    }
+    row.append(useCell);
+    row.append(pinCell);
+    [entry.item.item_id, entry.kind, entry.item.version, entry.protected ? (entry.locked_reason || "protected") : "editable"]
+      .forEach((value) => { const cell = document.createElement("td"); cell.textContent = String(value); row.append(cell); });
+    rows.append(row);
+  });
+  const restoreSource = document.querySelector("#restore-source");
+  restoreSource.replaceChildren();
+  revisions.revisions.slice().sort((left, right) => right.sequence - left.sequence).forEach((revision) => {
+    const option = document.createElement("option");
+    option.value = revision.revision_id;
+    option.textContent = `${revision.revision_id} · ${revision.state_after_commit}`;
+    restoreSource.append(option);
+  });
+  setManagementControls(capabilities.enabled);
+  if (!currentDraft) {
+    document.querySelector("#save-draft").disabled = true;
+    document.querySelector("#preview-draft").disabled = true;
+    document.querySelector("#restore-draft").disabled = true;
+    document.querySelector("#remove-note").disabled = true;
+  }
+  document.querySelector("#commit-draft").disabled = !currentPreview?.applicable || !capabilities.enabled;
+  syncDraftSelections();
+  document.querySelector("#control-panel").hidden = false;
+  document.querySelector("#eligible").hidden = false;
+  document.querySelector("#editor").hidden = false;
+}
+
+async function refreshControl() {
+  const [capabilities, stateValue, items, revisions] = await Promise.all([
+    controlJson("/capabilities"),
+    controlJson("/state"),
+    controlJson("/eligible-items"),
+    controlJson("/revisions"),
+  ]);
+  renderControl(capabilities, stateValue, items, revisions);
+  return stateValue;
+}
+
+function scopeForControl() {
+  return controlState && controlState.scope;
+}
+
+function setDraftMessage(message, isError = false) {
+  const node = document.querySelector("#draft-message");
+  node.textContent = message;
+  node.dataset.state = isError ? "error" : "";
+}
+
+function command(kind, extra = {}) {
+  commandCounter += 1;
+  return {
+    schema: "ascension.context-control.command.v1",
+    scope: scopeForControl(),
+    idempotency_key: `browser-${kind}-${commandCounter}`,
+    command_window_id: controlState.command_window_id,
+    expected_control_version: controlState.control_version,
+    kind,
+    ...extra,
+  };
+}
+
+function renderDraft(draft) {
+  currentDraft = draft;
+  showText("#draft-version", `Draft ${draft.draft_id} · version ${draft.version}`);
+  document.querySelector("#save-draft").disabled = !controlCapabilities?.enabled;
+  document.querySelector("#preview-draft").disabled = !controlCapabilities?.enabled;
+  document.querySelector("#restore-draft").disabled = !controlCapabilities?.enabled;
+  document.querySelector("#remove-note").disabled = !controlCapabilities?.enabled
+    || !draft.note_items.some((item) => item.item_id === "note-browser");
+  syncDraftSelections();
+}
+
+function renderPreview(preview) {
+  currentPreview = preview;
+  showText("#preview-id", preview.preview_id);
+  showText("#prepared-digest", preview.prepared_manifest_sha256);
+  showText("#preview-components", preview.components.length ? preview.components.map((item) => `${item.kind}:${item.bytes} B`).join(", ") : "none");
+  showText("#preview-budget", `${preview.budget_status}${preview.unknown_total_risk_acknowledged ? " · risk acknowledged" : ""}`);
+  showText("#preview-provider-context", preview.provider_added_context);
+  showText("#preview-badge", preview.applicable ? "applicable" : "exploratory / blocked");
+  const diff = {
+    blockers: preview.blockers,
+    selected_items: preview.selected_items,
+    notes: currentDraft?.note_items ?? [],
+    objective: currentDraft?.objective_item ?? null,
+    components: preview.components,
+  };
+  document.querySelector("#preview-diff").textContent = JSON.stringify(diff, null, 2);
+  document.querySelector("#preview").hidden = false;
+  document.querySelector("#commit-draft").disabled = !preview.applicable;
+}
+
+function invalidatePreview() {
+  currentPreview = null;
+  document.querySelector("#preview").hidden = true;
+  document.querySelector("#preview-id").textContent = "";
+  document.querySelector("#prepared-digest").textContent = "";
+  document.querySelector("#preview-diff").textContent = "";
+  document.querySelector("#commit-draft").disabled = true;
+}
+
+async function createDraft() {
+  try {
+    renderDraft(await controlJson("/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: scopeForControl(), expected_active_revision_id: controlState.active_revision_id }) }));
+    setDraftMessage("Draft created in memory-backed fixture control storage.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "draft creation failed", true); }
+}
+
+function selectedItems() {
+  return [...document.querySelectorAll("#eligible-rows input.context-select:checked")]
+    .map((input) => JSON.parse(input.dataset.item));
+}
+
+function pinnedItems() {
+  return [...document.querySelectorAll("#eligible-rows input.context-pin:checked")]
+    .map((input) => JSON.parse(input.dataset.item));
+}
+
+function itemKey(item) {
+  return `${item.item_id}:${item.version}:${item.sha256}`;
+}
+
+async function saveDraft() {
+  if (!currentDraft) return;
+  const selected = selectedItems();
+  const selectedKeys = new Set(selected.map(itemKey));
+  const existing = new Set(currentDraft.selected_items.map(itemKey));
+  const visible = new Map([...document.querySelectorAll("#eligible-rows input.context-select")]
+    .map((input) => {
+      const item = JSON.parse(input.dataset.item);
+      return [item.item_id, item];
+    }));
+  const operations = selected
+    .filter((item) => !existing.has(itemKey(item)))
+    .map((item) => ({ op: "include_item", item }));
+  const desiredPinned = new Set(pinnedItems().map((item) => item.item_id));
+  currentDraft.pinned_item_ids
+    .filter((itemId) => visible.has(itemId) && !desiredPinned.has(itemId))
+    .forEach((itemId) => operations.push({ op: "unpin_item", item: visible.get(itemId) }));
+  pinnedItems()
+    .filter((item) => !currentDraft.pinned_item_ids.includes(item.item_id))
+    .forEach((item) => operations.push({ op: "pin_item", item }));
+  currentDraft.selected_items
+    .filter((item) => visible.has(item.item_id) && !selectedKeys.has(itemKey(item)))
+    .forEach((item) => operations.push({ op: "exclude_item", item }));
+  const note = document.querySelector("#note-text").value;
+  const existingNote = currentDraft.note_items.find((item) => item.item_id === "note-browser");
+  if (note) operations.push({ op: "put_note", note_id: "note-browser", expected_note_version: existingNote?.version ?? null, text: note, expires_at: "2030-01-01T00:00:00Z" });
+  const objective = document.querySelector("#objective-text").value;
+  if (objective) operations.push({ op: "set_objective", text: objective });
+  if (!operations.length) { setDraftMessage("Select an editable item or enter a bounded note first.", true); return; }
+  try {
+    renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, { token: objective ? OBJECTIVE_TOKEN : CONTROL_TOKEN, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schema: "ascension.context-control.patch.v1", scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, expected_active_revision_id: controlState.active_revision_id, operations }) }));
+    invalidatePreview();
+    setDraftMessage("Draft saved; any prior preview is invalid.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "draft save failed", true); }
+}
+
+async function restoreDraft() {
+  if (!currentDraft) { setDraftMessage("Start a draft before restoring a configuration.", true); return; }
+  const sourceRevisionId = document.querySelector("#restore-source").value;
+  if (!sourceRevisionId) { setDraftMessage("Choose a retained revision to restore.", true); return; }
+  try {
+    renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema: "ascension.context-control.patch.v1",
+        scope: scopeForControl(),
+        draft_id: currentDraft.draft_id,
+        expected_draft_version: currentDraft.version,
+        expected_active_revision_id: controlState.active_revision_id,
+        operations: [{ op: "restore_configuration", source_revision_id: sourceRevisionId }],
+      }),
+    }));
+    document.querySelector("#note-text").value = "";
+    document.querySelector("#objective-text").value = "";
+    invalidatePreview();
+    setDraftMessage("Configuration restored into the draft; preview it again before commit.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "restore failed", true); }
+}
+
+async function removeNote() {
+  if (!currentDraft) return;
+  const note = currentDraft.note_items.find((item) => item.item_id === "note-browser");
+  if (!note) return;
+  try {
+    renderDraft(await controlJson(`/drafts/${currentDraft.draft_id}/operations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema: "ascension.context-control.patch.v1",
+        scope: scopeForControl(),
+        draft_id: currentDraft.draft_id,
+        expected_draft_version: currentDraft.version,
+        expected_active_revision_id: controlState.active_revision_id,
+        operations: [{ op: "remove_note", note_id: note.item_id, expected_note_version: note.version }],
+      }),
+    }));
+    document.querySelector("#note-text").value = "";
+    invalidatePreview();
+    setDraftMessage("Operator note removed from the draft; preview it again before commit.");
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "note removal failed", true); }
+}
+
+async function makePreview() {
+  if (!currentDraft) { setDraftMessage("Start a draft before previewing.", true); return; }
+  try {
+    const preview = await controlJson("/previews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: scopeForControl(), draft_id: currentDraft.draft_id, expected_draft_version: currentDraft.version, applicable_requested: Boolean(controlState.pause_latched), expected_control_version: controlState.control_version, unknown_total_risk_acknowledged: document.querySelector("#budget-risk-ack").checked }) });
+    renderPreview(preview);
+    setDraftMessage(preview.applicable ? "Applicable preview is frozen for commit." : `Exploratory preview: ${preview.blockers.join(", ") || "run is not held"}.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "preview failed", true); }
+}
+
+async function pauseRun() {
+  try {
+    const receipt = await controlJson("/pause", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("pause")) });
+    await refreshControl();
+    setDraftMessage(`Pause ${receipt.status}: the scheduler remains held until explicit resume.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "pause failed", true); }
+}
+
+async function commitDraft() {
+  if (!currentPreview || !currentPreview.applicable) return;
+  try {
+    const receipt = await controlJson("/commits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("commit", { expected_active_revision_id: controlState.active_revision_id, preview_id: currentPreview.preview_id, approved_manifest_sha256: currentPreview.prepared_manifest_sha256 })) });
+    approvedContinuationPreviewId = currentPreview.preview_id;
+    invalidatePreview();
+    await refreshControl();
+    setDraftMessage(`Commit ${receipt.status}: revision ${receipt.active_revision_id} is committed while paused.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "commit failed", true); }
+}
+
+async function resumeRun() {
+  try {
+    const receipt = await controlJson("/resume", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command("resume", { expected_active_revision_id: controlState.active_revision_id, expected_preview_id: approvedContinuationPreviewId || (currentPreview?.applicable ? currentPreview.preview_id : null) })) });
+    approvedContinuationPreviewId = null;
+    await refreshControl();
+    setDraftMessage(`Resume ${receipt.status}: no automatic provider or game call was made by the console.`);
+  } catch (error) { setDraftMessage(error instanceof Error ? error.message : "resume failed", true); }
+}
+
+async function loadControl() {
+  try {
+    await refreshControl();
+    document.querySelector("#create-draft").addEventListener("click", createDraft);
+    document.querySelector("#save-draft").addEventListener("click", saveDraft);
+    document.querySelector("#preview-draft").addEventListener("click", makePreview);
+    document.querySelector("#pause-run").addEventListener("click", pauseRun);
+    document.querySelector("#commit-draft").addEventListener("click", commitDraft);
+    document.querySelector("#resume-run").addEventListener("click", resumeRun);
+    document.querySelector("#restore-draft").addEventListener("click", restoreDraft);
+    document.querySelector("#remove-note").addEventListener("click", removeNote);
+  } catch (error) {
+    document.querySelector("#control-message").textContent = error instanceof Error ? error.message : "management control is unavailable";
+  }
+}
+
 async function loadFixture() {
   const bundle = validateBundleManifest(await loadJson(bundleManifestUrl));
   const [snapshot, events] = await Promise.all([loadJson(bundle.snapshotUrl), loadEvents(bundle.eventsUrl)]);
@@ -174,6 +586,8 @@ async function loadFixture() {
       ? "The retained snapshots have the same ordered component measurements. This view does not imply a cache hit."
       : `The retained snapshots differ at the application boundary (${rendered.capture_mode} vs ${comparison.capture_mode}); no future input was changed.`;
   });
+  await loadControl();
+  await loadMemory();
 }
 
 loadFixture().catch((error) => {

@@ -1,0 +1,177 @@
+{
+  "schema": "ascension.phase2-durable-store-evidence.v1",
+  "evidence_id": "PHASE2-DURABLE-STORE-20260910",
+  "date": "2026-09-10",
+  "repository": "AI-Ascension/ascension-context-console",
+  "branch": "phase2/context-editing",
+  "source_revision": "416597cbe09e59fbeac4b6d0c9dd3b60ff53d98b",
+  "command": "cargo test --locked --package context-service --test phase2_durable",
+  "result": "passed",
+  "tests": [
+    {
+      "test_id": "encrypted_journal_reopens_with_phase1_snapshots_and_outbox",
+      "status": "passed",
+      "assertions": [
+        "XChaCha20-Poly1305 journal envelope is not plaintext searchable",
+        "reopen preserves the pause latch and advances controller epoch",
+        "immutable Phase 1 snapshot and outbox digests are retained"
+      ]
+    },
+    {
+      "test_id": "wrong_key_and_tampering_fail_closed",
+      "status": "passed",
+      "assertions": [
+        "all-zero keys are rejected",
+        "wrong keys fail authentication",
+        "tampered envelope digests and denormalized management mode fail closed"
+      ]
+    },
+    {
+      "test_id": "failed_commit_rolls_back_the_previous_projection",
+      "status": "passed",
+      "assertions": [
+        "before-commit failpoint returns an explicit error",
+        "the previous pause projection remains after abort",
+        "the aborted event creates no orphaned outbox row"
+      ]
+    },
+    {
+      "test_id": "partial_additive_schema_is_repaired_and_newer_schema_is_rejected",
+      "status": "passed",
+      "assertions": [
+        "missing additive tables are repaired",
+        "missing journal data is not invented",
+        "a newer schema marker is refused"
+      ]
+    },
+    {
+      "test_id": "legacy_open_refuses_management_active_and_allows_disabled_state",
+      "status": "passed",
+      "assertions": [
+        "legacy read-only startup refuses an active management database",
+        "legacy read-only startup can inspect a disabled database",
+        "disabled mode remains represented in the durable journal"
+      ]
+    },
+    {
+      "test_id": "phase1_snapshot_identity_is_immutable_and_backup_reopens",
+      "status": "passed",
+      "assertions": [
+        "a snapshot identity cannot be overwritten with different bytes",
+        "WAL checkpoint and file-copy backup reopen successfully",
+        "the copied Phase 1 snapshot digest remains present"
+      ]
+    },
+    {
+      "test_id": "durable_commit_replay_after_lost_reply_returns_original_receipt",
+      "status": "passed",
+      "assertions": [
+        "the committed encrypted journal reopens after the simulated lost reply",
+        "replaying the exact command returns its original receipt",
+        "no second revision is created"
+      ]
+    },
+    {
+      "test_id": "commit_transaction_disk_full_failpoint_preserves_old_revision",
+      "status": "passed",
+      "assertions": [
+        "deterministic disk-full failpoint rejects the candidate transaction",
+        "the prior active revision and plan epoch remain authoritative",
+        "the failed transaction adds no outbox rows"
+      ]
+    },
+    {
+      "test_id": "audit_append_failure_rolls_back_journal_and_outbox",
+      "status": "passed",
+      "assertions": [
+        "audit/outbox append failpoint rejects before commit",
+        "the previous encrypted journal projection remains active",
+        "no orphaned outbox event is left after the failed append"
+      ]
+    },
+    {
+      "test_id": "crash_after_commit_before_outbox_publication_retains_revision_and_deduplicates",
+      "status": "passed",
+      "assertions": [
+        "post-commit acknowledgement loss still retains the new active revision",
+        "reopen reads the committed journal and unpublished outbox",
+        "replaying the exact projection does not duplicate outbox rows"
+      ]
+    },
+    {
+      "test_id": "watchdog_restart_preserves_a_healthy_pause_without_auto_resume",
+      "status": "passed",
+      "assertions": [
+        "restart preserves the durable pause latch",
+        "recovered status is paused_ready",
+        "recovery emits no input.submitted event or semantic resume"
+      ]
+    },
+    {
+      "test_id": "dropped_outbox_event_is_rebuilt_from_authoritative_journal",
+      "status": "passed",
+      "assertions": [
+        "a deleted outbox row does not alter the authoritative journal",
+        "reconciliation persists the missing event from journal state",
+        "the rebuilt outbox count returns to the original bounded set"
+      ]
+    },
+    {
+      "test_id": "journal_event_flood_is_rejected_before_recovery",
+      "status": "passed",
+      "assertions": [
+        "a 4097-event journal is rejected with journal_invalid",
+        "recovery does not materialize an over-bound event list"
+      ]
+    }
+  ],
+  "storage": {
+    "schema": "ascension.context-control.sqlite.v1",
+    "schema_version": 1,
+    "journal_encryption": "XChaCha20-Poly1305 with versioned AAD",
+    "sqlite": [
+      "WAL",
+      "synchronous=FULL",
+      "foreign_keys=ON",
+      "BEGIN IMMEDIATE"
+    ],
+    "bounds": {
+      "journal_bytes": 4194304,
+      "snapshot_bytes": 4194304,
+      "event_bytes": 65536,
+      "events": 4096
+    },
+    "phase1_bytes_rewritten": false,
+    "outbox_transactional": true,
+    "legacy_active_refusal": true,
+    "additive_schema_repair": true
+  },
+  "source_artifacts": [
+    {
+      "path": "crates/context-service/src/control/durable.rs",
+      "sha256": "666b5910c7ed406955c6658b218350432983ae2aca4d579ab055b2ec0057ea5a"
+    },
+    {
+      "path": "crates/context-service/src/control/durable_ops.rs",
+      "sha256": "25c50eb4be429e0d8515effa369f17ae94c0dfaac24a9ebdcf723090c60e3811"
+    },
+    {
+      "path": "crates/context-service/src/control/durable_schema.rs",
+      "sha256": "20b38c612242182e2e9ea16bb608e62f4c93e4fec3295f9044c19ec17ec0ae9a"
+    },
+    {
+      "path": "crates/context-service/src/control/durable_types.rs",
+      "sha256": "f8664e70c544be2d51d8923eb190497c058de391c02d17ddf22b51fa5fd1daf4"
+    },
+    {
+      "path": "tests/phase2_durable.rs",
+      "sha256": "3fa85708105626775b3f43d5a83218c777cd6e6caf504310119c378978410e14"
+    }
+  ],
+  "limits": [
+    "local synthetic process only",
+    "deterministic transaction failpoint and reopen coverage, not an OS process-kill proof",
+    "no multi-process ownership fencing or native reservation evidence",
+    "no production key management, provider, game, deployment, or release rollback evidence"
+  ]
+}
