@@ -1,7 +1,8 @@
 # Implemented Phase 3 handoff
 
-Date: 2026-09-11. This is the additive Phase 3 draft on `phase2/context-editing`. The target
-implementation is covered by target revision `8e52da837ae0a23cea18d7cd3d5164765911e6b6`; the
+Date: 2026-09-11. This is the additive Phase 3 handoff on `phase2/context-editing`, merged to
+target `main` by PR #3. The target implementation is covered by target revision
+`8e52da837ae0a23cea18d7cd3d5164765911e6b6`; the
 companion harness revision is `3cb7296`.
 
 The target extends the existing Phase 1/2 checkout. `crates/context-service/src/memory.rs`
