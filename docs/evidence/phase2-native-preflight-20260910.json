@@ -180,6 +180,52 @@
           "lead_report": "The native collaboration surface (list_agents, spawn_agent, wait_agent, etc.) was not exposed in the lead session. The lead could not inspect a roster or spawn the required chain without fabricating results.",
           "conclusion": "Codex 0.154.0 with multi_agent_v2 explicitly enabled verifies one requested depth-1 child and its real parentage/settings, but the lead cannot create the required depth-2 coordinator; no depth-3 leaf exists, so the required native three-level chain remains blocked.",
           "cleanup": "The root and lead threads were completed and archived through the daemon control socket; no files, providers, games, or unrelated external writes occurred."
+        },
+        "astra_ultra_probe": {
+          "rechecked_at": "2026-09-11T05:33:43Z",
+          "runtime": {
+            "codex_cli": "0.154.0",
+            "app_server_version": "0.154.0",
+            "multi_agent_v2": "explicitly enabled"
+          },
+          "invocation": "codex1 exec --enable multi_agent_v2 -m gpt-6-astra -c model_reasoning_effort=ultra -C /home/agent/sts2-project/context -s read-only --skip-git-repo-check --json",
+          "root_thread_id": "01a08ef3-f366-7022-b71a-61a4011bff59",
+          "root_source": "exec",
+          "root_parent_thread_id": null,
+          "root_model": "gpt-6-astra",
+          "root_effort": "ultra",
+          "observed_chain": [
+            {
+              "thread_id": "01a08ef3-f366-7022-b71a-61a4011bff59",
+              "path": "/root",
+              "depth": 0,
+              "status": "completed_and_archived"
+            },
+            {
+              "thread_id": "01a08ef4-248f-74f3-a0fb-c95a34c3d400",
+              "path": "/root/workstream_lead",
+              "depth": 1,
+              "parent_thread_id": "01a08ef3-f366-7022-b71a-61a4011bff59",
+              "requested_model": "gpt-5.6-luna",
+              "requested_effort": "max",
+              "accepted_spawn_settings": {
+                "fork_turns": "none"
+              },
+              "status": "completed_and_archived"
+            }
+          ],
+          "depth_two_thread_id": null,
+          "depth_three_thread_id": null,
+          "capacity_and_controls": {
+            "advertised_concurrency_slots": 4,
+            "reservation_identifiers": "unavailable",
+            "lead_child_spawn": "unavailable",
+            "lead_agent_list": "unavailable",
+            "lead_reservation": "unavailable"
+          },
+          "lead_report": "The lead callable registry lacked collaboration.spawn_agent and collaboration.list_agents, so it could not issue the coordinator spawn.",
+          "conclusion": "Using the 0.154.0 Astra ultra automatic-delegation configuration still produced only one observed depth-1 lead; no depth-2 coordinator or depth-3 leaf was created, so the required native hierarchy remains blocked.",
+          "cleanup": "Root and lead were completed and archived through the daemon control socket; no files, providers, games, or unrelated external writes occurred."
         }
       }
     }
