@@ -123,11 +123,15 @@ impl MemoryRoute {
             product_phase: 3,
             scope: self.scope.clone(),
             enabled: self.enabled,
-            local_lexical_retrieval: "supported".to_owned(),
-            extractive_compaction: "supported".to_owned(),
-            abstractive_adapter: "supported".to_owned(),
+            // The target facade has no attached harness corpus or summary adapter.  Reporting
+            // these lanes as supported would make an unavailable projection look like a working
+            // product capability.  Keep the endpoint discoverable while naming the attachment
+            // boundary explicitly.
+            local_lexical_retrieval: "unverified".to_owned(),
+            extractive_compaction: "unverified".to_owned(),
+            abstractive_adapter: "unsupported".to_owned(),
             abstractive_live_verified: false,
-            per_decision_policy: "supported".to_owned(),
+            per_decision_policy: "unverified".to_owned(),
             phase2_approval_required: true,
             persistent_provider_sessions: false,
             provider_side_compaction: false,
@@ -135,13 +139,7 @@ impl MemoryRoute {
             hidden_reasoning_access: false,
             direct_game_dispatch: false,
             supported_operations: if self.enabled {
-                [
-                    "search", "extract", "generate", "review", "select", "policy", "adopt",
-                    "revoke", "evaluate",
-                ]
-                .into_iter()
-                .map(str::to_owned)
-                .collect()
+                ["search"].into_iter().map(str::to_owned).collect()
             } else {
                 Vec::new()
             },
@@ -180,9 +178,9 @@ impl MemoryRoute {
                 Ok(json!({
                     "schema": "ascension.context-memory.status.v1",
                     "enabled": self.enabled,
-                    "corpus_generation": if self.enabled { Value::from(0) } else { Value::Null },
-                    "projection_generation": if self.enabled { Value::from(0) } else { Value::Null },
-                    "revocation_epoch": if self.enabled { Value::from(0) } else { Value::Null },
+                    "corpus_generation": Value::Null,
+                    "projection_generation": Value::Null,
+                    "revocation_epoch": Value::Null,
                     "inference_calls": 0,
                     "effect_class": "local_read_no_inference"
                 }))
@@ -331,5 +329,21 @@ mod tests {
             route.handle("POST", "/v3/memory/generate", "searcher", b"{}"),
             Err(MemoryRouteError::PermissionDenied)
         );
+    }
+
+    #[test]
+    fn enabled_facade_does_not_advertise_unattached_lanes() {
+        let mut route = MemoryRoute::new(scope(), true);
+        route.grant_search("searcher");
+        let capabilities = route.capabilities();
+        assert_eq!(capabilities.supported_operations, vec!["search"]);
+        assert_eq!(capabilities.local_lexical_retrieval, "unverified");
+        assert_eq!(capabilities.abstractive_adapter, "unsupported");
+        assert_eq!(capabilities.per_decision_policy, "unverified");
+        let status = route
+            .handle("GET", "/v3/memory/status", "searcher", &[])
+            .unwrap_or(Value::Null);
+        assert!(status["projection_generation"].is_null());
+        assert!(status["corpus_generation"].is_null());
     }
 }
