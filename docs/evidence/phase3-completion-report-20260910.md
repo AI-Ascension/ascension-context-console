@@ -3,8 +3,8 @@
 Date: 2026-09-11. This is the bounded implementation and evidence record for the additive
 `ascension.context-memory.*.v1` surface on the `phase2/context-editing` draft branch. It is not a
 product-readiness or live-runtime claim. Target implementation code is pinned to
-`9dfc7905b271a891b9c5d053477d4e8fb7c7d41e`; the companion harness implementation is pinned to
-`321dbda4ed0a433ec700d9b7050d94a4b9f082ba`.
+`b21083719fb825be83088c9a6ab09531463a1a72`; the companion harness implementation is pinned to
+`f8213e90388a77f5d893a40b37498aaf5eb78265`.
 
 The target extends the existing Phase 1/2 checkout with the eleven versioned context-memory
 contracts and synthetic fixtures, a permissioned `/v3/memory` facade, bounded `phase3-cli`
@@ -29,9 +29,9 @@ The 90-row requirement CSV and 90-row failure matrix are synchronized to these r
 status classes are deliberately evidence classes: local deterministic tests and source-backed
 records are `executed_synthetic`; lanes that have an implementation seam but no current proof are
 `unverified`; unavailable mandatory integrations are `blocked`. The current matrix records
-`executed_synthetic` for the implemented policy, persistence, CLI, fake-peer, oracle, map, review,
-resume, migration, and measurement lanes, while retaining explicit unverified browser/current
-adapter limits and blocked real-process, end-to-end, and native-review lanes.
+`executed_synthetic` for 77 implemented policy, persistence, CLI, fake-peer, oracle, map, review,
+resume, migration, and measurement rows, with 7 explicit unverified browser/current-adapter rows
+and 6 blocked real-process, end-to-end, and native-review rows.
 
 ## Gates
 
