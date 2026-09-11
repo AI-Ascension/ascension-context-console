@@ -85,7 +85,9 @@ explicit volatile setup in this environment, not encrypted persistent storage or
 spill resistance.
 The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
 its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
-depth 3 ancestry could not be established. This is an orchestration and isolation limitation, not
+depth 3 ancestry could not be established. The continuation runtime similarly exposes spawn/resume/
+messaging/close operations but no selectable `gpt-5.6-luna`/`max` child with reservation controls, so
+no exact-settings three-level native ancestry is claimed or simulated. This is an orchestration and isolation limitation, not
 evidence that the native profile is supported. Authentication realm, ambient-history exclusion,
 encrypted-state guarantees, migration, native compaction/transforms, and remote cleanup remain
 unverified; the tool-denial failure is recorded above.
