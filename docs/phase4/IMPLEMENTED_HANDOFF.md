@@ -1,7 +1,7 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
-Date: 2026-09-11. The target implementation source baseline is `b502c77`.
-The companion harness baseline is `d9849aa`. This handoff update is documentation-only.
+Date: 2026-09-11. The target implementation source baseline is `35271da`.
+The companion harness baseline is `d9849aa`. Subsequent target commits are evidence/documentation-only.
 
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
