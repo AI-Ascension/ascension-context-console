@@ -306,7 +306,8 @@ impl ProviderSessionRoute {
                 Err(SessionApiError::MethodNotAllowed)
             };
         }
-        if segments.len() == 5 && segments[4] == "candidates" {
+        if segments.len() == 5 && segments[3] == "provider-sessions" && segments[4] == "candidates"
+        {
             return self.mutate_candidate(method, run_id, body);
         }
         if segments.len() == 4 && segments[3] == "provider-session-events" {
@@ -344,6 +345,9 @@ impl ProviderSessionRoute {
                 "operation",
                 serde_json::to_value(operation).map_err(|_| SessionApiError::BadRequest)?,
             ));
+        }
+        if segments[3] != "provider-sessions" {
+            return Err(SessionApiError::NotFound);
         }
         if segments.len() == 5 {
             let binding = self

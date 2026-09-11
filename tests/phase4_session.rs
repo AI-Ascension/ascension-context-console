@@ -175,6 +175,39 @@ fn commands_are_strictly_typed_and_idempotent() {
 }
 
 #[test]
+fn binding_routes_cannot_cross_event_or_operation_prefixes() {
+    let request = br#"{"idempotency_key":"candidate-1","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation"}"#;
+    let mut route = ProviderSessionRoute::fixture("operator");
+    for path in [
+        "/v1/runs/run-fixture/provider-session-events/candidates",
+        "/v1/runs/run-fixture/provider-session-operations/candidates",
+    ] {
+        assert!(matches!(
+            route.handle("POST", path, "operator", request),
+            Err(SessionApiError::MethodNotAllowed | SessionApiError::NotFound)
+        ));
+    }
+    let candidate = route
+        .handle(
+            "POST",
+            "/v1/runs/run-fixture/provider-sessions/candidates",
+            "operator",
+            request,
+        )
+        .expect("candidate");
+    let binding = candidate["value"]["binding_id"].as_str().expect("binding");
+    for path in [
+        format!("/v1/runs/run-fixture/provider-session-events/{binding}"),
+        format!("/v1/runs/run-fixture/provider-session-events/{binding}/history"),
+    ] {
+        assert_eq!(
+            route.handle("GET", &path, "operator", &[]),
+            Err(SessionApiError::NotFound)
+        );
+    }
+}
+
+#[test]
 fn maintenance_routes_are_metadata_only_and_scope_bound() {
     let mut route = ProviderSessionRoute::fixture("operator");
     let candidate = route
