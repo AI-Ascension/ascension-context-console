@@ -19,7 +19,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase4/persistent-provider",
-    "revision": "f2d5e1e8ccce6a2393681546880463970e2c8a71"
+    "revision": "6d09aa5fdb103210103d9d11aa5b14824d2d6552"
   },
   "platform": {
     "os": "linux",
@@ -38,7 +38,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:43047",
+  "base_url": "http://127.0.0.1:42553",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -50,24 +50,24 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:43047/web/",
-    "http://127.0.0.1:43047/web/styles.css",
-    "http://127.0.0.1:43047/web/app.js",
-    "http://127.0.0.1:43047/offline-bundle.json",
-    "http://127.0.0.1:43047/demo/snapshot",
-    "http://127.0.0.1:43047/demo/events",
-    "http://127.0.0.1:43047/demo/comparison",
-    "http://127.0.0.1:43047/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:43047/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:43047/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:43047/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:43047/v3/memory/capabilities",
-    "http://127.0.0.1:43047/v3/memory/status",
-    "http://127.0.0.1:43047/v1/runs/fixture-run-001/provider-sessions/capabilities",
-    "http://127.0.0.1:43047/v1/runs/fixture-run-001/provider-sessions",
-    "http://127.0.0.1:43047/v1/runs/fixture-run-001/provider-sessions/candidates",
-    "http://127.0.0.1:43047/v1/runs/fixture-run-001/provider-sessions/capabilities",
-    "http://127.0.0.1:43047/v1/runs/fixture-run-001/provider-sessions"
+    "http://127.0.0.1:42553/web/",
+    "http://127.0.0.1:42553/web/styles.css",
+    "http://127.0.0.1:42553/web/app.js",
+    "http://127.0.0.1:42553/offline-bundle.json",
+    "http://127.0.0.1:42553/demo/snapshot",
+    "http://127.0.0.1:42553/demo/events",
+    "http://127.0.0.1:42553/demo/comparison",
+    "http://127.0.0.1:42553/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:42553/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:42553/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:42553/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:42553/v3/memory/capabilities",
+    "http://127.0.0.1:42553/v3/memory/status",
+    "http://127.0.0.1:42553/v1/runs/fixture-run-001/provider-sessions/capabilities",
+    "http://127.0.0.1:42553/v1/runs/fixture-run-001/provider-sessions",
+    "http://127.0.0.1:42553/v1/runs/fixture-run-001/provider-sessions/candidates",
+    "http://127.0.0.1:42553/v1/runs/fixture-run-001/provider-sessions/capabilities",
+    "http://127.0.0.1:42553/v1/runs/fixture-run-001/provider-sessions"
   ],
   "external_requests": [],
   "fixture_requests": [],
