@@ -37,6 +37,8 @@ reports the bound-root invariant at initialization; these checks do not establis
 native binary's own precedence behavior or runtime growth behavior.
 Only the approved `OPENAI_API_KEY` secret name may cross the inherited-environment boundary; path,
 endpoint and unrelated credential names are rejected by configuration validation.
+The owned transport rejects a forbidden method before writing a frame; this is a broker/fixture
+allowlist guarantee, not proof that an installed native binary will suppress its own built-in tools.
 Broker retention is finite at every admission and restore boundary: policy validation caps completed
 turns at 128 and scope lifetime at 24 hours, history refresh/completion/restore enforce the selected
 turn and aggregate-byte limits, and fork-created evaluation candidates plus combined fork/compaction

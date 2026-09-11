@@ -73,6 +73,7 @@ harness: cargo test --locked -p sts2-harness --test provider_session --test prov
 harness: cargo test --locked -p sts2-harness --lib provider_session::transport::config::tests::process_environment_is_bound_to_state_root
 harness: cargo test --locked -p sts2-harness --lib provider_session::transport::io::tests::state_quota_scan_is_bounded_and_fail_closed
 harness: cargo test --locked -p sts2-harness --lib provider_session::transport::tests::runtime_state_growth_fences_and_stops_owned_peer
+harness: cargo test --locked -p sts2-harness --lib provider_session::transport::tests::forbidden_native_method_is_rejected_before_write
 target: node --check web/app.js && node --check tools/integrated_browser_audit.cjs
 target: cargo test --locked -p context-service --test phase4_session
 harness: cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety --test provider_session_snapshot
