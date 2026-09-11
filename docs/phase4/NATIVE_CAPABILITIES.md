@@ -32,6 +32,8 @@ can be promoted to persistent native capability. Startup now scans the complete 
 against the 256 MiB bound and fails closed on symlinks, special files, unsafe child roots or
 over-limit bytes. The compiled fixture reports the bound-root invariant at initialization; this
 does not establish the installed native binary's own precedence behavior or runtime growth control.
+Only the approved `OPENAI_API_KEY` secret name may cross the inherited-environment boundary; path,
+endpoint and unrelated credential names are rejected by configuration validation.
 
 An isolated native smoke was run with a disposable state root and a loopback-refused proxy. It
 observed successful `initialize`, ephemeral `thread/start`, and metadata-only `thread/read`

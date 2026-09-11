@@ -42,3 +42,5 @@ temporary variables to its approved state root; native OS containment and quota 
 unverified. Startup scans the private state tree against a 256 MiB bound and fails closed on unsafe
 entries, while runtime growth observation remains unverified. The compiled fixture reports this
 binding during initialization, while installed-native precedence remains unverified.
+Configuration accepts only the approved `OPENAI_API_KEY` inherited secret name; unrelated credential,
+endpoint and path variables are rejected.

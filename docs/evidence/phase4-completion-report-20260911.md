@@ -46,7 +46,8 @@ Codex storage or auxiliary-file containment.
 The owned stdio transport clears ambient environment roots, binds conventional home/config/cache/
 temporary variables to its approved state root, and scans that private tree against a 256 MiB startup
 quota. These checks fail closed on unsafe entries, but native precedence and runtime growth
-observation remain unverified.
+observation remain unverified. Only the approved `OPENAI_API_KEY` inherited secret name is accepted;
+unrelated credential, endpoint and path variables are rejected.
 
 ## Verification
 
