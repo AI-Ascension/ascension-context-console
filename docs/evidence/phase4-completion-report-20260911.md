@@ -55,7 +55,8 @@ The harness full suite passed with 181 tests and one ignored test in the large e
 group plus the remaining workspace groups; the explicit `TMPDIR` was required because the default
 `/tmp` tmpfs exhausted while constructing oversized SQLite fixtures. The target full suite passed.
 Loopback probes against the built integrated demo returned capabilities/list/candidate success and
-403 for a wrong-origin candidate write; all reported zero native calls and zero game effects.
+403 for a wrong-origin candidate write; all reported zero native calls and zero game effects. The
+exact probe record is [`phase4-session-loopback-20260911.json`](phase4-session-loopback-20260911.json).
 
 The current browser audit script is syntax-checked but was not executed because the Playwright and
 Chromium paths used by the historical evidence are unavailable in this environment. The older
