@@ -67,8 +67,8 @@ Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked i
 
 ## Limits and blockers
 
-No merge was initiated by this work; harness PR #68 merged externally during the handoff and the
-new follow-up remains draft. No release, deployment, live provider call, game launch, credential
+No merge was initiated by this work; harness PRs #68 and #69 merged externally during the handoff and
+the current follow-up is draft PR #70. No release, deployment, live provider call, game launch, credential
 use, or unrelated write was performed. The target's default facade still has no attached persistent
 projection; the explicit adapter proof is an offline synthetic path. The remaining mandatory
 evidence is the independent native three-level reviewer. Synthetic adapter, process, and network
