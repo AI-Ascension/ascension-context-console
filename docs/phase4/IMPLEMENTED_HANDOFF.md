@@ -1,7 +1,7 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
 Date: 2026-09-11. The target implementation source baseline is `35271da`.
-The companion harness baseline is `f57a765`. Subsequent target commits are evidence/documentation-only.
+The companion harness baseline is `4e88d9e`. Subsequent target commits are evidence/documentation-only.
 
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
@@ -56,3 +56,6 @@ compaction maintenance consume the four-candidate and two-job quotas.
 Pending candidate, reconnect and compaction completions are fenced after retirement, while pending
 fork/compaction maintenance is invalidated on owner rotation or crash recovery; the companion
 retirement regression lane covers these no-resurrection transitions.
+History cursors are binding- and scope-tagged and carry the current history epoch; prepared turns
+carry the broker auth and revocation epochs, so cross-binding, stale-history, and stale-authorization
+replays are rejected.

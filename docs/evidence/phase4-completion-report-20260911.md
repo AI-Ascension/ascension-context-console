@@ -10,7 +10,7 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
 | [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` implementation source baseline `35271da` | [draft PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12); committed and pushed; subsequent target commits are evidence/documentation-only; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
-| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `f57a765` | [draft PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
+| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `4e88d9e` | [draft PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
 reset or overwritten.
@@ -42,6 +42,9 @@ durability remains unverified.
 Pending candidate, reconnect and compaction completions are fenced after retirement, and pending
 fork/compaction maintenance is invalidated on owner rotation or crash recovery; the dedicated
 retirement regression lane covers these no-resurrection transitions.
+History cursors are binding- and scope-tagged and carry the current history epoch; prepared turns
+carry the broker auth and revocation epochs, with cross-binding, stale-history, and stale-
+authorization replay rejection covered by the cursor and provider-session regression lanes.
 
 The journal has an explicit volatile adapter and a broker-owned encrypted-persistent adapter. The
 encrypted adapter authenticates only this bounded metadata envelope and uses fail-closed absolute,
@@ -75,6 +78,7 @@ harness: cargo run --locked --package repo-policy -- --strict
 harness: TMPDIR=<dedicated persistent temp directory> cargo test --locked --workspace --all-targets --all-features --quiet
 harness: cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety --test provider_session_snapshot --test provider_session_store
 harness: cargo test --locked -p sts2-harness --test provider_session_retirement
+harness: cargo test --locked -p sts2-harness --test provider_session_cursor
 harness: cargo test --locked -p sts2-harness --lib provider_session::transport::config::tests::process_environment_is_bound_to_state_root
 harness: cargo test --locked -p sts2-harness --lib provider_session::transport::io::tests::state_quota_scan_is_bounded_and_fail_closed
 harness: cargo test --locked -p sts2-harness --lib provider_session::transport::tests::runtime_state_growth_fences_and_stops_owned_peer
