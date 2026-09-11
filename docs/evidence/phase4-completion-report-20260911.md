@@ -85,7 +85,10 @@ The fake lane used no real provider credentials, observed native tool-definition
 recorded bounded durable-fork and compact/start endpoint probes. A restricted configuration probe
 removed the forbidden executable tool classes but retained `request_user_input`; it therefore does not
 establish complete hardening, clean rehydration or compaction semantics, OS-level egress trap, or full
-provider compatibility.
+provider compatibility. A provider-generated `request_user_input` callback attempt emitted no native
+server request and repeatedly reported the tool unavailable in Default mode. The read-only migration
+dry run found no eligible sessions in an empty disposable root, so persisted-state migration remains
+unverified.
 
 ## External effects and handoff
 

@@ -35,6 +35,10 @@ background-terminal tool definitions observed. This is partial hardening evidenc
 interactive tool, absent OS-level egress proof, and untested server-initiated elicitation denial keep
 the native hardening profile unavailable for the default product path. The fork and compaction probes
 are endpoint observations, not clean-rehydration or transform proofs.
+A provider-generated `request_user_input` callback denial attempt produced no native server request;
+the router repeatedly reported that the residual tool was unavailable in Default mode, so no clean
+denial response was established. A read-only `migrate-rollouts --json --verbose` dry run on an empty
+disposable state root returned zero outcomes; it did not exercise migration of persisted state.
 The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
 its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
 depth 3 ancestry could not be established. This is an orchestration and isolation limitation, not

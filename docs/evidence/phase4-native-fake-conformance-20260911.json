@@ -137,6 +137,29 @@
     "bubblewrap_warning_observed": true,
     "interpretation": "Supported feature/config switches removed shell, file, code, browser, MCP, skill, subagent, background-terminal and web-search tool classes from this native request. A residual request_user_input tool remained, and no OS-level egress proof or server-initiated elicitation denial was established; this is partial hardening evidence only."
   },
+  "server_request_denial_probe": {
+    "tested": true,
+    "purpose": "Attempted provider-generated request_user_input callback denial under the restricted profile",
+    "initialize_success": true,
+    "thread_start_success": true,
+    "turn_start_response": true,
+    "fake_provider_calls": 558,
+    "server_requests_observed": [],
+    "turn_completed": false,
+    "process_returncode_after_terminate": -15,
+    "native_error_observed": "request_user_input is unavailable in Default mode",
+    "external_egress_proof": false,
+    "outcome": "not_reached_tool_unavailable_default_mode",
+    "interpretation": "The native router did not emit a server request for the provider-generated request_user_input item; it repeatedly reported the residual tool unavailable in Default mode. No clean denial response or successful elicitation path was established."
+  },
+  "migration_dry_run": {
+    "tested": true,
+    "command": "codex migrate-rollouts --json --verbose",
+    "apply": false,
+    "disposable_state_root": true,
+    "outcomes_count": 0,
+    "interpretation": "A read-only dry run on an empty disposable root found no eligible legacy sessions; actual persisted-state migration, downgrade handling, and tombstone-bypass checks remain unexercised."
+  },
   "hardening_observation": {
     "native_tool_definitions_forwarded_per_turn": 11,
     "native_tool_definitions_forwarded_total": 22,
