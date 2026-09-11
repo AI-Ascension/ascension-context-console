@@ -299,6 +299,15 @@ function renderProviderSessions(capabilitiesEnvelope, listEnvelope) {
       .forEach((value) => { const cell = document.createElement("td"); cell.textContent = String(value ?? "unavailable"); row.append(cell); });
     rows.append(row);
   });
+  const operationRows = document.querySelector("#session-operation-rows");
+  operationRows.replaceChildren();
+  (list.operations || []).forEach((operation) => {
+    const row = document.createElement("tr");
+    row.dataset.operationState = String(operation.state ?? "unavailable");
+    [operation.operation_id, operation.kind, operation.state, operation.automatic_retry ? "retry allowed" : "no retry", operation.auto_resume ? "auto" : "held", operation.game_effects]
+      .forEach((value) => { const cell = document.createElement("td"); cell.textContent = String(value ?? "unavailable"); row.append(cell); });
+    operationRows.append(row);
+  });
   document.querySelector("#session-panel").hidden = false;
 }
 

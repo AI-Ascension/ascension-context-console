@@ -295,3 +295,149 @@ fn maintenance_routes_are_metadata_only_and_scope_bound() {
             .is_empty()
     );
 }
+
+#[test]
+fn authority_bearing_or_raw_rpc_input_is_rejected_without_effect() {
+    let mut route = ProviderSessionRoute::fixture("operator");
+    for body in [
+        br#"{"idempotency_key":"authority-1","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation","method":"thread/start"}"#.as_slice(),
+        br#"{"idempotency_key":"authority-1","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation","native_method":"turn/start"}"#.as_slice(),
+        br#"{"idempotency_key":"authority-1","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation","role":"system"}"#.as_slice(),
+        br#"{"idempotency_key":"authority-1","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation","rpc":{"jsonrpc":"2.0","method":"turn/start"}}"#.as_slice(),
+    ] {
+        assert_eq!(
+            route.handle(
+                "POST",
+                "/v1/runs/run-fixture/provider-sessions/candidates",
+                "operator",
+                body,
+            ),
+            Err(SessionApiError::BadRequest)
+        );
+    }
+    // No candidate was created by any rejected authority-bearing request.
+    let list = route
+        .handle(
+            "GET",
+            "/v1/runs/run-fixture/provider-sessions",
+            "operator",
+            &[],
+        )
+        .expect("list");
+    assert_eq!(
+        list["value"]["bindings"]
+            .as_array()
+            .expect("bindings")
+            .len(),
+        0
+    );
+
+    let candidate = route
+        .handle(
+            "POST",
+            "/v1/runs/run-fixture/provider-sessions/candidates",
+            "operator",
+            br#"{"idempotency_key":"authority-2","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation"}"#,
+        )
+        .expect("candidate");
+    let binding = candidate["value"]["binding_id"]
+        .as_str()
+        .expect("binding id");
+    for suffix in ["turn/start", "rpc", "native-rpc"] {
+        assert_eq!(
+            route.handle(
+                "POST",
+                &format!("/v1/runs/run-fixture/provider-sessions/{binding}/{suffix}"),
+                "operator",
+                b"{}",
+            ),
+            Err(SessionApiError::NotFound)
+        );
+    }
+    assert_eq!(
+        route.handle(
+            "POST",
+            "/v1/runs/run-fixture/provider-session-operations",
+            "operator",
+            b"{}",
+        ),
+        Err(SessionApiError::MethodNotAllowed)
+    );
+}
+
+#[test]
+fn diagnostics_do_not_leak_paths_or_credentials_and_do_not_echo_input() {
+    let errors = [
+        SessionApiError::BadRequest,
+        SessionApiError::Unauthorized,
+        SessionApiError::AuthNeeded,
+        SessionApiError::Forbidden,
+        SessionApiError::NotFound,
+        SessionApiError::MethodNotAllowed,
+        SessionApiError::Unsupported,
+        SessionApiError::Capacity,
+        SessionApiError::Conflict,
+        SessionApiError::Stale,
+        SessionApiError::Expired,
+        SessionApiError::Ambiguous,
+        SessionApiError::Unavailable,
+        SessionApiError::MalformedPeer,
+    ];
+    for error in errors {
+        let text = error.to_string().to_lowercase();
+        for forbidden in ["/", "\\", "secret", "bearer", "token", "openai", "http"] {
+            assert!(
+                !text.contains(forbidden),
+                "diagnostic {error:?} leaked {forbidden}: {text}"
+            );
+        }
+    }
+
+    let secret = "/home/agent/.codex/secret-token";
+    let body = format!(
+        r#"{{"idempotency_key":"leak-1","expected_control_generation":1,"approved_policy_ref":"{secret}","profile_ref":"profile-1","purpose":"evaluation"}}"#
+    );
+    let mut route = ProviderSessionRoute::fixture("operator");
+    let error = route
+        .handle(
+            "POST",
+            "/v1/runs/run-fixture/provider-sessions/candidates",
+            "operator",
+            body.as_bytes(),
+        )
+        .expect_err("invalid policy ref must be rejected");
+    assert_eq!(error, SessionApiError::BadRequest);
+    assert!(!error.to_string().contains(secret));
+    assert!(!format!("{error:?}").contains(secret));
+}
+
+#[test]
+fn phase4_cli_rejects_authority_input_without_echoing_secrets() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let secret = "/home/agent/.codex/secret-token";
+    let body = format!(
+        r#"{{"idempotency_key":"cli-1","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation","native_method":"{secret}"}}"#
+    );
+    let mut child = Command::new(env!("CARGO_BIN_EXE_context-console"))
+        .args(["phase4-cli", "candidate"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn context-console");
+    child
+        .stdin
+        .as_mut()
+        .expect("stdin")
+        .write_all(body.as_bytes())
+        .expect("write body");
+    let output = child.wait_with_output().expect("wait");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("provider-session request is invalid"));
+    assert!(!stderr.contains(secret));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains(secret));
+}

@@ -298,9 +298,14 @@ impl ProviderSessionRoute {
                     .values()
                     .filter(|binding| binding.scope.run_id == run_id)
                     .collect::<Vec<_>>();
+                let operations = self
+                    .operations
+                    .values()
+                    .filter(|operation| operation.scope.run_id == run_id)
+                    .collect::<Vec<_>>();
                 Ok(self.envelope(
                     "list",
-                    json!({"run_id":run_id,"bindings":bindings,"next_cursor":null}),
+                    json!({"run_id":run_id,"bindings":bindings,"operations":operations,"next_cursor":null}),
                 ))
             } else {
                 Err(SessionApiError::MethodNotAllowed)

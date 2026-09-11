@@ -96,6 +96,11 @@ async function run() {
     await page.locator('#session-create-candidate').click();
     await page.waitForFunction(() => document.querySelectorAll('#session-rows tr').length === 1);
     assert.match(await page.locator('#session-message').textContent(), /accepted locally/);
+    assert.equal(await page.locator('#session-operation-rows tr').count(), 1);
+    assert.equal(
+      await page.locator('#session-operation-rows tr').first().getAttribute('data-operation-state'),
+      'intent_persisted',
+    );
     const deniedSessionWrite = await (await fetch(`${base}/v1/runs/fixture-run-001/provider-sessions/candidates`, {
       method: 'POST',
       headers: {
@@ -185,6 +190,37 @@ async function run() {
     assert.deepEqual(manifestConsoleErrors, []);
     assert.deepEqual(manifestPageErrors, []);
     await manifestPage.close();
+
+    const statePage = await context.newPage();
+    const stateRequests = [];
+    const stateConsoleErrors = [];
+    const statePageErrors = [];
+    statePage.on('request', (request) => stateRequests.push(request.url()));
+    statePage.on('console', (message) => { if (message.type() === 'error') stateConsoleErrors.push(message.text()); });
+    statePage.on('pageerror', (error) => statePageErrors.push(String(error)));
+    await statePage.route(`${base}/v1/runs/fixture-run-001/provider-sessions`, async (route) => {
+      const response = await route.fetch();
+      const list = await response.json();
+      list.value.operations = [
+        { operation_id: 'operation-accepted', kind: 'create_candidate', state: 'intent_persisted', automatic_retry: false, auto_resume: false, game_effects: 0 },
+        { operation_id: 'operation-pending', kind: 'reconnect', state: 'sent', automatic_retry: false, auto_resume: false, game_effects: 0 },
+        { operation_id: 'operation-unknown', kind: 'turn', state: 'unknown', automatic_retry: false, auto_resume: false, game_effects: 0 },
+        { operation_id: 'operation-completed', kind: 'compact', state: 'completed', automatic_retry: false, auto_resume: false, game_effects: 0 },
+      ];
+      await route.fulfill({ response, body: JSON.stringify(list) });
+    });
+    await statePage.goto('/web/', { waitUntil: 'networkidle' });
+    await statePage.waitForSelector('#session-panel:not([hidden])');
+    await statePage.waitForFunction(() => document.querySelectorAll('#session-operation-rows tr').length === 4);
+    const renderedStates = await statePage
+      .locator('#session-operation-rows tr')
+      .evaluateAll((rows) => rows.map((row) => row.dataset.operationState));
+    assert.deepEqual(renderedStates, ['intent_persisted', 'sent', 'unknown', 'completed']);
+    assert.equal(new Set(renderedStates).size, 4);
+    assert.deepEqual(stateConsoleErrors, []);
+    assert.deepEqual(statePageErrors, []);
+    assert.deepEqual(stateRequests.filter((url) => !url.startsWith(base)), []);
+    await statePage.close();
 
     const desktopPath = path.join(evidenceDir, 'integrated-browser-desktop-20260911.png');
     await page.evaluate(() => document.fonts.ready);
@@ -303,6 +339,7 @@ async function run() {
         denied_without_csrf_status: deniedSessionWrite,
         native_calls: 0,
         game_effects: 0,
+        rendered_operation_states: renderedStates,
       },
       integration_metrics: metrics,
       source_artifacts: [
@@ -336,6 +373,7 @@ async function run() {
           && afterMemorySnapshot.equals(beforeMemorySnapshot),
         phase4_session_fixture: true,
         phase4_csrf_denied: deniedSessionWrite === 403,
+        phase4_async_states_distinct: new Set(renderedStates).size === 4,
       },
       artifacts: [
         { path: 'docs/evidence/integrated-browser-desktop-20260911.png', sha256: sha256(desktopPath) },
