@@ -1,7 +1,7 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
 Date: 2026-09-11. The target implementation source baseline is `35271da`.
-The companion harness baseline is `4e88d9e`. Subsequent target commits are evidence/documentation-only.
+The companion harness baseline is `d094fc0`. Subsequent target commits are evidence/documentation-only.
 
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
