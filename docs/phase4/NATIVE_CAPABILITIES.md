@@ -37,6 +37,11 @@ reports the bound-root invariant at initialization; these checks do not establis
 native binary's own precedence behavior or runtime growth behavior.
 Only the approved `OPENAI_API_KEY` secret name may cross the inherited-environment boundary; path,
 endpoint and unrelated credential names are rejected by configuration validation.
+Broker retention is finite at every admission and restore boundary: policy validation caps completed
+turns at 128 and scope lifetime at 24 hours, history refresh/completion/restore enforce the selected
+turn and aggregate-byte limits, and fork-created evaluation candidates plus combined fork/compaction
+maintenance jobs consume the four-candidate and two-job quotas. Expired or over-quota records are
+rejected rather than retained by a pin or a restore.
 
 An isolated native smoke was run with a disposable state root and a loopback-refused proxy. It
 observed successful `initialize`, ephemeral `thread/start`, and metadata-only `thread/read`

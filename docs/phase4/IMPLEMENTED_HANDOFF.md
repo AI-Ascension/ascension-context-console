@@ -46,3 +46,7 @@ The compiled fixture reports this binding during initialization, while installed
 and runtime behavior remain unverified.
 Configuration accepts only the approved `OPENAI_API_KEY` inherited secret name; unrelated credential,
 endpoint and path variables are rejected.
+Finite retention is enforced at admission and restore: policy validation caps completed turns at 128
+and scope lifetime at 24 hours; history refresh, turn completion and snapshot restore apply the
+selected turn and aggregate-byte limits; fork-created evaluation bindings and combined fork/
+compaction maintenance consume the four-candidate and two-job quotas.

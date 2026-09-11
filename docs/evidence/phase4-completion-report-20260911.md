@@ -50,6 +50,9 @@ each response; an overage fences and terminates the owned child, with a compiled
 These are source/fixture guarantees, not proof of installed-native precedence or runtime behavior.
 Only the approved `OPENAI_API_KEY` inherited secret name is accepted; unrelated credential,
 endpoint and path variables are rejected.
+Policy validation also caps scope lifetime at 24 hours and completed turns at 128. History refresh,
+turn completion and snapshot restore enforce turn and aggregate-byte bounds; fork-created evaluation
+bindings and combined fork/compaction maintenance are bounded to four candidates and two jobs.
 
 ## Verification
 
