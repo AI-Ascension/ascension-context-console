@@ -1,7 +1,8 @@
 # Phase 3 completion report
 
 Date: 2026-09-11. This is the bounded implementation and evidence record for the additive
-`ascension.context-memory.*.v1` surface on the `phase2/context-editing` draft branch. It is not a
+`ascension.context-memory.*.v1` surface on the `phase2/context-editing` branch, merged to target
+`main` by PR #3. It is not a
 product-readiness or live-runtime claim. Target implementation code is pinned to
 `8e52da837ae0a23cea18d7cd3d5164765911e6b6`; the companion harness implementation is pinned to
 `3cb72968bee8943e89158a28cec27d7b88e1ce91`.
@@ -67,12 +68,12 @@ Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked i
 
 ## Limits and blockers
 
-No merge was initiated by this work; harness PRs #68 and #69 merged externally during the handoff and
-the current follow-up is draft PR #70. No release, deployment, live provider call, game launch, credential
-use, or unrelated write was performed. The target's default facade still has no attached persistent
+Target PR #3 was merged after its `policy` and `Rust quality gates` checks passed; the squash merge
+commit is `114b3e5ae28cd60d9dafc421711dee859b602c4d`. Harness PR #70 was also merged externally;
+its merge commit is `8d771f128bc0ba13071063425c9a852bac2c40c1`. No release, deployment, live provider
+call, game launch, credential use, or unrelated write was performed. The target's default facade still has no attached persistent
 projection; the explicit adapter proof is an offline synthetic path. The remaining mandatory
 evidence is the independent native three-level reviewer. Synthetic adapter, process, and network
 tripwire evidence cannot establish provider quality, native game/action effects, production storage
-operations, browser compatibility, or live deployment. Target PR #3 and the new harness follow-up
-remain open and draft, and the handoff does not claim that all mandatory requirements are
-product-verified.
+operations, browser compatibility, or live deployment. The handoff does not claim that all mandatory
+requirements are product-verified; the native three-level reviewer remains blocked.
