@@ -100,6 +100,40 @@
         <pre id="memory-results" class="preview-diff" tabindex="0" aria-live="polite">No search performed.</pre>
       </section>
 
+      <section id="session-panel" class="panel" hidden aria-labelledby="session-title">
+        <div class="section-heading">
+          <h2 id="session-title">Provider session boundary</h2>
+          <span id="session-badge" class="badge">fixture-only</span>
+        </div>
+        <dl class="facts">
+          <div><dt>Session mode</dt><dd id="session-mode"></dd></div>
+          <div><dt>Profile</dt><dd id="session-profile"></dd></div>
+          <div><dt>Native evidence</dt><dd id="session-evidence"></dd></div>
+          <div><dt>Transport</dt><dd id="session-transport"></dd></div>
+          <div><dt>Hardening</dt><dd id="session-hardening"></dd></div>
+          <div><dt>Enabled methods</dt><dd id="session-method-count"></dd></div>
+        </dl>
+        <p id="session-message" class="callout">No native provider or game call is made by this fixture route.</p>
+        <div class="button-row">
+          <button id="session-create-candidate" type="button">Create evaluation candidate</button>
+          <button id="session-refresh" type="button">Refresh sessions</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Binding</th><th scope="col">State</th><th scope="col">Purpose</th><th scope="col">History</th><th scope="col">Game effects</th></tr></thead>
+            <tbody id="session-rows"></tbody>
+          </table>
+        </div>
+        <h3 id="session-operations-title">Async operations</h3>
+        <div class="table-wrap">
+          <table aria-labelledby="session-operations-title">
+            <thead><tr><th scope="col">Operation</th><th scope="col">Kind</th><th scope="col">State</th><th scope="col">Automatic retry</th><th scope="col">Scheduler</th><th scope="col">Game effects</th></tr></thead>
+            <tbody id="session-operation-rows"></tbody>
+          </table>
+        </div>
+        <pre id="session-methods" class="preview-diff" tabindex="0">Methods unavailable.</pre>
+      </section>
+
       <section id="compaction-panel" class="panel" hidden aria-labelledby="compaction-title">
         <div class="section-heading">
           <h2 id="compaction-title">Compaction review</h2>

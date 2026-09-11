@@ -14,6 +14,7 @@ mod integrated_demo;
 mod memory;
 mod observability;
 mod private_store;
+pub mod provider_session;
 mod read_api;
 mod store;
 
@@ -21,7 +22,7 @@ pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,
 };
-pub use cli::{run_phase2_cli, run_phase3_adapter, run_phase3_cli};
+pub use cli::{run_phase2_cli, run_phase3_adapter, run_phase3_cli, run_phase4_cli};
 pub use control::{
     Boundary as ControlBoundary, CURRENT_DURABLE_STORE_SCHEMA_VERSION,
     Capabilities as ControlCapabilities, Command as ControlCommand, ControlError, ControlPlane,
@@ -38,6 +39,10 @@ pub use observability::{
 };
 pub use private_store::{
     EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,
+};
+pub use provider_session::{
+    ProviderSessionRoute, SessionApiError, SessionBindingView, SessionCapabilitiesView,
+    SessionHardeningView, SessionOperationView, SessionRouteMode, SessionScopeView,
 };
 pub use read_api::{
     ApiError, HttpRequest, HttpResponse, MAX_HTTP_BODY_BYTES, MAX_HTTP_REQUEST_BYTES, ReadApi,

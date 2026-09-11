@@ -11,6 +11,7 @@ const root = path.resolve(__dirname, '..');
 const evidenceDir = path.join(root, 'docs', 'evidence');
 const playwrightModule = process.env.PLAYWRIGHT_MODULE || 'playwright';
 const { chromium } = require(playwrightModule);
+const playwrightVersion = require(`${playwrightModule}/package.json`).version;
 
 function digest(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -53,7 +54,10 @@ async function run() {
   try {
     const readyUrl = await waitForServer(child);
     const base = new URL(readyUrl).origin;
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    });
     const context = await browser.newContext({
       baseURL: base,
       reducedMotion: 'reduce',
@@ -311,11 +315,11 @@ async function run() {
       },
       command: {
         server: 'cargo run --locked --package context-service --bin context-console -- integrated-demo 0',
-        audit: `FONTCONFIG_PATH=${process.env.FONTCONFIG_PATH || '<unset>'} FONTCONFIG_FILE=${process.env.FONTCONFIG_FILE || '<unset>'} XDG_DATA_DIRS=${process.env.XDG_DATA_DIRS || '<unset>'} LD_LIBRARY_PATH=${process.env.LD_LIBRARY_PATH || '<unset>'} PLAYWRIGHT_MODULE=${playwrightModule} node tools/phase2_browser_audit.cjs`,
+        audit: `FONTCONFIG_PATH=${process.env.FONTCONFIG_PATH || '<unset>'} FONTCONFIG_FILE=${process.env.FONTCONFIG_FILE || '<unset>'} XDG_DATA_DIRS=${process.env.XDG_DATA_DIRS || '<unset>'} LD_LIBRARY_PATH=${process.env.LD_LIBRARY_PATH || '<unset>'} PLAYWRIGHT_MODULE=playwright@${playwrightVersion} PLAYWRIGHT_BROWSERS_PATH=<cached-browser> node tools/phase2_browser_audit.cjs`,
       },
       result: 'passed',
-      evidence_class: ['synthetic', 'native', 'browser'],
-      tool: `Playwright ${require(`${playwrightModule}/package.json`).version}`,
+      evidence_class: ['synthetic', 'compiled_peer', 'browser'],
+      tool: `Playwright ${playwrightVersion}`,
       browser: await browser.version(),
       base_url: base,
       workflow: ['draft_created', 'draft_saved', 'exploratory_preview', 'pause_ready', 'applicable_preview', 'commit_paused', 'explicit_resume', 'restore_as_draft'],

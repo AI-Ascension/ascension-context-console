@@ -5,8 +5,10 @@ const MAX_EVENTS = 256;
 const bundleManifestUrl = new URL("../offline-bundle.json", document.baseURI);
 const CONTROL_BASE = "/v2/runs/fixture-run/context-control";
 const MEMORY_BASE = "/v3/memory";
+const SESSION_BASE = "/v1/runs/fixture-run-001";
 const CONTROL_TOKEN = "fixture-editor-token";
 const OBJECTIVE_TOKEN = "fixture-objective-token";
+const SESSION_TOKEN = "fixture-session-token";
 const CSRF_TOKEN = "fixture-csrf-token";
 const status = document.querySelector("#status");
 let controlState;
@@ -254,6 +256,98 @@ async function loadMemory() {
     document.querySelector("#memory-panel").hidden = false;
     document.querySelector("#compaction-panel").hidden = false;
     document.querySelector("#memory-message").textContent = error instanceof Error ? error.message : "memory facade unavailable";
+  }
+}
+
+async function sessionJson(path, options = {}) {
+  const { token = SESSION_TOKEN, ...requestOptions } = options;
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  if (requestOptions.method && requestOptions.method !== "GET") {
+    headers.set("X-CSRF-Token", CSRF_TOKEN);
+  }
+  const response = await fetch(`${SESSION_BASE}${path}`, { ...requestOptions, headers, cache: "no-store" });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error || `provider session request returned ${response.status}`);
+  return value;
+}
+
+function renderProviderSessions(capabilitiesEnvelope, listEnvelope) {
+  const capabilities = capabilitiesEnvelope.value || {};
+  const list = listEnvelope.value || {};
+  showText("#session-badge", capabilitiesEnvelope.operation === "capabilities" ? "fixture-only" : "available");
+  showText("#session-mode", "fixture_only");
+  showText("#session-profile", capabilities.profile_id);
+  showText("#session-evidence", capabilities.evidence);
+  showText("#session-transport", capabilities.transport);
+  showText("#session-hardening", capabilities.hardening
+    ? `tools=${capabilities.hardening.tools_enabled ? "on" : "off"} · ambient=${capabilities.hardening.ambient_history ? "on" : "off"}`
+    : "unavailable");
+  showText("#session-method-count", Array.isArray(capabilities.enabled_methods) ? capabilities.enabled_methods.length : 0);
+  document.querySelector("#session-methods").textContent = JSON.stringify({
+    enabled_methods: capabilities.enabled_methods || [],
+    unknown_methods: capabilities.unknown_methods,
+    raw_rpc: capabilities.raw_rpc,
+    native_calls: 0,
+    game_effects: 0,
+  }, null, 2);
+  const rows = document.querySelector("#session-rows");
+  rows.replaceChildren();
+  (list.bindings || []).forEach((binding) => {
+    const row = document.createElement("tr");
+    [binding.binding_id, binding.state, binding.purpose, binding.history_coverage, binding.game_dispatch_capability ? "enabled" : "disabled"]
+      .forEach((value) => { const cell = document.createElement("td"); cell.textContent = String(value ?? "unavailable"); row.append(cell); });
+    rows.append(row);
+  });
+  const operationRows = document.querySelector("#session-operation-rows");
+  operationRows.replaceChildren();
+  (list.operations || []).forEach((operation) => {
+    const row = document.createElement("tr");
+    row.dataset.operationState = String(operation.state ?? "unavailable");
+    [operation.operation_id, operation.kind, operation.state, operation.automatic_retry ? "retry allowed" : "no retry", operation.auto_resume ? "auto" : "held", operation.game_effects]
+      .forEach((value) => { const cell = document.createElement("td"); cell.textContent = String(value ?? "unavailable"); row.append(cell); });
+    operationRows.append(row);
+  });
+  document.querySelector("#session-panel").hidden = false;
+}
+
+async function refreshProviderSessions() {
+  const [capabilities, list] = await Promise.all([
+    sessionJson("/provider-sessions/capabilities"),
+    sessionJson("/provider-sessions"),
+  ]);
+  renderProviderSessions(capabilities, list);
+}
+
+async function createProviderCandidate() {
+  const command = {
+    idempotency_key: `browser-candidate-${Date.now()}`,
+    expected_control_generation: 0,
+    approved_policy_ref: "policy-fixture",
+    profile_ref: "profile-fixture",
+    purpose: "evaluation",
+  };
+  try {
+    const result = await sessionJson("/provider-sessions/candidates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(command),
+    });
+    document.querySelector("#session-message").textContent = `Candidate ${result.operation} accepted locally; native calls=${result.value?.native_calls ?? 0}, game effects=${result.value?.game_effects ?? 0}.`;
+    await refreshProviderSessions();
+  } catch (error) {
+    document.querySelector("#session-message").textContent = error instanceof Error ? error.message : "candidate request failed";
+  }
+}
+
+async function loadProviderSessions() {
+  try {
+    await refreshProviderSessions();
+    document.querySelector("#session-refresh").addEventListener("click", refreshProviderSessions);
+    document.querySelector("#session-create-candidate").addEventListener("click", createProviderCandidate);
+  } catch (error) {
+    document.querySelector("#session-panel").hidden = false;
+    document.querySelector("#session-message").textContent = error instanceof Error ? error.message : "provider session boundary unavailable";
   }
 }
 
@@ -588,6 +682,7 @@ async function loadFixture() {
   });
   await loadControl();
   await loadMemory();
+  await loadProviderSessions();
 }
 
 loadFixture().catch((error) => {
