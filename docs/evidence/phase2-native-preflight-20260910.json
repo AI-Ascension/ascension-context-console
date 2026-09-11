@@ -226,6 +226,48 @@
           "lead_report": "The lead callable registry lacked collaboration.spawn_agent and collaboration.list_agents, so it could not issue the coordinator spawn.",
           "conclusion": "Using the 0.154.0 Astra ultra automatic-delegation configuration still produced only one observed depth-1 lead; no depth-2 coordinator or depth-3 leaf was created, so the required native hierarchy remains blocked.",
           "cleanup": "Root and lead were completed and archived through the daemon control socket; no files, providers, games, or unrelated external writes occurred."
+        },
+        "daemon_config_v2_probe": {
+          "rechecked_at": "2026-09-11T05:46:31Z",
+          "runtime": {
+            "codex_cli": "0.154.0",
+            "app_server_version": "0.154.0",
+            "daemon_feature_config": "features.multi_agent_v2=true",
+            "daemon_restart": "completed",
+            "post_probe_config": "restored_without_multi_agent_v2"
+          },
+          "invocation": "codex1 exec -m gpt-6-astra -c model_reasoning_effort=ultra -C /home/agent/sts2-project/context -s read-only --skip-git-repo-check --json",
+          "root_thread_id": "01a08eff-c470-79d1-8980-bfd354ded007",
+          "root_source": "exec",
+          "root_parent_thread_id": null,
+          "root_model": "gpt-6-astra",
+          "root_effort": "ultra",
+          "observed_chain": [
+            {
+              "thread_id": "01a08eff-c470-79d1-8980-bfd354ded007",
+              "path": "/root",
+              "depth": 0,
+              "status": "completed_and_archived"
+            },
+            {
+              "thread_id": "01a08f00-1797-7ec2-a8df-2b8fdebd15c6",
+              "path": "/root/workstream_lead",
+              "depth": 1,
+              "parent_thread_id": "01a08eff-c470-79d1-8980-bfd354ded007",
+              "requested_model": "gpt-5.6-luna",
+              "requested_effort": "max",
+              "accepted_spawn_settings": {
+                "fork_turns": "none"
+              },
+              "status": "completed_and_archived"
+            }
+          ],
+          "depth_two_thread_id": null,
+          "depth_three_thread_id": null,
+          "root_native_surface": "spawn/list/wait/interruption were visible to the root probe",
+          "lead_native_surface": "spawn/list/follow-up/messaging/reservation were absent",
+          "conclusion": "Enabling multi_agent_v2 in the daemon configuration, rather than only on the client invocation, still produced a depth-1-only chain. The lead could not create the required depth-2 coordinator, so no depth-3 leaf exists and the native hierarchy remains blocked.",
+          "cleanup": "The root and lead were completed and archived through the daemon control socket; the isolated feature setting was restored; no files, providers, games, or unrelated external writes occurred."
         }
       }
     }

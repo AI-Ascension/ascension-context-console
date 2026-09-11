@@ -78,7 +78,8 @@ exposed no native child-spawn, reservation, or messaging surface, so no depth-2 
 depth-3 leaf was created; the root and lead were completed and archived. Earlier `0.153.4`
 command-center and standalone probes remain in the preflight artifact for comparison. A second
 0.154.0 probe using the catalog's Astra `ultra` automatic-delegation mode produced the same
-depth-1-only result. The target's default facade still has no attached persistent
+depth-1-only result. Enabling `multi_agent_v2` in the daemon configuration itself produced the
+same depth-1-only result and was restored after the probe. The target's default facade still has no attached persistent
 projection; the explicit adapter proof is an offline synthetic path. The remaining mandatory
 evidence is the independent native three-level reviewer. Synthetic adapter, process, and network
 tripwire evidence cannot establish provider quality, native game/action effects, production storage
