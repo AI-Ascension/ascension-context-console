@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ascension:provider-session:fork:v1",
+  "title": "Proposed Phase 4 fork product contract",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "ascension.provider-session.fork.v1"
+    },
+    "fork_plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id",
+        "episode_id",
+        "agent_id"
+      ]
+    },
+    "source_binding_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "source_history_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "source_continuity_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "cutoff_turn_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "cutoff_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "native_cutoff_verified": {
+      "type": "boolean"
+    },
+    "target_binding_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "purpose": {
+      "const": "evaluation"
+    },
+    "operation": {
+      "enum": [
+        "native_fork",
+        "clean_rehydration"
+      ]
+    },
+    "copies_native_history": {
+      "type": "boolean"
+    },
+    "dependency_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+      },
+      "minItems": 0,
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "automatic_inference": {
+      "const": false
+    },
+    "game_dispatch_capability": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema",
+    "fork_plan_id",
+    "scope",
+    "source_binding_id",
+    "source_history_epoch",
+    "source_continuity_sha256",
+    "cutoff_turn_ref",
+    "cutoff_sequence",
+    "native_cutoff_verified",
+    "target_binding_id",
+    "purpose",
+    "operation",
+    "copies_native_history",
+    "dependency_ids",
+    "automatic_inference",
+    "game_dispatch_capability"
+  ]
+}

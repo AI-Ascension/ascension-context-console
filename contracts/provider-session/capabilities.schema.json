@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ascension:provider-session:capabilities:v1",
+  "title": "Proposed Phase 4 capabilities product contract",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "ascension.provider-session.capabilities.v1"
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "profile_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "native_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "native_binary_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "native_schema_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "evidence": {
+      "enum": [
+        "schema_only",
+        "compiled_peer",
+        "native_binary_fake_upstream",
+        "live_provider"
+      ]
+    },
+    "transport": {
+      "const": "owned_stdio"
+    },
+    "enabled_methods": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+      },
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "description": "Normalized product capability identifiers, not official native request payloads."
+    },
+    "hardening": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tools_enabled": {
+          "const": false
+        },
+        "ambient_history": {
+          "const": false
+        },
+        "encrypted_state": {
+          "const": true
+        },
+        "configuration_verified": {
+          "type": "boolean"
+        },
+        "transform_handling": {
+          "enum": [
+            "verified_suppressed",
+            "detect_and_fence",
+            "opaque_approved"
+          ]
+        }
+      },
+      "required": [
+        "tools_enabled",
+        "ambient_history",
+        "encrypted_state",
+        "configuration_verified",
+        "transform_handling"
+      ]
+    },
+    "strict_executable": {
+      "type": "boolean"
+    },
+    "experimental_api": {
+      "type": "boolean"
+    },
+    "unknown_methods": {
+      "const": "deny"
+    },
+    "raw_rpc": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema",
+    "profile_id",
+    "profile_sha256",
+    "native_version",
+    "native_binary_sha256",
+    "native_schema_sha256",
+    "evidence",
+    "transport",
+    "enabled_methods",
+    "hardening",
+    "strict_executable",
+    "experimental_api",
+    "unknown_methods",
+    "raw_rpc"
+  ]
+}

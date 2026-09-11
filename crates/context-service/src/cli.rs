@@ -6,6 +6,7 @@
 //! payload parser as the integrated HTTP path, keeps private note text on stdin, and emits metadata
 //! by default. A production deployment must replace the fixture key and capability plumbing.
 
+use crate::provider_session::ProviderSessionRoute;
 use crate::{
     ControlCommand, ControlError, ControlMemoryBindingRecord, ControlOperation, ControlPatch,
     ControlPlane, DurableControlStore, MAX_MEMORY_BODY_BYTES, MemoryQueryRequest, MemoryRoute,
@@ -27,6 +28,8 @@ const MAX_PATCH_BYTES: usize = 16 * 1024;
 const PHASE3_CLI_SCHEMA: &str = "ascension.context-memory.cli-result.v1";
 const PHASE3_ADAPTER_SCHEMA: &str = "ascension.context-memory.adapter-result.v1";
 const PHASE3_ADAPTER_REQUEST_SCHEMA: &str = "ascension.context-memory.adapter-request.v1";
+
+const PHASE4_CLI_SCHEMA: &str = "ascension.provider-session.cli-result.v1";
 
 pub fn run_phase2_cli(arguments: Vec<String>) -> Result<(), String> {
     let mut arguments = arguments.into_iter();
@@ -275,6 +278,94 @@ pub fn run_phase3_cli(arguments: Vec<String>) -> Result<(), String> {
         "value": value
     });
     println!("{}", serde_json::to_string(&output).map_err(encode)?);
+    Ok(())
+}
+
+/// Run the bounded Phase 4 client projection. The target owns no native process or credential;
+/// fixture commands return typed metadata/operation identities and keep inference/game effects at
+/// zero. Real session mutation remains behind the harness scheduler and is never a CLI passthrough.
+pub fn run_phase4_cli(arguments: Vec<String>) -> Result<(), String> {
+    let mut arguments = arguments.into_iter();
+    let operation = arguments.next().unwrap_or_else(|| "help".to_owned());
+    if matches!(operation.as_str(), "help" | "--help" | "-h") {
+        println!(
+            "phase4-cli capabilities|list|candidate|binding <id>|history <id>|reconnect <id>|fork <id>|compact <id>|retire <id>|cleanup <id>|operation <id>"
+        );
+        println!("  candidate/reconnect/fork/compact/retire/cleanup accept bounded JSON on stdin");
+        return Ok(());
+    }
+    let argument = arguments.next();
+    if arguments.next().is_some() {
+        return Err("phase4-cli: unexpected argument".to_owned());
+    }
+    let mut route = ProviderSessionRoute::fixture("operator-cli");
+    let run = "run-fixture";
+    let base = format!("/v1/runs/{run}/provider-sessions");
+    let (method, path, body) = match operation.as_str() {
+        "capabilities" => ("GET", format!("{base}/capabilities"), Vec::new()),
+        "list" | "sessions" => ("GET", base.clone(), Vec::new()),
+        "candidate" | "create" => (
+            "POST",
+            format!("{base}/candidates"),
+            stdin_bytes_bounded(16 * 1024)?,
+        ),
+        "binding" => (
+            "GET",
+            format!(
+                "{base}/{}",
+                argument.ok_or_else(|| "phase4-cli: binding id is required".to_owned())?
+            ),
+            Vec::new(),
+        ),
+        "history" => (
+            "GET",
+            format!(
+                "{base}/{}/history",
+                argument.ok_or_else(|| "phase4-cli: binding id is required".to_owned())?
+            ),
+            Vec::new(),
+        ),
+        "reconnect" | "fork" | "compact" | "retire" | "cleanup" => {
+            let binding =
+                argument.ok_or_else(|| "phase4-cli: binding id is required".to_owned())?;
+            let suffix = match operation.as_str() {
+                "reconnect" => "reconnect",
+                "fork" => "fork-jobs",
+                "compact" => "compaction-jobs",
+                "retire" => "retire",
+                _ => "cleanup",
+            };
+            (
+                "POST",
+                format!("{base}/{binding}/{suffix}"),
+                stdin_bytes_bounded(16 * 1024)?,
+            )
+        }
+        "operation" => {
+            let id = argument.ok_or_else(|| "phase4-cli: operation id is required".to_owned())?;
+            (
+                "GET",
+                format!("/v1/runs/{run}/provider-session-operations/{id}"),
+                Vec::new(),
+            )
+        }
+        _ => return Err("phase4-cli: unsupported command".to_owned()),
+    };
+    let value = route
+        .handle(method, &path, "operator-cli", &body)
+        .map_err(|error| error.to_string())?;
+    let status = if method == "POST" {
+        "accepted"
+    } else {
+        "completed"
+    };
+    println!(
+        "{}",
+        serde_json::to_string(
+            &json!({"schema":PHASE4_CLI_SCHEMA,"operation":operation,"status":status,"value":value}),
+        )
+        .map_err(encode)?
+    );
     Ok(())
 }
 
