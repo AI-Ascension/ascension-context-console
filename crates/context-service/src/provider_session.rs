@@ -182,7 +182,7 @@ impl ProviderSessionRoute {
                 profile_sha256: sha256_hex("codex-app-server-fixture-v1"),
                 native_version: "fixture-peer-1".to_owned(),
                 native_binary_sha256: sha256_hex("compiled-fake-native-peer"),
-                native_schema_sha256: sha256_hex("ascension.provider-session.native-frame.v1"),
+                native_schema_sha256: sha256_hex("codex-app-server-jsonrpc.v2"),
                 evidence: "compiled_peer".to_owned(),
                 transport: "owned_stdio".to_owned(),
                 enabled_methods: vec![
@@ -192,8 +192,7 @@ impl ProviderSessionRoute {
                     "turn/start".to_owned(),
                     "turn/interrupt".to_owned(),
                     "thread/fork".to_owned(),
-                    "thread/compact".to_owned(),
-                    "thread/retire".to_owned(),
+                    "thread/compact/start".to_owned(),
                 ],
                 hardening: SessionHardeningView {
                     tools_enabled: false,

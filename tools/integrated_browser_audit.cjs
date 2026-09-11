@@ -80,10 +80,36 @@ async function run() {
     page.on('pageerror', (error) => pageErrors.push(String(error)));
     await page.goto('/web/', { waitUntil: 'networkidle' });
     await page.waitForSelector('#summary:not([hidden])');
+    await page.waitForSelector('#session-panel:not([hidden])');
     assert.equal(await page.locator('#status').textContent(), 'Synthetic offline bundle loaded');
     assert.equal(await page.locator('#boundary').textContent(), 'adapter.cli_input');
     assert.equal(await page.locator('#component-rows tr').count(), 3);
     assert.equal(await page.locator('#timeline-list li').count(), 7);
+    assert.equal(await page.locator('#session-mode').textContent(), 'fixture_only');
+    assert.equal(await page.locator('#session-rows tr').count(), 0);
+    assert.match(await page.locator('#session-methods').textContent(), /thread\/compact\/start/);
+    await page.locator('#session-create-candidate').click();
+    await page.waitForFunction(() => document.querySelectorAll('#session-rows tr').length === 1);
+    assert.match(await page.locator('#session-message').textContent(), /accepted locally/);
+    const deniedSessionWrite = await page.evaluate(async () => {
+      const response = await fetch('/v1/runs/fixture-run-001/provider-sessions/candidates', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer fixture-session-token',
+          'Content-Type': 'application/json',
+          Origin: window.location.origin,
+        },
+        body: JSON.stringify({
+          idempotency_key: 'browser-denied-candidate',
+          expected_control_generation: 0,
+          approved_policy_ref: 'policy-fixture',
+          profile_ref: 'profile-fixture',
+          purpose: 'evaluation',
+        }),
+      });
+      return response.status;
+    });
+    assert.equal(deniedSessionWrite, 403);
     await page.locator('#compare-button').focus();
     assert.equal(await page.evaluate(() => document.activeElement.id), 'compare-button');
     await page.keyboard.press('Enter');
@@ -158,13 +184,13 @@ async function run() {
     assert.deepEqual(manifestPageErrors, []);
     await manifestPage.close();
 
-    const desktopPath = path.join(evidenceDir, 'integrated-browser-desktop-20260910.png');
+    const desktopPath = path.join(evidenceDir, 'integrated-browser-desktop-20260911.png');
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: desktopPath, fullPage: true });
     await page.setViewportSize({ width: 375, height: 800 });
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(100);
-    const narrowPath = path.join(evidenceDir, 'integrated-browser-narrow-20260910.png');
+    const narrowPath = path.join(evidenceDir, 'integrated-browser-narrow-20260911.png');
     await page.screenshot({ path: narrowPath, fullPage: true });
     const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     assert.equal(horizontalOverflow, false);
@@ -209,9 +235,9 @@ async function run() {
 
     const evidence = {
       schema: 'ascension.integrated-browser-evidence.v1',
-      evidence_id: 'INTEGRATED-BROWSER-20260910',
-      requirement_ids: ['P1-025', 'P1-031', 'P1-032', 'P1-033'],
-      case_ids: ['INTEGRATED-NORMAL-001', 'INTEGRATED-ADVERSARIAL-001', 'INTEGRATED-MANIFEST-PATH-001'],
+      evidence_id: 'INTEGRATED-BROWSER-20260911',
+      requirement_ids: ['P1-025', 'P1-031', 'P1-032', 'P1-033', 'R04-001', 'R04-010', 'R04-060'],
+      case_ids: ['INTEGRATED-NORMAL-001', 'INTEGRATED-ADVERSARIAL-001', 'INTEGRATED-MANIFEST-PATH-001', 'PHASE4-SESSION-001'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -228,7 +254,7 @@ async function run() {
       },
       exit_code: 0,
       result: 'passed',
-      evidence_class: ['synthetic', 'native'],
+      evidence_class: ['synthetic', 'compiled_peer'],
       tool: `Playwright ${require(playwrightModule + '/package.json').version}`,
       browser: await browser.version(),
       base_url: base,
@@ -267,6 +293,15 @@ async function run() {
         effect_class: memoryStatus.effect_class,
         snapshot_bytes_unchanged: afterMemorySnapshot.equals(beforeMemorySnapshot),
       },
+      phase4_session: {
+        mode: 'fixture_only',
+        capability_profile: await page.locator('#session-profile').textContent(),
+        candidate_created: true,
+        binding_rows: await page.locator('#session-rows tr').count(),
+        denied_without_csrf_status: deniedSessionWrite,
+        native_calls: 0,
+        game_effects: 0,
+      },
       integration_metrics: metrics,
       source_artifacts: [
         { path: 'crates/context-service/src/integrated_demo.rs', sha256: sha256(path.join(root, 'crates/context-service/src/integrated_demo.rs')) },
@@ -297,10 +332,12 @@ async function run() {
           && memoryCapabilities.supported_operations.length === 0
           && memoryStatus.inference_calls === 0
           && afterMemorySnapshot.equals(beforeMemorySnapshot),
+        phase4_session_fixture: true,
+        phase4_csrf_denied: deniedSessionWrite === 403,
       },
       artifacts: [
-        { path: 'docs/evidence/integrated-browser-desktop-20260910.png', sha256: sha256(desktopPath) },
-        { path: 'docs/evidence/integrated-browser-narrow-20260910.png', sha256: sha256(narrowPath) },
+        { path: 'docs/evidence/integrated-browser-desktop-20260911.png', sha256: sha256(desktopPath) },
+        { path: 'docs/evidence/integrated-browser-narrow-20260911.png', sha256: sha256(narrowPath) },
       ],
     };
     const evidencePath = path.join(evidenceDir, 'integrated-browser-ui-20260910.json');

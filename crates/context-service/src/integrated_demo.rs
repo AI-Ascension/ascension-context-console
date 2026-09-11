@@ -14,6 +14,7 @@ use crate::control::{
 use crate::read_api::{ApiError, HttpRequest, HttpResponse, ReadApi, read_request_bytes};
 use crate::store::{CapturePrivilege, IngestError, ReadGrant, Store};
 use crate::{MemoryRoute, MemoryRouteError, MemoryScope};
+use crate::{ProviderSessionRoute, SessionApiError};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use std::fs;
@@ -29,6 +30,8 @@ const SNAPSHOT_ID: &str = "snapshot-fixture-metadata-001";
 const COMPARISON_ID: &str = "snapshot-fixture-cli-001";
 const EDITOR_TOKEN: &[u8] = b"fixture-editor-token";
 const OBJECTIVE_TOKEN: &[u8] = b"fixture-objective-token";
+const SESSION_TOKEN: &[u8] = b"fixture-session-token";
+const SESSION_PRINCIPAL: &str = "fixture-session-reader";
 const CSRF_TOKEN: &str = "fixture-csrf-token";
 const DURABLE_STORE_KEY: [u8; 32] = [0x42; 32];
 
@@ -75,6 +78,7 @@ struct DemoState {
     control_store: DurableControlStore,
     control_store_path: PathBuf,
     memory: MemoryRoute,
+    provider_sessions: ProviderSessionRoute,
 }
 
 impl DemoState {
@@ -162,6 +166,7 @@ impl DemoState {
         );
         memory.grant_search("fixture-editor-token");
         memory.grant_review("fixture-objective-token");
+        let provider_sessions = ProviderSessionRoute::fixture(SESSION_PRINCIPAL);
         Ok(Self {
             store,
             grant,
@@ -177,6 +182,7 @@ impl DemoState {
             control_store,
             control_store_path,
             memory,
+            provider_sessions,
         })
     }
 
@@ -224,6 +230,11 @@ impl DemoState {
             "/demo/metrics" => self.metrics_response(),
             _ if path.starts_with("/v2/") => self.control_request(request, path),
             _ if path.starts_with("/v3/memory/") => self.memory_request(request, path),
+            _ if path.starts_with("/v1/runs/fixture-run-001/provider-sessions")
+                || path.starts_with("/v1/runs/fixture-run-001/provider-session-") =>
+            {
+                self.provider_session_request(request, path)
+            }
             _ if path.starts_with("/v1/") => self.api_request(request),
             _ => static_response(
                 404,
@@ -485,6 +496,32 @@ impl DemoState {
         {
             Ok(value) => control_value_response(200, value),
             Err(error) => memory_error_response(error),
+        }
+    }
+
+    fn provider_session_request(&mut self, request: &HttpRequest, path: &str) -> HttpResponse {
+        self.api_requests = self.api_requests.saturating_add(1);
+        let Some(token) = request
+            .header("authorization")
+            .and_then(|value| value.strip_prefix("Bearer "))
+        else {
+            return provider_session_error_response(SessionApiError::Unauthorized);
+        };
+        if token.as_bytes() != SESSION_TOKEN {
+            return provider_session_error_response(SessionApiError::Unauthorized);
+        }
+        if request.method != "GET"
+            && (request.header("origin") != Some(self.expected_origin.as_str())
+                || request.header("x-csrf-token") != Some(CSRF_TOKEN))
+        {
+            return provider_session_error_response(SessionApiError::Forbidden);
+        }
+        match self
+            .provider_sessions
+            .handle(&request.method, path, SESSION_PRINCIPAL, &request.body)
+        {
+            Ok(value) => control_value_response(200, value),
+            Err(error) => provider_session_error_response(error),
         }
     }
 
@@ -823,6 +860,32 @@ fn memory_error_response(error: MemoryRouteError) -> HttpResponse {
             "schema": "ascension.context-memory.error.v1",
             "error": error.to_string(),
             "effect_class": "local_read_no_inference"
+        }),
+    )
+}
+
+fn provider_session_error_response(error: SessionApiError) -> HttpResponse {
+    let status = match error {
+        SessionApiError::Unauthorized | SessionApiError::AuthNeeded => 401,
+        SessionApiError::Forbidden => 403,
+        SessionApiError::NotFound => 404,
+        SessionApiError::MethodNotAllowed => 405,
+        SessionApiError::Capacity => 429,
+        SessionApiError::Conflict
+        | SessionApiError::Stale
+        | SessionApiError::Expired
+        | SessionApiError::Ambiguous => 409,
+        SessionApiError::Unavailable | SessionApiError::MalformedPeer => 503,
+        SessionApiError::BadRequest | SessionApiError::Unsupported => 400,
+    };
+    control_value_response(
+        status,
+        json!({
+            "schema": "ascension.provider-session.error.v1",
+            "error": error.to_string(),
+            "effect_class": "local_metadata_only",
+            "native_calls": 0,
+            "game_effects": 0
         }),
     )
 }
