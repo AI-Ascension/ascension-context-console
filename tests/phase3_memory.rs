@@ -89,6 +89,31 @@ fn compiled_phase3_cli_exposes_capabilities_and_bounded_search() {
 }
 
 #[test]
+fn cli_and_browser_route_share_the_same_closed_validation() {
+    let duplicate = br#"{"schema":"ascension.context-memory.query.v1","schema":"ascension.context-memory.query.v1"}"#;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_context-console"))
+        .args(["phase3-cli", "search"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("search process");
+    child
+        .stdin
+        .take()
+        .expect("stdin")
+        .write_all(duplicate)
+        .expect("duplicate query");
+    assert!(!child.wait().expect("wait").success());
+
+    let mut route = MemoryRoute::new(scope(), false);
+    route.grant_search("operator");
+    assert_eq!(
+        route.handle("POST", "/v3/memory/search", "operator", duplicate),
+        Err(MemoryRouteError::InvalidRequest)
+    );
+}
+
+#[test]
 fn phase3_cli_help_is_available_without_a_store() {
     run_phase3_cli(vec!["help".to_owned()]).expect("help");
 }

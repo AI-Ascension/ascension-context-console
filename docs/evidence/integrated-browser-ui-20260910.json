@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "58a283930b30348f34b9c19a0ccb432112521184"
+    "revision": "665fdf557d7e8af13aef74c07870f71b929a6ff2"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:34119",
+  "base_url": "http://127.0.0.1:43275",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,19 +46,19 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:34119/web/",
-    "http://127.0.0.1:34119/web/styles.css",
-    "http://127.0.0.1:34119/web/app.js",
-    "http://127.0.0.1:34119/offline-bundle.json",
-    "http://127.0.0.1:34119/demo/snapshot",
-    "http://127.0.0.1:34119/demo/events",
-    "http://127.0.0.1:34119/demo/comparison",
-    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:34119/v3/memory/capabilities",
-    "http://127.0.0.1:34119/v3/memory/status"
+    "http://127.0.0.1:43275/web/",
+    "http://127.0.0.1:43275/web/styles.css",
+    "http://127.0.0.1:43275/web/app.js",
+    "http://127.0.0.1:43275/offline-bundle.json",
+    "http://127.0.0.1:43275/demo/snapshot",
+    "http://127.0.0.1:43275/demo/events",
+    "http://127.0.0.1:43275/demo/comparison",
+    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:43275/v3/memory/capabilities",
+    "http://127.0.0.1:43275/v3/memory/status"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -88,6 +88,13 @@
     "page_errors": [],
     "rejected_before_fetch": true
   },
+  "memory_disabled_shadow": {
+    "enabled": false,
+    "supported_operations": [],
+    "inference_calls": 0,
+    "effect_class": "local_read_no_inference",
+    "snapshot_bytes_unchanged": true
+  },
   "integration_metrics": {
     "api_requests": 14,
     "browser_requests": 31,
@@ -111,7 +118,7 @@
     },
     {
       "path": "tools/integrated_browser_audit.cjs",
-      "sha256": "a990e4c267ec2f7f45f2693f62beed97c768c94f920d185072469a5621f142fc"
+      "sha256": "1815dd072946e0d00fdc838348561b8641b634b1203abb3ae411212ef222ff33"
     },
     {
       "path": "web/app.js",
@@ -152,7 +159,8 @@
     "keyboard_comparison": true,
     "reduced_motion": true,
     "no_browser_persistence": true,
-    "no_horizontal_overflow_narrow": true
+    "no_horizontal_overflow_narrow": true,
+    "memory_disabled_shadow": true
   },
   "artifacts": [
     {
