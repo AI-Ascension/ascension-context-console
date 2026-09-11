@@ -7,10 +7,11 @@
 //! by default. A production deployment must replace the fixture key and capability plumbing.
 
 use crate::{
-    ControlCommand, ControlError, ControlPatch, ControlPlane, DurableControlStore,
-    MAX_MEMORY_BODY_BYTES, MemoryQueryRequest, MemoryRoute, MemoryScope, parse_control_json,
+    ControlCommand, ControlError, ControlMemoryBindingRecord, ControlOperation, ControlPatch,
+    ControlPlane, DurableControlStore, MAX_MEMORY_BODY_BYTES, MemoryQueryRequest, MemoryRoute,
+    MemoryScope, parse_control_json,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::env;
 use std::io::{self, Read};
@@ -24,6 +25,8 @@ const CONTENT_TOKEN: &str = "fixture-content-token";
 const MAX_PATCH_BYTES: usize = 16 * 1024;
 
 const PHASE3_CLI_SCHEMA: &str = "ascension.context-memory.cli-result.v1";
+const PHASE3_ADAPTER_SCHEMA: &str = "ascension.context-memory.adapter-result.v1";
+const PHASE3_ADAPTER_REQUEST_SCHEMA: &str = "ascension.context-memory.adapter-request.v1";
 
 pub fn run_phase2_cli(arguments: Vec<String>) -> Result<(), String> {
     let mut arguments = arguments.into_iter();
@@ -273,6 +276,202 @@ pub fn run_phase3_cli(arguments: Vec<String>) -> Result<(), String> {
     });
     println!("{}", serde_json::to_string(&output).map_err(encode)?);
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Phase3AdapterRequest {
+    schema: String,
+    binding_id: String,
+    selection_id: String,
+    phase2_revision_id: String,
+    selection_sha256: String,
+    audit_sha256: String,
+    policy_id: String,
+    policy_version: u64,
+    review_id: String,
+    summary_output_sha256: String,
+    first_input_sha256: String,
+    preview_only: bool,
+}
+
+/// Execute the bounded target side of the cross-repository Phase 3 fixture adapter. The harness
+/// sends reviewed selection metadata; this process runs the real Phase 2 reducer and commits the
+/// memory binding beside the encrypted revision journal. No provider, game, network or child
+/// process path is available here.
+pub fn run_phase3_adapter() -> Result<(), String> {
+    let body = stdin_bytes_bounded(MAX_MEMORY_BODY_BYTES)?;
+    let request: Phase3AdapterRequest = parse_control_json(&body).map_err(control_error)?;
+    if request.schema != PHASE3_ADAPTER_REQUEST_SCHEMA
+        || !wire_id(&request.binding_id)
+        || !wire_id(&request.selection_id)
+        || !wire_id(&request.phase2_revision_id)
+        || !wire_digest(&request.selection_sha256)
+        || !wire_digest(&request.audit_sha256)
+        || !wire_id(&request.policy_id)
+        || request.policy_version == 0
+        || !wire_id(&request.review_id)
+        || !wire_digest(&request.summary_output_sha256)
+        || !wire_digest(&request.first_input_sha256)
+    {
+        return Err("phase3-adapter: invalid request".to_owned());
+    }
+
+    let mut paused = ControlPlane::synthetic();
+    let scope = paused.scope().clone();
+    let active_revision = paused.state().active_revision_id.clone();
+    let draft = paused
+        .create_draft(scope.clone(), &active_revision, "phase3-adapter")
+        .map_err(control_error)?;
+    let history = paused
+        .eligible_items()
+        .into_iter()
+        .find(|item| item.item.item_id == "history-1")
+        .ok_or_else(|| "phase3-adapter: history fixture is unavailable".to_owned())?
+        .item;
+    let edited = paused
+        .apply_patch(
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: scope.clone(),
+                draft_id: draft.draft_id.clone(),
+                expected_draft_version: draft.version,
+                expected_active_revision_id: active_revision,
+                operations: vec![ControlOperation::IncludeItem { item: history }],
+            },
+            "phase3-adapter",
+            false,
+        )
+        .map_err(control_error)?;
+    paused
+        .pause(command_for(
+            &paused,
+            "pause",
+            "phase3-adapter-pause".to_owned(),
+            None,
+            None,
+            None,
+        ))
+        .map_err(control_error)?;
+    let preview = paused
+        .create_preview(
+            scope,
+            &edited.draft_id,
+            edited.version,
+            true,
+            paused.state().control_version,
+            true,
+        )
+        .map_err(control_error)?;
+    let commit_command = command_for(
+        &paused,
+        "commit",
+        "phase3-adapter-commit".to_owned(),
+        Some(paused.state().active_revision_id.clone()),
+        Some(preview.preview_id.clone()),
+        preview.prepared_manifest_sha256.clone(),
+    );
+    let mut planned = paused.clone();
+    planned
+        .commit(commit_command.clone())
+        .map_err(control_error)?;
+    if request.preview_only {
+        println!(
+            "{}",
+            serde_json::to_string(&json!({
+                "schema": PHASE3_ADAPTER_SCHEMA,
+                "status": "preview_ready",
+                "selection_id": request.selection_id,
+                "phase2_preview_id": preview.preview_id,
+                "planned_phase2_revision_id": planned.state().active_revision_id,
+                "prepared_manifest_sha256": preview.prepared_manifest_sha256,
+                "provider_calls": 0,
+                "game_launches": 0,
+                "external_requests": 0,
+            }))
+            .map_err(encode)?
+        );
+        return Ok(());
+    }
+    if request.phase2_revision_id != planned.state().active_revision_id
+        || request.first_input_sha256
+            != preview
+                .prepared_manifest_sha256
+                .as_deref()
+                .unwrap_or_default()
+    {
+        return Err("phase3-adapter: prepared Phase 2 identity changed".to_owned());
+    }
+    let mut committed = paused.clone();
+    let receipt = committed.commit(commit_command).map_err(control_error)?;
+    let binding = ControlMemoryBindingRecord {
+        schema: "ascension.context-memory.binding.v1".to_owned(),
+        binding_id: request.binding_id,
+        phase2_revision_id: committed.state().active_revision_id.clone(),
+        phase2_preview_id: preview.preview_id.clone(),
+        policy_id: request.policy_id,
+        policy_version: request.policy_version,
+        selection_sha256: request.selection_sha256,
+        audit_sha256: request.audit_sha256,
+    };
+    let path = env::temp_dir().join(format!(
+        "ascension-context-console-phase3-adapter-{}.sqlite",
+        std::process::id()
+    ));
+    let mut store = DurableControlStore::create(&path, STORE_KEY, &paused).map_err(store_error)?;
+    let result = store
+        .persist_with_memory_binding(&committed, &binding)
+        .map_err(store_error)
+        .and_then(|()| {
+            let stored = store
+                .memory_binding(&binding.binding_id)
+                .map_err(store_error)?;
+            (stored == Some(binding.clone()))
+                .then_some(())
+                .ok_or_else(|| "phase3-adapter: binding readback mismatch".to_owned())
+        });
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+    let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    result?;
+
+    println!(
+        "{}",
+        serde_json::to_string(&json!({
+            "schema": PHASE3_ADAPTER_SCHEMA,
+            "status": "completed",
+            "selection_id": request.selection_id,
+            "review_id": request.review_id,
+            "summary_output_sha256": request.summary_output_sha256,
+            "first_input_sha256": request.first_input_sha256,
+            "phase2_preview_id": preview.preview_id,
+            "phase2_revision_id": committed.state().active_revision_id,
+            "prepared_manifest_sha256": preview.prepared_manifest_sha256,
+            "paused_after_commit": committed.state().pause_latched,
+            "resume_required": true,
+            "provider_calls": 0,
+            "game_launches": 0,
+            "external_requests": 0,
+            "binding_committed_atomically": true,
+            "receipt": receipt,
+        }))
+        .map_err(encode)?
+    );
+    Ok(())
+}
+
+fn wire_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_alphanumeric() || (index > 0 && b"._:-".contains(&byte))
+        })
+}
+
+fn wire_digest(value: &str) -> bool {
+    value.len() == 64
+        && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+        && value.bytes().all(|byte| !byte.is_ascii_uppercase())
 }
 
 fn open_store(path: &Path) -> Result<(DurableControlStore, ControlPlane), String> {

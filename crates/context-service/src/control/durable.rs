@@ -9,6 +9,7 @@
 use super::durable_schema::{digest, ensure_schema, insert_outbox, now_seconds};
 use super::durable_types::{AAD, DurableStoreError, DurableStoreFailpoint, MAX_JOURNAL_BYTES};
 use super::state::ControlPlane;
+use super::types::MemoryBindingRecord;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -51,8 +52,34 @@ impl DurableControlStore {
     }
 
     pub fn persist(&mut self, plane: &ControlPlane) -> Result<(), DurableStoreError> {
+        self.persist_internal(plane, None)
+    }
+
+    /// Persist the Phase 2 projection and a reviewed memory binding in one SQLite transaction.
+    /// The binding contains identities/digests only; the harness remains the policy/source owner.
+    pub fn persist_with_memory_binding(
+        &mut self,
+        plane: &ControlPlane,
+        binding: &MemoryBindingRecord,
+    ) -> Result<(), DurableStoreError> {
+        self.persist_internal(plane, Some(binding))
+    }
+
+    fn persist_internal(
+        &mut self,
+        plane: &ControlPlane,
+        binding: Option<&MemoryBindingRecord>,
+    ) -> Result<(), DurableStoreError> {
         if plane.scope().run_id != self.run_id {
             return Err(DurableStoreError::ScopeMismatch);
+        }
+        if let Some(binding) = binding {
+            binding
+                .validate()
+                .map_err(|_| DurableStoreError::InvalidMemoryBinding)?;
+            if binding.phase2_revision_id != plane.state().active_revision_id {
+                return Err(DurableStoreError::InvalidMemoryBinding);
+            }
         }
         let journal = plane
             .export_journal()
@@ -113,6 +140,59 @@ impl DurableControlStore {
             return Err(DurableStoreError::Failpoint);
         }
         insert_outbox(&transaction, &self.run_id, &plane.events())?;
+        if let Some(binding) = binding {
+            let existing = transaction
+                .query_row(
+                    "SELECT phase2_revision_id, phase2_preview_id, policy_id, policy_version,
+                            selection_sha256, audit_sha256
+                     FROM context_control_memory_bindings
+                     WHERE run_id = ?1 AND binding_id = ?2",
+                    params![self.run_id, binding.binding_id],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, i64>(3)?,
+                            row.get::<_, String>(4)?,
+                            row.get::<_, String>(5)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| DurableStoreError::Sqlite)?;
+            if let Some(existing) = existing {
+                let same = existing.0 == binding.phase2_revision_id
+                    && existing.1 == binding.phase2_preview_id
+                    && existing.2 == binding.policy_id
+                    && existing.3 == i64::try_from(binding.policy_version).unwrap_or(i64::MAX)
+                    && existing.4 == binding.selection_sha256
+                    && existing.5 == binding.audit_sha256;
+                if !same {
+                    return Err(DurableStoreError::MemoryBindingConflict);
+                }
+            } else {
+                transaction
+                    .execute(
+                        "INSERT INTO context_control_memory_bindings
+                            (run_id, binding_id, phase2_revision_id, phase2_preview_id,
+                             policy_id, policy_version, selection_sha256, audit_sha256)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                        params![
+                            self.run_id,
+                            binding.binding_id,
+                            binding.phase2_revision_id,
+                            binding.phase2_preview_id,
+                            binding.policy_id,
+                            i64::try_from(binding.policy_version)
+                                .map_err(|_| DurableStoreError::InvalidMemoryBinding)?,
+                            binding.selection_sha256,
+                            binding.audit_sha256,
+                        ],
+                    )
+                    .map_err(|_| DurableStoreError::Sqlite)?;
+            }
+        }
         if matches!(
             self.failpoint,
             Some(DurableStoreFailpoint::BeforeCommit | DurableStoreFailpoint::DiskFull)
@@ -128,6 +208,37 @@ impl DurableControlStore {
             return Err(DurableStoreError::Failpoint);
         }
         Ok(())
+    }
+
+    pub fn memory_binding(
+        &self,
+        binding_id: &str,
+    ) -> Result<Option<MemoryBindingRecord>, DurableStoreError> {
+        if binding_id.is_empty() {
+            return Err(DurableStoreError::InvalidMemoryBinding);
+        }
+        self.connection
+            .query_row(
+                "SELECT binding_id, phase2_revision_id, phase2_preview_id, policy_id,
+                        policy_version, selection_sha256, audit_sha256
+                 FROM context_control_memory_bindings
+                 WHERE run_id = ?1 AND binding_id = ?2",
+                params![self.run_id, binding_id],
+                |row| {
+                    Ok(MemoryBindingRecord {
+                        schema: super::types::MEMORY_BINDING_SCHEMA.to_owned(),
+                        binding_id: row.get(0)?,
+                        phase2_revision_id: row.get(1)?,
+                        phase2_preview_id: row.get(2)?,
+                        policy_id: row.get(3)?,
+                        policy_version: u64::try_from(row.get::<_, i64>(4)?).unwrap_or_default(),
+                        selection_sha256: row.get(5)?,
+                        audit_sha256: row.get(6)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|_| DurableStoreError::Sqlite)
     }
 
     pub fn load(&self) -> Result<ControlPlane, DurableStoreError> {

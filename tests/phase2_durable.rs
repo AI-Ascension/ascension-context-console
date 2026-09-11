@@ -3,8 +3,8 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use context_service::{
-    ControlCommand, ControlOperation, ControlPatch, ControlPlane, DurableControlStore,
-    DurableStoreError, DurableStoreFailpoint,
+    ControlCommand, ControlMemoryBindingRecord, ControlOperation, ControlPatch, ControlPlane,
+    DurableControlStore, DurableStoreError, DurableStoreFailpoint,
 };
 use serde_json::Value;
 use std::fs;
@@ -268,6 +268,65 @@ fn audit_append_failure_rolls_back_journal_and_outbox() {
         before.outbox_event_count
     );
     cleanup(&path);
+}
+
+#[test]
+fn memory_binding_and_phase2_revision_commit_as_one_transaction() {
+    let database = path("memory-binding");
+    let key = [31_u8; 32];
+    let (paused, committed) = committed_candidate("memory-binding");
+    let binding = ControlMemoryBindingRecord {
+        schema: "ascension.context-memory.binding.v1".to_owned(),
+        binding_id: "binding-memory-1".to_owned(),
+        phase2_revision_id: committed.state().active_revision_id.clone(),
+        phase2_preview_id: "preview-memory-1".to_owned(),
+        policy_id: "policy-memory-1".to_owned(),
+        policy_version: 1,
+        selection_sha256: "a".repeat(64),
+        audit_sha256: "b".repeat(64),
+    };
+    let mut store = DurableControlStore::create(&database, key, &paused).expect("create store");
+    store.set_failpoint(Some(DurableStoreFailpoint::BeforeCommit));
+    assert_eq!(
+        store
+            .persist_with_memory_binding(&committed, &binding)
+            .expect_err("joint transaction must fail at failpoint"),
+        DurableStoreError::Failpoint
+    );
+    assert_ne!(
+        store
+            .load_for_operator()
+            .expect("old phase2 state")
+            .state()
+            .active_revision_id,
+        committed.state().active_revision_id
+    );
+    assert_eq!(
+        store
+            .memory_binding("binding-memory-1")
+            .expect("binding query"),
+        None
+    );
+
+    store
+        .persist_with_memory_binding(&committed, &binding)
+        .expect("joint transaction");
+    assert_eq!(
+        store
+            .memory_binding("binding-memory-1")
+            .expect("binding query"),
+        Some(binding.clone())
+    );
+    store
+        .persist_with_memory_binding(&committed, &binding)
+        .expect("idempotent retry");
+    let mut changed = binding;
+    changed.audit_sha256 = "c".repeat(64);
+    assert_eq!(
+        store.persist_with_memory_binding(&committed, &changed),
+        Err(DurableStoreError::MemoryBindingConflict)
+    );
+    cleanup(&database);
 }
 
 #[test]

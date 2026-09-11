@@ -167,4 +167,16 @@ CREATE TABLE IF NOT EXISTS context_control_phase1_snapshots (
     PRIMARY KEY (run_id, snapshot_id),
     FOREIGN KEY (run_id) REFERENCES context_control_journal(run_id)
 );
+CREATE TABLE IF NOT EXISTS context_control_memory_bindings (
+    run_id TEXT NOT NULL,
+    binding_id TEXT NOT NULL,
+    phase2_revision_id TEXT NOT NULL,
+    phase2_preview_id TEXT NOT NULL,
+    policy_id TEXT NOT NULL,
+    policy_version INTEGER NOT NULL,
+    selection_sha256 TEXT NOT NULL,
+    audit_sha256 TEXT NOT NULL,
+    PRIMARY KEY (run_id, binding_id),
+    FOREIGN KEY (run_id) REFERENCES context_control_journal(run_id)
+);
 "#;

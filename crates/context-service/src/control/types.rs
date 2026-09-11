@@ -18,6 +18,7 @@ pub const EVENT_SCHEMA: &str = "ascension.context-control.event.v1";
 pub const RELATION_SCHEMA: &str = "ascension.context-control.relation.v1";
 pub const CAPABILITIES_SCHEMA: &str = "ascension.context-control.capabilities.v1";
 pub const JOURNAL_SCHEMA: &str = "ascension.context-control.journal.v1";
+pub const MEMORY_BINDING_SCHEMA: &str = "ascension.context-memory.binding.v1";
 
 pub const MAX_ITEMS: usize = 64;
 pub const MAX_NOTES: usize = 16;
@@ -71,6 +72,47 @@ impl Scope {
     pub fn same(&self, other: &Self) -> bool {
         self == other
     }
+}
+
+/// Metadata supplied by the harness when a reviewed memory selection is adopted. The target
+/// stores only immutable identities and digests; policy/source bytes remain harness-owned.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryBindingRecord {
+    pub schema: String,
+    pub binding_id: String,
+    pub phase2_revision_id: String,
+    pub phase2_preview_id: String,
+    pub policy_id: String,
+    pub policy_version: u64,
+    pub selection_sha256: String,
+    pub audit_sha256: String,
+}
+
+impl MemoryBindingRecord {
+    pub fn validate(&self) -> Result<(), ControlError> {
+        if self.schema != MEMORY_BINDING_SCHEMA
+            || !valid_id(&self.binding_id)
+            || !valid_id(&self.phase2_revision_id)
+            || !valid_id(&self.phase2_preview_id)
+            || !valid_id(&self.policy_id)
+            || self.policy_version == 0
+            || !valid_digest(&self.selection_sha256)
+            || !valid_digest(&self.audit_sha256)
+        {
+            return Err(ControlError::invalid(
+                "invalid_memory_binding",
+                "memory binding metadata is invalid",
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn valid_digest(value: &str) -> bool {
+    value.len() == 64
+        && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+        && value.bytes().all(|byte| !byte.is_ascii_uppercase())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]

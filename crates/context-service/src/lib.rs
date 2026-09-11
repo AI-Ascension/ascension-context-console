@@ -21,16 +21,17 @@ pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,
 };
-pub use cli::{run_phase2_cli, run_phase3_cli};
+pub use cli::{run_phase2_cli, run_phase3_adapter, run_phase3_cli};
 pub use control::{
     Boundary as ControlBoundary, CURRENT_DURABLE_STORE_SCHEMA_VERSION,
     Capabilities as ControlCapabilities, Command as ControlCommand, ControlError, ControlPlane,
     Draft as ControlDraft, DurableControlStore, DurableStoreError, DurableStoreFailpoint,
     DurableStoreSnapshot, EligibleItem as ControlEligibleItem, Event as ControlEvent,
-    ItemRef as ControlItemRef, Operation as ControlOperation, Patch as ControlPatch,
-    Preview as ControlPreview, PreviewComponent as ControlPreviewComponent,
-    Receipt as ControlReceipt, Relation as ControlRelation, Revision as ControlRevision,
-    Scope as ControlScope, State as ControlState,
+    ItemRef as ControlItemRef, MemoryBindingRecord as ControlMemoryBindingRecord,
+    Operation as ControlOperation, Patch as ControlPatch, Preview as ControlPreview,
+    PreviewComponent as ControlPreviewComponent, Receipt as ControlReceipt,
+    Relation as ControlRelation, Revision as ControlRevision, Scope as ControlScope,
+    State as ControlState,
 };
 pub use observability::{
     CaptureTelemetry, MemoryTelemetry, NoopTelemetry, TelemetryError, TelemetryExporter,

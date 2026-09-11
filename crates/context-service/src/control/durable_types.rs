@@ -48,6 +48,8 @@ pub enum DurableStoreError {
     Failpoint,
     SnapshotConflict,
     InvalidSnapshotId,
+    InvalidMemoryBinding,
+    MemoryBindingConflict,
     ManagementActive,
 }
 
@@ -69,6 +71,8 @@ impl Display for DurableStoreError {
             Self::Failpoint => "durable control store failpoint rejected the transaction",
             Self::SnapshotConflict => "Phase 1 snapshot identity already has different bytes",
             Self::InvalidSnapshotId => "Phase 1 snapshot identity is invalid",
+            Self::InvalidMemoryBinding => "memory binding metadata is invalid",
+            Self::MemoryBindingConflict => "memory binding identity already has different metadata",
             Self::ManagementActive => "legacy binary refused management-active state",
         })
     }

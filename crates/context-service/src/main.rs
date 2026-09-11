@@ -2,7 +2,7 @@
 
 use context_service::{
     ControlCommand, ControlOperation, ControlPatch, ControlPlane, demo, run_integrated_demo,
-    run_phase2_cli, run_phase3_cli,
+    run_phase2_cli, run_phase3_adapter, run_phase3_cli,
 };
 use std::env;
 use std::fs;
@@ -68,6 +68,12 @@ fn run() -> Result<(), String> {
         Some("phase2-demo") => phase2_demo(),
         Some("phase2-cli") => run_phase2_cli(arguments.collect()),
         Some("phase3-cli") => run_phase3_cli(arguments.collect()),
+        Some("phase3-adapter") => {
+            if arguments.next().is_some() {
+                return Err("phase3-adapter: unexpected argument".to_owned());
+            }
+            run_phase3_adapter()
+        }
         Some("inspect") => {
             let bytes = match arguments.next() {
                 Some(path) => fs::read(path).map_err(|_| "cannot read snapshot path".to_owned())?,
@@ -99,7 +105,7 @@ fn run() -> Result<(), String> {
         }
         Some("help") => {
             println!(
-                "context-console health|demo|phase2-demo|phase2-cli <command> ...|phase3-cli <command>|integrated-demo [port]|inspect [snapshot.json]"
+                "context-console health|demo|phase2-demo|phase2-cli <command> ...|phase3-cli <command>|phase3-adapter|integrated-demo [port]|inspect [snapshot.json]"
             );
             Ok(())
         }
