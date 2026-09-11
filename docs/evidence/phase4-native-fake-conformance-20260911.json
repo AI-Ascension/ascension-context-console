@@ -67,6 +67,28 @@
     "encrypted_state_boundary_verified": false,
     "migration_exercised": false
   },
+  "durable_fork_run": {
+    "tested": true,
+    "source_thread_durable": true,
+    "source_turn_completed": true,
+    "fork_request_success": true,
+    "fork_ephemeral": true,
+    "exclude_turns": true,
+    "fork_turn_count": 0,
+    "game_effects": 0,
+    "interpretation": "The native fork endpoint accepted a durable source thread and produced an ephemeral fork with turns excluded; clean rehydration equivalence was not asserted."
+  },
+  "compaction_probe": {
+    "tested": true,
+    "durable_source_thread": true,
+    "seed_turn_completed": true,
+    "compact_start_response": true,
+    "compact_start_result_shape": "empty_object",
+    "local_fake_response_requests": 2,
+    "generated_turn_completed": true,
+    "semantic_completion_verified": false,
+    "interpretation": "The native compact/start request completed against the local fake provider and generated a second completed turn, but no explicit context-compacted event or transformed context was asserted."
+  },
   "hardening_observation": {
     "native_tool_definitions_forwarded_per_turn": 11,
     "native_tool_definitions_forwarded_total": 22,
@@ -90,10 +112,11 @@
   "negative_scope": {
     "real_provider_authentication": false,
     "game_effects": 0,
-    "compaction_started": false,
+    "compaction_started": true,
+    "provider_compaction_semantics_verified": false,
     "server_request_rejection": false,
     "native_cleanup": false,
     "provider_context_claimed_exact": false
   },
-  "interpretation": "This evidence establishes a bounded loopback fake-upstream lane for initialize, ephemeral thread/start, two streamed turns, metadata thread/read, and a durable thread restart/read. It does not establish OS-level egress trapping, native tool or ambient-history denial, encrypted-state guarantees, migration, cleanup, fork support, compaction semantics, or live-provider compatibility. The observed native tool-definition forwarding keeps the native hardening profile unavailable for the default product path."
+  "interpretation": "This evidence establishes a bounded loopback fake-upstream lane for initialize, ephemeral thread/start, two streamed turns, metadata thread/read, durable restart/read, a durable-source ephemeral fork, and a compact/start probe. It does not establish OS-level egress trapping, native tool or ambient-history denial, encrypted-state guarantees, migration, cleanup, clean rehydration equivalence, compaction semantics, or live-provider compatibility. The observed native tool-definition forwarding keeps the native hardening profile unavailable for the default product path."
 }

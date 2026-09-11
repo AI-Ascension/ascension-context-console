@@ -23,11 +23,15 @@ machine-readable record is
 A second controlled lane configured the installed binary with a synthetic `fake` model provider
 whose Responses endpoint was a local loopback HTTP/SSE server. It completed two streamed turns and
 read the idle thread metadata; a durable one-turn run wrote a rollout and recovered it by ID after a
-process restart. The complete bounded record is
+process restart. Additional probes accepted a durable-source ephemeral fork with excluded turns and
+accepted `thread/compact/start` against the local fake provider; the latter produced a second
+completed turn but did not expose an explicit context-compacted event or prove transformed context.
+The complete bounded record is
 [`phase4-native-fake-conformance-20260911.json`](../evidence/phase4-native-fake-conformance-20260911.json).
-This does not establish OS-level egress trapping or full profile compatibility. In particular, the
-native request forwarded 11 built-in tool definitions on each turn, so worker tool denial is
-contradicted and the native hardening profile must remain unavailable for the default product path.
+These probes do not establish OS-level egress trapping or full profile compatibility. In particular,
+the native request forwarded 11 built-in tool definitions on each turn, so worker tool denial is
+contradicted and the native hardening profile must remain unavailable for the default product path;
+the fork and compaction probes are endpoint observations, not clean-rehydration or transform proofs.
 The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
 its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
 depth 3 ancestry could not be established. This is an orchestration and isolation limitation, not
