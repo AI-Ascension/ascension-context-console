@@ -52,7 +52,32 @@
         "agent_list": "unavailable"
       },
       "codex_agents_exit_code": 2,
-      "child_handle": "none"
+      "child_handle": "none",
+      "latest_recheck": {
+        "date": "2026-09-11",
+        "status": "unchanged",
+        "observations": [
+          {
+            "command": "codex agents",
+            "exit_code": 2,
+            "observation": "Account selection failed: Choose codex1, codex2, codex3; each keeps its own credentials"
+          },
+          {
+            "command": "codex1 agents",
+            "exit_code": 1,
+            "observation": "Managed standalone Codex install is not present at /home/agent/.codex-account-1/packages/standalone/current/codex"
+          }
+        ],
+        "native_controls": {
+          "spawn": "unavailable",
+          "follow_up": "unavailable",
+          "messaging": "unavailable",
+          "reservation": "unavailable",
+          "agent_list": "unavailable"
+        },
+        "observed_depth": 1,
+        "child_handle": "none"
+      }
     }
   },
   "evidence_class": [
