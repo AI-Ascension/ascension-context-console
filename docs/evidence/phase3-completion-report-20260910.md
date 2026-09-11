@@ -3,7 +3,9 @@
 Date: 2026-09-10. This report describes the bounded implementation carried on the existing
 `phase2/context-editing` draft branch. It is an implementation handoff, not a product or
 live-readiness claim. The target Phase 3 implementation commit is `9b69951`; the companion harness
-implementation commit is `b923192`.
+implementation commit is `b923192`. The evidence refreshes are pinned to target head
+`b59f10823e5f99de4012b0aa097efd62a9260a01` and harness head
+`b9a7283ef905005dfd7d34b2be2ff611c859b5cc`.
 
 ## Delivered implementation
 
@@ -28,8 +30,9 @@ redacted telemetry. Its six-file-plus test coverage is in
 
 The mandatory Phase 3 package defines 90 requirements and 90 failure cases. The checked-in
 [`phase3-requirement-evidence.csv`](phase3-requirement-evidence.csv) and
-[`phase3-failure-matrix-20260910.json`](phase3-failure-matrix-20260910.json) map every row. Rows
-marked `executed_synthetic` are bounded local tests or source-backed records. Rows marked
+[`phase3-failure-matrix-20260910.json`](phase3-failure-matrix-20260910.json) map every row. The final
+matrix has 44 `executed_synthetic`, 40 `unverified`, and 6 `blocked` rows. Rows marked
+`executed_synthetic` are bounded local tests or source-backed records. Rows marked
 `unverified` or `blocked` identify work that cannot be proven by this target facade, synthetic fake,
 or unavailable native controls.
 
@@ -67,7 +70,7 @@ Executed against the delivered implementation commits:
   passed; target Phase 3 route/CLI test: 3 passed;
 * harness `cargo run --locked --package repo-policy -- --strict`: passed;
   `cargo fmt --all -- --check`, Clippy with `-D warnings`, Phase 3 policy tests: 6 passed, and the
-  full locked workspace run: 171 passed, 1 ignored;
+  deterministic serial full locked workspace run (`-- --test-threads=1`): 171 passed, 1 ignored;
 * target `integrated_browser_audit.cjs`: passed with Playwright 1.63.0 / Chromium 153, zero
   external requests, zero provider calls, zero game launches, no browser persistence and no narrow
   overflow; target `phase2_browser_audit.cjs`: passed with the same conditions and the existing
