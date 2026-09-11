@@ -30,8 +30,9 @@ override those names through the inherited-environment list. The child still nee
 verified native profile, runtime quota observer and OS-level containment before this source boundary
 can be promoted to persistent native capability. Startup now scans the complete private state tree
 against the 256 MiB bound and fails closed on symlinks, special files, unsafe child roots or
-over-limit bytes. The compiled fixture reports the bound-root invariant at initialization; this
-does not establish the installed native binary's own precedence behavior or runtime growth control.
+over-limit bytes; the walk is also capped at 65,536 entries and 32 directory levels. The compiled
+fixture reports the bound-root invariant at initialization; this does not establish the installed
+native binary's own precedence behavior or runtime growth control.
 Only the approved `OPENAI_API_KEY` secret name may cross the inherited-environment boundary; path,
 endpoint and unrelated credential names are rejected by configuration validation.
 

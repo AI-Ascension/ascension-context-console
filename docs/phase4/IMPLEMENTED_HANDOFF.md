@@ -40,7 +40,8 @@ it does not encrypt or contain native Codex state, rollout files, WAL/log files 
 The owned stdio transport clears ambient environment roots and binds conventional home/config/cache/
 temporary variables to its approved state root; native OS containment and quota observation remain
 unverified. Startup scans the private state tree against a 256 MiB bound and fails closed on unsafe
-entries, while runtime growth observation remains unverified. The compiled fixture reports this
-binding during initialization, while installed-native precedence remains unverified.
+entries, with explicit entry/depth bounds, while runtime growth observation remains unverified. The
+compiled fixture reports this binding during initialization, while installed-native precedence
+remains unverified.
 Configuration accepts only the approved `OPENAI_API_KEY` inherited secret name; unrelated credential,
 endpoint and path variables are rejected.
