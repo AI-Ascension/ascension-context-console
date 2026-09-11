@@ -1,8 +1,8 @@
 # Implemented Phase 3 handoff
 
 Date: 2026-09-11. This is the additive Phase 3 draft on `phase2/context-editing`. The target
-implementation is pinned to `9dfc7905b271a891b9c5d053477d4e8fb7c7d41e`; the companion harness
-implementation is pinned to `321dbda4ed0a433ec700d9b7050d94a4b9f082ba`.
+implementation is covered by target revision `b21083719fb825be83088c9a6ab09531463a1a72`; the
+companion harness revision is `f801ee8`.
 
 The target extends the existing Phase 1/2 checkout. `crates/context-service/src/memory.rs`
 contains the target-owned `MemoryRoute`, `MemoryQueryRequest`, capability disclosure, bounded

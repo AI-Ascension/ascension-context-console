@@ -4,7 +4,8 @@ Date: 2026-09-11. This is the bounded implementation and evidence record for the
 `ascension.context-memory.*.v1` surface on the `phase2/context-editing` draft branch. It is not a
 product-readiness or live-runtime claim. Target implementation code is pinned to
 `b21083719fb825be83088c9a6ab09531463a1a72`; the companion harness implementation is pinned to
-`f8213e90388a77f5d893a40b37498aaf5eb78265`.
+`f801ee8a005d6df12a3ddc901f71a4d97eebb8cb` (the clean merge of the current remote harness tip
+and the Phase 3 implementation).
 
 The target extends the existing Phase 1/2 checkout with the eleven versioned context-memory
 contracts and synthetic fixtures, a permissioned `/v3/memory` facade, bounded `phase3-cli`
