@@ -1,6 +1,6 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
-Date: 2026-09-11. The current target baseline is `e473837` (feature source commit
+Date: 2026-09-11. The target feature/evidence baseline is `e473837` (feature source commit
 `96bdf9ed74d75f693a9b7dbbbd9cfbe89825113e`).
 The companion harness baseline is `998e800`.
 
