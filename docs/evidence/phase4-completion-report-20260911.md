@@ -9,8 +9,8 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
-| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` feature/evidence baseline `e473837` (feature source `96bdf9e`) | committed and pushed; documentation follow-ups are also synchronized; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
-| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `998e800` | committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
+| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` implementation source baseline `b502c77` | committed and pushed; this report update is documentation-only; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
+| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `d9849aa` | committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
 reset or overwritten.
