@@ -1,13 +1,13 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
-Date: 2026-09-11. The current target baseline is `ba7388c` (feature source commit
+Date: 2026-09-11. The current target baseline is `59f1bc3` (feature source commit
 `96bdf9ed74d75f693a9b7dbbbd9cfbe89825113e`).
-The companion harness baseline is `5d664f3e0bfd3bf3303066947ba0021698b7c3a6`.
+The companion harness baseline is `998e800`.
 
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
 | Frozen capture, renderer and Phase 2 held boundary | companion harness `context_capture`, `context_control`, `context_memory` and Exo modules | inherited Phase 1–3 tests and handoff | live provider/game remains unverified |
-| Persistent-session policy and identities | harness `provider_session::{types/*,broker*}` | `tests/provider_session.rs` | in-memory journal; native binary compatibility unverified |
+| Persistent-session policy and identities | harness `provider_session::{types/*,broker*}` | `tests/provider_session.rs`, `tests/provider_session_snapshot.rs` | bounded metadata snapshot restore; prepared/native state compatibility unverified |
 | Bounded native framing | harness `provider_session::{protocol*,transport*}` | compiled `provider-session-peer` test; JSON-RPC 2.0 strict-frame fixtures | fixture peer is not proof of native-binary compatibility |
 | Client API and CLI | target `provider_session.rs`, `run_phase4_cli`, additive OpenAPI seed | `tests/phase4_session.rs`; `phase4-cli` | target owns no native state or credentials |
 
@@ -18,3 +18,8 @@ claim is made. No real provider, game, deployment, merge, or release was perform
 implementation branch is pushed to GitHub as `phase4/persistent-provider` in both companion
 repositories. The fixture lane is intentionally `fixture_only`; native-binary/fake-upstream and
 live-provider capabilities remain `unverified`.
+
+The harness snapshot lane persists only the bounded local metadata journal: operation
+idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a
+fresh owner token and never serializes prepared turn bytes or auto-resumes an in-flight turn;
+native encrypted-state durability remains unverified.

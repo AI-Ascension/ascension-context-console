@@ -9,8 +9,8 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
-| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `ba7388c` (feature source `96bdf9e`) | committed and pushed; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
-| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `5d664f3e0bfd3bf3303066947ba0021698b7c3a6` | committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport |
+| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `59f1bc3` (feature source `96bdf9e`) | committed and pushed; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
+| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `998e800` | committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
 reset or overwritten.
@@ -31,6 +31,11 @@ session bearer and same-origin CSRF proof. The UI reports `fixture_only`, `compi
 `owned_stdio`, disabled tools/ambient history, zero native calls and zero game effects. It never
 accepts raw RPC methods, provider credentials, game actions or automatic resume.
 
+The harness snapshot lane persists only the bounded local metadata journal: operation
+idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a
+fresh owner token and never serializes prepared turn bytes or auto-resumes an in-flight turn;
+native encrypted-state durability remains unverified.
+
 ## Verification
 
 Passed on the committed source:
@@ -48,7 +53,7 @@ harness: cargo run --locked --package repo-policy -- --strict
 harness: TMPDIR=<dedicated persistent temp directory> cargo test --locked --workspace --all-targets --all-features --quiet
 target: node --check web/app.js && node --check tools/integrated_browser_audit.cjs
 target: cargo test --locked -p context-service --test phase4_session
-harness: cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety
+harness: cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety --test provider_session_snapshot
 ```
 
 The harness full suite passed with 181 tests and one ignored test in the large execution-store

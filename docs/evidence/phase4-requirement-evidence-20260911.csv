@@ -19,11 +19,11 @@ R04-017,unverified,Ambient-history hardening fields,docs/phase4/NATIVE_CAPABILIT
 R04-018,unverified,Fixed credential realm,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,No native credential lane was available.
 R04-019,executed_synthetic,target route and harness fixture,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Reads/candidate metadata report zero inference calls.
 R04-020,source_reviewed,OwnedNativeTransport process configuration,cargo run --locked --package repo-policy -- --strict,source_reviewed,Executable/state-root containment is source-checked; native process lane remains unverified.
-R04-021,executed_synthetic,harness broker intent journal,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Intent is persisted before native completion is represented.
+R04-021,executed_synthetic,harness broker intent journal,cargo test --locked -p sts2-harness --test provider_session --test provider_session_snapshot,compiled_fixture,Intent is persisted before native completion is represented; bounded metadata restore is explicit.
 R04-022,executed_synthetic,target and harness idempotency maps,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Same request deduplicates and changed body conflicts.
 R04-023,executed_synthetic,harness retained receipts,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Lost acknowledgement remains recoverable/unknown.
 R04-024,executed_synthetic,harness thread-create fencing,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Unknown thread creation is not silently retried.
-R04-025,executed_synthetic,harness held recovery,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Recovery preserves held state.
+R04-025,executed_synthetic,harness held recovery,cargo test --locked -p sts2-harness --test provider_session_snapshot,compiled_fixture,Recovery preserves held state and rotates ownership without auto-resume.
 R04-026,executed_synthetic,harness interrupt race tests,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Late results are fenced after interrupt.
 R04-027,executed_synthetic,harness conflicting terminal evidence,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Conflicts quarantine the attempt.
 R04-028,executed_synthetic,harness capacity constants and flood tests,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Frame/queue/binding/operation bounds are exercised.
@@ -41,7 +41,7 @@ R04-039,executed_synthetic,harness epoch invalidation,cargo test --locked --work
 R04-040,executed_synthetic,harness unknown game outcome,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Game effects remain zero/unknown; no game is called.
 R04-041,executed_synthetic,target GET route and capability tests,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Reads are metadata-only.
 R04-042,executed_synthetic,target scoped list routes,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Run scope filters bindings and operations.
-R04-043,executed_synthetic,harness history epoch/coverage policy,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Gaps and coverage are explicit.
+R04-043,executed_synthetic,harness history epoch/coverage policy,cargo test --locked -p sts2-harness --test provider_session --test provider_session_snapshot,compiled_fixture,Gaps; redaction and coverage remain explicit across the metadata restore.
 R04-044,source_reviewed,harness privacy schemas and redaction tests,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,No reasoning/raw RPC fields are exposed; native execution is unverified.
 R04-045,executed_synthetic,target fork plan route,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Cutoff refs are required.
 R04-046,executed_synthetic,harness evaluation fork isolation,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Evaluation operations have no game effects.
@@ -60,7 +60,7 @@ R04-058,source_reviewed,harness clean rotation policy,cargo test --locked --work
 R04-059,executed_synthetic,target retirement wording and harness cleanup,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Local cleanup never claims remote forgetting.
 R04-060,executed_synthetic,target cleanup route scope,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Cleanup is bounded to the binding scope.
 R04-061,unverified,Native encrypted state capability,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,Native persistence was not run; fixture state is not a native proof.
-R04-062,executed_synthetic,harness volatile fixture semantics,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Fixture close/retire is explicit.
+R04-062,executed_synthetic,harness fixture metadata semantics,cargo test --locked -p sts2-harness --test provider_session --test provider_session_snapshot,compiled_fixture,Fixture close/retire and bounded metadata restore are explicit.
 R04-063,source_reviewed,harness bounded retention policy,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,Finite local bounds are tested; native store retention is unverified.
 R04-064,executed_synthetic,transport path/process safety,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Unsafe paths and symlink components fail closed.
 R04-065,source_reviewed,harness revocation/retirement records,cargo test --locked -p sts2-harness --test provider_session,source_reviewed,Tombstone semantics are local synthetic evidence.
@@ -78,4 +78,4 @@ R04-076,unverified,native profile compatibility,docs/phase4/NATIVE_CAPABILITIES.
 R04-077,executed_synthetic,phase4 evidence report and capability tiers,docs/evidence/phase4-completion-report-20260911.md,evidence_tiers,Native/live claims are separated from fixture evidence.
 R04-078,executed_synthetic,integrated_demo provider-session panel,curl loopback capabilities/list/candidate probes,compiled_fixture,Actual built product served the fixture route with zero native/game effects.
 R04-079,unverified,native migration/restore lane,docs/phase4/NATIVE_CAPABILITIES.md,native_binary,No isolated native state root was authorized.
-R04-080,executed_synthetic,pushed reviewable branches,git fetch --prune; git pull --ff-only,delivery,Both branches are committed, pushed and synchronized.
+R04-080,executed_synthetic,pushed reviewable branches,git fetch --prune; git pull --ff-only,delivery,Both branches are committed; pushed and synchronized.
