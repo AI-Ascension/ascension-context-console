@@ -28,10 +28,13 @@ accepted `thread/compact/start` against the local fake provider; the latter prod
 completed turn but did not expose an explicit context-compacted event or prove transformed context.
 The complete bounded record is
 [`phase4-native-fake-conformance-20260911.json`](../evidence/phase4-native-fake-conformance-20260911.json).
-These probes do not establish OS-level egress trapping or full profile compatibility. In particular,
-the native request forwarded 11 built-in tool definitions on each turn, so worker tool denial is
-contradicted and the native hardening profile must remain unavailable for the default product path;
-the fork and compaction probes are endpoint observations, not clean-rehydration or transform proofs.
+The default native request forwarded 11 built-in tool definitions on each turn. A follow-up restricted
+profile probe used supported feature/config switches and forwarded only the residual
+`request_user_input` tool, with no forbidden shell, file, code, browser, MCP, skill, subagent or
+background-terminal tool definitions observed. This is partial hardening evidence: the residual
+interactive tool, absent OS-level egress proof, and untested server-initiated elicitation denial keep
+the native hardening profile unavailable for the default product path. The fork and compaction probes
+are endpoint observations, not clean-rehydration or transform proofs.
 The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
 its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
 depth 3 ancestry could not be established. This is an orchestration and isolation limitation, not

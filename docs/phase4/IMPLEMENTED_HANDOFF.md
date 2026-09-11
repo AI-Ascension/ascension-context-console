@@ -17,9 +17,10 @@ operation, so depth-2/depth-3 ancestry could not be established and no delegated
 claim is made. No real provider, game, deployment, merge, or release was performed. The
 implementation branch is pushed to GitHub as `phase4/persistent-provider` in both companion
 repositories. The fixture lane is intentionally `fixture_only`. A bounded native fake-upstream
-lane with durable restart/read, fork, and compact/start endpoint probes is recorded in the Phase 4
-evidence directory, but native tool hardening failed and full native/live-provider capabilities remain
-`unverified`.
+lane with durable restart/read, fork, compact/start endpoint probes, and a restricted feature/config
+probe is recorded in the Phase 4 evidence directory. The restricted probe removed forbidden
+executable tool classes but retained `request_user_input`; complete native hardening and full
+native/live-provider capabilities remain `unverified`.
 
 The harness snapshot lane persists only the bounded local metadata journal: operation
 idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a

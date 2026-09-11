@@ -82,9 +82,10 @@ loopback fake-upstream/two-turn plus durable restart evidence are recorded in
 [`phase4-native-isolated-smoke-20260911.json`](phase4-native-isolated-smoke-20260911.json) and
 [`phase4-native-fake-conformance-20260911.json`](phase4-native-fake-conformance-20260911.json).
 The fake lane used no real provider credentials, observed native tool-definition forwarding, and also
-recorded bounded durable-fork and compact/start endpoint probes. It does not establish the required
-hardening, clean rehydration or compaction semantics, OS-level egress trap, or full provider
-compatibility.
+recorded bounded durable-fork and compact/start endpoint probes. A restricted configuration probe
+removed the forbidden executable tool classes but retained `request_user_input`; it therefore does not
+establish complete hardening, clean rehydration or compaction semantics, OS-level egress trap, or full
+provider compatibility.
 
 ## External effects and handoff
 

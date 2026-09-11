@@ -89,6 +89,54 @@
     "semantic_completion_verified": false,
     "interpretation": "The native compact/start request completed against the local fake provider and generated a second completed turn, but no explicit context-compacted event or transformed context was asserted."
   },
+  "restricted_profile_probe": {
+    "tested": true,
+    "disabled_features": [
+      "auth_elicitation",
+      "browser_use",
+      "browser_use_external",
+      "apps",
+      "plugins",
+      "enable_mcp_apps",
+      "multi_agent",
+      "multi_agent_v2",
+      "shell_tool",
+      "unified_exec",
+      "unified_exec_tty",
+      "view_image",
+      "sleep_tool",
+      "tool_suggest",
+      "in_app_browser",
+      "in_app_local_automation",
+      "skill_search",
+      "default_mode_request_user_input",
+      "current_time_reminder"
+    ],
+    "config_overrides": [
+      "web_search=disabled",
+      "include_apps_instructions=false",
+      "include_permissions_instructions=false",
+      "include_environment_context=false",
+      "include_collaboration_mode_instructions=false"
+    ],
+    "initialize_success": true,
+    "thread_start_success": true,
+    "thread_instruction_sources": [],
+    "thread_network_access": false,
+    "provider_calls": 1,
+    "provider_request_path": "/v1/responses",
+    "provider_request_body_sha256": "6b45be595bff700abeee1b55ddace21edfc274655d5b07f399371ff84591600a",
+    "provider_tools_count": 1,
+    "provider_tool_names": ["request_user_input"],
+    "forbidden_tool_names_seen": [],
+    "input_item_count": 2,
+    "input_roles_or_types": ["developer", "user"],
+    "turn_start_response": true,
+    "turn_completed": true,
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true,
+    "interpretation": "Supported feature/config switches removed shell, file, code, browser, MCP, skill, subagent, background-terminal and web-search tool classes from this native request. A residual request_user_input tool remained, and no OS-level egress proof or server-initiated elicitation denial was established; this is partial hardening evidence only."
+  },
   "hardening_observation": {
     "native_tool_definitions_forwarded_per_turn": 11,
     "native_tool_definitions_forwarded_total": 22,
@@ -107,13 +155,14 @@
       "wait_agent"
     ],
     "denial_passed": false,
-    "interpretation": "The native App Server forwarded its built-in tool definitions to the fake provider request. No tool call was returned or executed, but forwarding alone fails the worker tool-denial requirement."
+    "interpretation": "The default native App Server lane forwarded its built-in tool definitions to the fake provider request. The restricted-profile probe removed all forbidden executable classes but retained request_user_input; no tool call was returned or executed, and complete worker hardening remains unverified."
   },
   "negative_scope": {
     "real_provider_authentication": false,
     "game_effects": 0,
     "compaction_started": true,
     "provider_compaction_semantics_verified": false,
+    "restricted_profile_full_hardening_verified": false,
     "server_request_rejection": false,
     "native_cleanup": false,
     "provider_context_claimed_exact": false
