@@ -12,5 +12,6 @@ The companion harness baseline is `99168da54c3b09b2cfb08b542ef8b014bd0bf5af`.
 
 The native three-level Luna/max preflight was attempted twice and both streams disconnected before
 metadata could be decoded. No delegated implementation claim is made. No real provider, game,
-deployment, or GitHub publication was performed. The fixture lane is intentionally `fixture_only`;
-native-binary/fake-upstream and live-provider capabilities remain `unverified`.
+deployment, merge, or release was performed. The implementation branch was pushed to GitHub as
+`phase4/persistent-provider` in both companion repositories. The fixture lane is intentionally
+`fixture_only`; native-binary/fake-upstream and live-provider capabilities remain `unverified`.
