@@ -3,9 +3,10 @@
 Date: 2026-09-10. This report describes the bounded implementation carried on the existing
 `phase2/context-editing` draft branch. It is an implementation handoff, not a product or
 live-readiness claim. The target Phase 3 implementation commit is `9b69951`; the companion harness
-implementation commit is `b923192`. The evidence refreshes are pinned to target head
-`b59f10823e5f99de4012b0aa097efd62a9260a01` and harness head
-`b9a7283ef905005dfd7d34b2be2ff611c859b5cc`.
+implementation commit is `b923192`. Final post-commit gates are pinned to target revision
+`7423d78b8a603278d25eb08851c8eee6447469ca` and harness revision
+`40554ebe04ca268376e405fce413dc2281727c63`. The browser artifacts were run at target parent
+revision `28222e5115b041a430003f9ede4293ca8780f756` and record that revision directly.
 
 ## Delivered implementation
 
