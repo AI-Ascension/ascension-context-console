@@ -15,6 +15,7 @@ const MAX_BODY_BYTES: usize = 16 * 1024;
 const MAX_BINDINGS: usize = 128;
 const MAX_OPERATIONS: usize = 512;
 const MAX_CANDIDATES: usize = 4;
+const FIXTURE_EXPIRY_SECONDS: u64 = 900;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SessionApiError {
@@ -503,7 +504,7 @@ impl ProviderSessionRoute {
                 compaction_epoch: 0,
                 dependency_count: 0,
                 game_dispatch_capability: false,
-                expires_at: "2099-01-01T00:00:00Z".to_owned(),
+                expires_at: fixture_expiry(),
             },
         );
         self.operations.insert(
@@ -950,6 +951,13 @@ fn scope_for_run(run_id: &str) -> SessionScopeView {
         episode_id: "episode-fixture".to_owned(),
         agent_id: "agent-fixture".to_owned(),
     }
+}
+
+fn fixture_expiry() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs());
+    crate::control::format_time(now.saturating_add(FIXTURE_EXPIRY_SECONDS))
 }
 
 fn sha256_hex(value: impl AsRef<[u8]>) -> String {

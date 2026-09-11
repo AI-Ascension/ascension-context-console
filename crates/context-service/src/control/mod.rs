@@ -14,6 +14,7 @@ pub use durable_types::{
     DurableStoreSnapshot,
 };
 pub use state::ControlPlane;
+pub(crate) use state::format_time;
 pub use types::{
     Boundary, Capabilities, Command, ControlError, Draft, EligibleItem, Event, ItemRef,
     MemoryBindingRecord, Operation, Patch, Preview, PreviewComponent, Receipt, Relation, Revision,
