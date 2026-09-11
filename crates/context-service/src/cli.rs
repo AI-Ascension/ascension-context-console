@@ -237,7 +237,9 @@ pub fn run_phase3_cli(arguments: Vec<String>) -> Result<(), String> {
         episode_id: "episode-fixture".to_owned(),
         agent_id: "agent-fixture".to_owned(),
     };
-    let mut route = MemoryRoute::new(scope, true);
+    // The target CLI has no attached harness projection.  Keep the route discoverable while
+    // leaving memory disabled until an explicit adapter supplies corpus generations and bytes.
+    let mut route = MemoryRoute::new(scope, false);
     route.grant_search("operator-cli");
     route.grant_review("reviewer-cli");
     let value = match operation.as_str() {

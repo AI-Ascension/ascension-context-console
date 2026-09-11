@@ -91,6 +91,7 @@
           <div><dt>Revocation epoch</dt><dd id="memory-revocation"></dd></div>
         </dl>
         <p id="memory-message" class="callout">Memory is disabled by default. Search is local-only and cannot start inference.</p>
+        <p class="muted">Retrieval scores are bounded relevance signals, not factual confidence or probability.</p>
         <form id="memory-search-form" class="memory-search">
           <label for="memory-query">Scoped lexical query</label>
           <input id="memory-query" name="query" maxlength="4096" autocomplete="off" placeholder="Search retained historical observations">
@@ -108,9 +109,16 @@
         <div class="state-grid">
           <span><strong>Extract</strong> exact source spans remain inspectable.</span>
           <span><strong>Proposal</strong> generated output is review-required.</span>
+          <span><strong>Evidence</strong> claims expose source spans, critical facts, omissions and contradictions.</span>
           <span><strong>Admission</strong> never commits or resumes a run.</span>
           <span><strong>Revocation</strong> fences descendants before cleanup.</span>
         </div>
+        <dl class="facts" aria-label="Review evidence fields">
+          <div><dt>Source spans</dt><dd>exact byte citations</dd></div>
+          <div><dt>Critical facts</dt><dd>checked before admission</dd></div>
+          <div><dt>Omissions</dt><dd>shown as bounded loss</dd></div>
+          <div><dt>Contradictions</dt><dd>kept visible for review</dd></div>
+        </dl>
       </section>
 
       <section id="control-panel" class="panel" hidden aria-labelledby="control-title">

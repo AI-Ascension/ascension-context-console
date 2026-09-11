@@ -1,7 +1,7 @@
 # Implemented Phase 3 handoff
 
-Date: 2026-09-10. This is the additive Phase 3 draft on `phase2/context-editing`; the target
-implementation commit is `9b69951` and the companion harness implementation commit is `b923192`.
+Date: 2026-09-11. This is the additive Phase 3 draft on `phase2/context-editing`; the target
+and companion revision pins are recorded in the completion report after the final gates.
 
 The target extends the existing Phase 1/2 checkout. `crates/context-service/src/memory.rs`
 contains the target-owned `MemoryRoute`, `MemoryQueryRequest`, capability disclosure, bounded
@@ -22,8 +22,10 @@ contract owner is the companion harness; this copy is a byte-pinned consumer art
 README, API, demo, testing notes, and ADR state the disabled default, explicit effect classes,
 limits, rollback boundary, and unavailable live/native lanes.
 
-The companion seam is an explicit integration dependency. Attach the harness policy through a
-future adapter only after preserving the existing Phase 2 renderer, prepared-manifest identity,
+The companion seam is an explicit integration dependency. The target CLI and integrated demo keep
+the facade disabled until an adapter supplies corpus/projection generations; the capability
+response labels unattached retrieval and compaction lanes `unverified` and exposes no generate,
+review, policy or adoption operation. Attach the harness policy through a future adapter only after preserving the existing Phase 2 renderer, prepared-manifest identity,
 pause/commit/resume serializer, action lineage, and permission boundary. Do not replace the Phase 2
 store or add a target-side summary scheduler. The current target returns `projection_unavailable`
 when no harness projection is attached; it does not claim an enabled end-to-end memory run.

@@ -32,11 +32,11 @@ Phase 3 target tests cover the closed `/v3/memory` query, separate search/review
 disabled capability disclosure, projection-unavailable responses, and the compiled `phase3-cli`
 help/capabilities/search commands. The target facade remains provider/game/process free. Companion
 harness tests cover causal scope and cutoff filtering, deterministic lexical ties, exact source
-citations, fake summary input capture and unknown outcomes, independent review/admission, whole
-rendered selection budgets, approval held/resume fencing, revocation, map generation checks,
-least-privilege roles, and telemetry redaction. The enabled corpus is synthetic; live adapter,
-native game, migration/restore, and deployment lanes are recorded as unverified in the Phase 3
-evidence report.
+citations, an independent hand-labelled oracle, fake summary input capture and unknown outcomes,
+independent review/admission, whole rendered selection budgets, approval held/resume fencing,
+encrypted SQLite restore/revocation, map generation checks, least-privilege roles, and telemetry
+redaction. The enabled corpus is synthetic; live adapter, native game, migration/restore process,
+and deployment lanes are recorded with their exact evidence class in the Phase 3 evidence report.
 
 `phase2_cli` includes direct reducer checks and a compiled-process workflow covering init, metadata
 capabilities, redacted eligible items, typed stdin draft editing, exploratory/applicable preview,

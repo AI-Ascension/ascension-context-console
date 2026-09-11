@@ -21,7 +21,9 @@ applicable preview, commits a revision while paused, and resumes explicitly. Its
 the prepared manifest digest, separate commit/resume effects, `provider_calls=0`, and
 `game_launches=0`.
 
-The Phase 3 CLI is a bounded inspection path over the additive memory facade:
+The Phase 3 CLI is a bounded inspection path over the additive memory facade. Because this target
+checkout has no attached harness projection, its capability result is disabled and its status
+reports unavailable generation values; the harness CLI is the enabled synthetic policy lane:
 
 ```text
 cargo run --locked --package context-service --bin context-console -- phase3-cli capabilities
