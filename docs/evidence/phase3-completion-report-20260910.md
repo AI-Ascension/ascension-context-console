@@ -71,7 +71,10 @@ Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked i
 Target PR #3 was merged after its `policy` and `Rust quality gates` checks passed; the squash merge
 commit is `114b3e5ae28cd60d9dafc421711dee859b602c4d`. Harness PR #70 was also merged externally;
 its merge commit is `8d771f128bc0ba13071063425c9a852bac2c40c1`. No release, deployment, live provider
-call, game launch, credential use, or unrelated write was performed. The target's default facade still has no attached persistent
+call, game launch, credential use, or unrelated write was performed. The latest native recheck
+observed Codex `0.153.4`, but `codex1 agents --no-alt-screen` failed because the managed standalone
+binary is absent and the read-only Herdr `agent.start` surface exposes no model, parent, depth, or
+reservation fields. The target's default facade still has no attached persistent
 projection; the explicit adapter proof is an offline synthetic path. The remaining mandatory
 evidence is the independent native three-level reviewer. Synthetic adapter, process, and network
 tripwire evidence cannot establish provider quality, native game/action effects, production storage

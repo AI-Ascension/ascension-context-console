@@ -56,16 +56,27 @@
       "latest_recheck": {
         "date": "2026-09-11",
         "status": "unchanged",
+        "rechecked_at": "2026-09-11T04:27:30Z",
         "observations": [
+          {
+            "command": "codex1/2/3 --version",
+            "exit_code": 0,
+            "observation": "codex-cli 0.153.4"
+          },
           {
             "command": "codex agents",
             "exit_code": 2,
             "observation": "Account selection failed: Choose codex1, codex2, codex3; each keeps its own credentials"
           },
           {
-            "command": "codex1 agents",
+            "command": "TERM=xterm-256color codex1 agents --no-alt-screen",
             "exit_code": 1,
             "observation": "Managed standalone Codex install is not present at /home/agent/.codex-account-1/packages/standalone/current/codex"
+          },
+          {
+            "command": "read-only Herdr agent.start inspection",
+            "exit_code": 0,
+            "observation": "agent.start accepts name, kind, pane_id, args and timeout_ms; it exposes no model, parent, depth, reservation or ancestry fields"
           }
         ],
         "native_controls": {
