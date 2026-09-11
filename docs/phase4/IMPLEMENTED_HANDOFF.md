@@ -1,7 +1,7 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
-Date: 2026-09-11. The target implementation source baseline is `35271da`.
-The companion harness baseline is `d094fc0`. Subsequent target commits are evidence/documentation-only.
+Date: 2026-09-11. The target implementation source baseline is `1508164`.
+The companion harness baseline is `926c3a7`. Subsequent target commits are evidence/documentation-only.
 
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
@@ -59,3 +59,19 @@ retirement regression lane covers these no-resurrection transitions.
 History cursors are binding- and scope-tagged and carry the current history epoch; prepared turns
 carry the broker auth and revocation epochs, so cross-binding, stale-history, and stale-authorization
 replays are rejected.
+
+The first resumed submission revalidates the entire approval dependency vector against the current
+binding rather than trusting construction time: owner/auth/session/history/compaction/revocation
+epochs, profile and continuity digests, and dependency identity must all still match the prepared
+record, which is itself re-validated at that boundary. A history refresh, compaction completion,
+dependency change, owner rotation or crash recovery therefore invalidates the exact approved bytes.
+
+An unapproved automatic context transform observed during an in-flight turn is fenced by
+`fence_automatic_transform`: the attempt is retained as unknown, the binding is held, and the
+history epoch advances so the late result and any stale prepared input can never regain authority.
+Wire-level native transform-notification detection remains unverified; only the broker fence is
+directly exercised.
+
+The encrypted metadata journal is now read through a no-follow descriptor and the resulting file
+metadata is rechecked on that descriptor, closing the path-swap window between path validation and
+read. Its load test proves a symlink redirection is rejected.

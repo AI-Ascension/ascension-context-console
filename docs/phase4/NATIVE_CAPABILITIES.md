@@ -39,6 +39,11 @@ Only the approved `OPENAI_API_KEY` secret name may cross the inherited-environme
 endpoint and unrelated credential names are rejected by configuration validation.
 The owned transport rejects a forbidden method before writing a frame; this is a broker/fixture
 allowlist guarantee, not proof that an installed native binary will suppress its own built-in tools.
+An unapproved automatic context transform observed during an in-flight turn is fenced by the
+broker: the attempt is retained as unknown, the binding is held and the history epoch advances so
+the late result and stale prepared input cannot regain authority. This is a broker-level response to
+a reported transform; the owned transport counts native notifications without parsing their method,
+so wire-level native transform detection remains unverified.
 Broker retention is finite at every admission and restore boundary: policy validation caps completed
 turns at 128 and scope lifetime at 24 hours, history refresh/completion/restore enforce the selected
 turn and aggregate-byte limits, and fork-created evaluation candidates plus combined fork/compaction

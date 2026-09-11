@@ -19,7 +19,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase4/persistent-provider",
-    "revision": "35271da2547bb5efa46a201d7ce3739e7255f2bc"
+    "revision": "150816417681f74bb853c2ef4816e779b66e2c08"
   },
   "platform": {
     "os": "linux",
@@ -38,7 +38,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:37985",
+  "base_url": "http://127.0.0.1:42061",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -50,24 +50,24 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:37985/web/",
-    "http://127.0.0.1:37985/web/styles.css",
-    "http://127.0.0.1:37985/web/app.js",
-    "http://127.0.0.1:37985/offline-bundle.json",
-    "http://127.0.0.1:37985/demo/snapshot",
-    "http://127.0.0.1:37985/demo/events",
-    "http://127.0.0.1:37985/demo/comparison",
-    "http://127.0.0.1:37985/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:37985/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:37985/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:37985/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:37985/v3/memory/capabilities",
-    "http://127.0.0.1:37985/v3/memory/status",
-    "http://127.0.0.1:37985/v1/runs/fixture-run-001/provider-sessions/capabilities",
-    "http://127.0.0.1:37985/v1/runs/fixture-run-001/provider-sessions",
-    "http://127.0.0.1:37985/v1/runs/fixture-run-001/provider-sessions/candidates",
-    "http://127.0.0.1:37985/v1/runs/fixture-run-001/provider-sessions/capabilities",
-    "http://127.0.0.1:37985/v1/runs/fixture-run-001/provider-sessions"
+    "http://127.0.0.1:42061/web/",
+    "http://127.0.0.1:42061/web/styles.css",
+    "http://127.0.0.1:42061/web/app.js",
+    "http://127.0.0.1:42061/offline-bundle.json",
+    "http://127.0.0.1:42061/demo/snapshot",
+    "http://127.0.0.1:42061/demo/events",
+    "http://127.0.0.1:42061/demo/comparison",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:42061/v3/memory/capabilities",
+    "http://127.0.0.1:42061/v3/memory/status",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions/capabilities",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions/candidates",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions/capabilities",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -111,11 +111,17 @@
     "binding_rows": 1,
     "denied_without_csrf_status": 403,
     "native_calls": 0,
-    "game_effects": 0
+    "game_effects": 0,
+    "rendered_operation_states": [
+      "intent_persisted",
+      "sent",
+      "unknown",
+      "completed"
+    ]
   },
   "integration_metrics": {
-    "api_requests": 22,
-    "browser_requests": 39,
+    "api_requests": 31,
+    "browser_requests": 54,
     "capture_records": 2,
     "control_events": 0,
     "control_status": "running",
@@ -136,11 +142,11 @@
     },
     {
       "path": "tools/integrated_browser_audit.cjs",
-      "sha256": "30ac6bdd035699596dc02fcdca6f93ed17e94d760e8bfbc0c40bf4ddf58c7d37"
+      "sha256": "6941d8dfcb1d0f8f0e8a023a553634c51adf09dad8579113804d0dd856bde228"
     },
     {
       "path": "web/app.js",
-      "sha256": "bc042bc0226b87e166c0047fa714132333e784957f6cc849907e730187421a8c"
+      "sha256": "d11b1f2117b01b0319ada227a80f13c7db2aefd0eb099c597f99f79c6615037c"
     },
     {
       "path": "fixtures/valid/snapshot-metadata.json",
@@ -180,16 +186,17 @@
     "no_horizontal_overflow_narrow": true,
     "memory_disabled_shadow": true,
     "phase4_session_fixture": true,
-    "phase4_csrf_denied": true
+    "phase4_csrf_denied": true,
+    "phase4_async_states_distinct": true
   },
   "artifacts": [
     {
       "path": "docs/evidence/integrated-browser-desktop-20260911.png",
-      "sha256": "1e88e000a35448c8739dd800eba32543c94eae8aa0e017aced8b8fd58cf38c01"
+      "sha256": "c402ad8c05ce6e9c2cb205054853a17bee3645f0678b1ba3b733cc4b791d2ae8"
     },
     {
       "path": "docs/evidence/integrated-browser-narrow-20260911.png",
-      "sha256": "bce08799ba233053016e52b16c46bb91d1aac916c88a4d2783e3c2409f2a84c5"
+      "sha256": "c181121f09667eb38b1230d69973881f4db0fab31de1dc985be63835ed608dfe"
     }
   ]
 }

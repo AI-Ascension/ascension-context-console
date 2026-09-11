@@ -9,8 +9,8 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
-| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` implementation source baseline `35271da` | [draft PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12); committed and pushed; subsequent target commits are evidence/documentation-only; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
-| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `d094fc0` | [draft PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
+| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` implementation source baseline `1508164` | [draft PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12); committed and pushed; subsequent target commits are evidence/documentation-only; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
+| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `926c3a7` | [draft PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
 reset or overwritten.
@@ -28,8 +28,9 @@ The target's authenticated `/v1/runs/{run_id}/provider-sessions*` projection is 
 fixture-only. The integrated loopback demo serves capabilities, scoped listings, history/operation
 metadata and an explicit evaluation-candidate action. Candidate writes require the synthetic
 session bearer and same-origin CSRF proof. The UI reports `fixture_only`, `compiled_peer`,
-`owned_stdio`, disabled tools/ambient history, zero native calls and zero game effects. It never
-accepts raw RPC methods, provider credentials, game actions or automatic resume.
+`owned_stdio`, disabled tools/ambient history, zero native calls and zero game effects, and renders
+the run's bounded operation metadata so accepted/pending/unknown/completed states stay visibly
+distinct. It never accepts raw RPC methods, provider credentials, game actions or automatic resume.
 
 The harness snapshot lane persists only the bounded local metadata journal: operation
 idempotency, epochs, maintenance records and redacted history projections. Local admission enforces
@@ -43,8 +44,15 @@ Pending candidate, reconnect and compaction completions are fenced after retirem
 fork/compaction maintenance is invalidated on owner rotation or crash recovery; the dedicated
 retirement regression lane covers these no-resurrection transitions.
 History cursors are binding- and scope-tagged and carry the current history epoch; prepared turns
-carry the broker auth and revocation epochs, with cross-binding, stale-history, and stale-
-authorization replay rejection covered by the cursor and provider-session regression lanes.
+carry the broker auth and revocation epochs, and the first resumed submission now re-validates the
+entire approval dependency vector (owner/auth/session/history/compaction/revocation epochs, profile
+and continuity digests, dependency identity) against the current binding before any operation is
+created. Cross-binding, stale-history, stale-configuration and stale-authorization replays are
+rejected by the cursor, prepared-vector and provider-session regression lanes. An unapproved
+automatic context transform observed during an in-flight turn is fenced: the attempt becomes
+unknown, the binding is held and the history epoch advances, so the late result and any stale
+prepared input cannot regain authority. Wire-level native transform notification detection remains
+unverified; only the broker fence is directly exercised.
 
 The journal has an explicit volatile adapter and a broker-owned encrypted-persistent adapter. The
 encrypted adapter authenticates only this bounded metadata envelope and uses fail-closed absolute,
@@ -85,19 +93,26 @@ harness: cargo test --locked -p sts2-harness --lib provider_session::transport::
 harness: cargo test --locked -p sts2-harness --lib provider_session::transport::tests::forbidden_native_method_is_rejected_before_write
 target: node --check web/app.js && node --check tools/integrated_browser_audit.cjs
 target: cargo test --locked -p context-service --test phase4_session
+target: node tools/phase4_session_loopback.cjs
+target: node tools/integrated_browser_audit.cjs
 harness: cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety --test provider_session_snapshot
+harness: cargo test --locked -p sts2-harness --test provider_session_prepared --test provider_session_fences
 ```
 
-The harness full suite passed with 181 tests and one ignored test in the large execution-store
-group plus the remaining workspace groups; the explicit `TMPDIR` was required because the default
-`/tmp` tmpfs exhausted while constructing oversized SQLite fixtures. The target full suite passed.
-Loopback probes against the built integrated demo returned capabilities/list/candidate success and
-403 for a wrong-origin candidate write; all reported zero native calls and zero game effects. The
-exact probe record is [`phase4-session-loopback-20260911.json`](phase4-session-loopback-20260911.json).
+The harness full workspace suite passed (683 tests passed, 5 ignored across all groups), including
+the new prepared-vector, transform-fence, clean-rotation, privacy-serialization, cursor-opacity,
+retained-compaction and symlink-redirection lanes; the explicit `TMPDIR` was required because the
+default `/tmp` tmpfs exhausted while constructing oversized SQLite fixtures. The target full suite
+passed. `tools/phase4_session_loopback.cjs` started the built integrated demo and returned
+capabilities/list/candidate success plus 403 for a wrong-origin candidate write; every probe reported
+zero native calls and zero game effects. The exact probe record is
+[`phase4-session-loopback-20260911.json`](phase4-session-loopback-20260911.json).
 
 The current browser audit ran with Playwright 1.63.0 and Chromium 153.0.8010.12. It exercised the
-Phase 1–3 panels plus the Phase 4 capabilities/list/candidate flow, wrong-origin rejection, reduced
-motion, narrow layout, adversarial text, zero external requests, and zero browser persistence. The
+Phase 1–3 panels plus the Phase 4 capabilities/list/candidate flow, wrong-origin rejection,
+accepted/pending/unknown/completed operation states rendered as distinct values in the served UI,
+reduced motion, narrow layout, adversarial text, zero external requests, and zero browser
+persistence. The
 fresh JSON/PNG evidence is recorded in `docs/evidence/integrated-browser-ui-20260910.json` and the
 same run's 20260911 PNG artifacts. Full native-profile and live-provider/game checks remain
 unverified.

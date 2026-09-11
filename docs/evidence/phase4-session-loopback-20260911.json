@@ -3,8 +3,12 @@
   "evidence_id": "PHASE4-SESSION-LOOPBACK-20260911",
   "repository": "AI-Ascension/ascension-context-console",
   "branch": "phase4/persistent-provider",
-  "revision": "35271da2547bb5efa46a201d7ce3739e7255f2bc",
-  "evidence_class": ["synthetic", "compiled_peer"],
+  "revision": "150816417681f74bb853c2ef4816e779b66e2c08",
+  "captured_at": "2026-09-11T22:27:38.994Z",
+  "evidence_class": [
+    "synthetic",
+    "compiled_peer"
+  ],
   "server_command": "cargo run --locked -p context-service -- integrated-demo 0",
   "probes": [
     {
@@ -13,6 +17,13 @@
       "status": 200,
       "profile": "codex-app-server-fixture-v1",
       "transport": "owned_stdio",
+      "hardening": {
+        "ambient_history": false,
+        "configuration_verified": true,
+        "encrypted_state": false,
+        "tools_enabled": false,
+        "transform_handling": "detect_and_fence"
+      },
       "native_calls": 0,
       "game_effects": 0
     },
@@ -21,6 +32,7 @@
       "route": "/v1/runs/fixture-run-001/provider-sessions",
       "status": 200,
       "bindings_before_candidate": 0,
+      "operations_before_candidate": 0,
       "native_calls": 0,
       "game_effects": 0
     },
@@ -47,6 +59,7 @@
     "no_game_launch": true,
     "no_external_request": true
   },
+  "raw_rpc": false,
   "native_binary_executed": false,
   "real_provider_called": false,
   "real_game_launched": false
