@@ -9,6 +9,7 @@ const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const playwrightModule = process.env.PLAYWRIGHT_MODULE || 'playwright';
 const { chromium } = require(playwrightModule);
+const playwrightVersion = require(`${playwrightModule}/package.json`).version;
 const evidenceDir = path.join(root, 'docs', 'evidence');
 fs.mkdirSync(evidenceDir, { recursive: true });
 const auditCommand = [
@@ -16,7 +17,8 @@ const auditCommand = [
   `FONTCONFIG_FILE=${process.env.FONTCONFIG_FILE || '<unset>'}`,
   `XDG_DATA_DIRS=${process.env.XDG_DATA_DIRS || '<unset>'}`,
   `LD_LIBRARY_PATH=${process.env.LD_LIBRARY_PATH || '<unset>'}`,
-  `PLAYWRIGHT_MODULE=${playwrightModule}`,
+  `PLAYWRIGHT_MODULE=playwright@${playwrightVersion}`,
+  'PLAYWRIGHT_BROWSERS_PATH=<cached-browser>',
   'node tools/integrated_browser_audit.cjs',
 ].join(' ');
 
@@ -65,7 +67,10 @@ async function run() {
   try {
     const readyUrl = await waitForServer(child);
     const base = new URL(readyUrl).origin;
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    });
     const context = await browser.newContext({
       baseURL: base,
       reducedMotion: 'reduce',
@@ -91,24 +96,21 @@ async function run() {
     await page.locator('#session-create-candidate').click();
     await page.waitForFunction(() => document.querySelectorAll('#session-rows tr').length === 1);
     assert.match(await page.locator('#session-message').textContent(), /accepted locally/);
-    const deniedSessionWrite = await page.evaluate(async () => {
-      const response = await fetch('/v1/runs/fixture-run-001/provider-sessions/candidates', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer fixture-session-token',
-          'Content-Type': 'application/json',
-          Origin: window.location.origin,
-        },
-        body: JSON.stringify({
-          idempotency_key: 'browser-denied-candidate',
-          expected_control_generation: 0,
-          approved_policy_ref: 'policy-fixture',
-          profile_ref: 'profile-fixture',
-          purpose: 'evaluation',
-        }),
-      });
-      return response.status;
-    });
+    const deniedSessionWrite = await (await fetch(`${base}/v1/runs/fixture-run-001/provider-sessions/candidates`, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer fixture-session-token',
+        'Content-Type': 'application/json',
+        Origin: base,
+      },
+      body: JSON.stringify({
+        idempotency_key: 'browser-denied-candidate',
+        expected_control_generation: 0,
+        approved_policy_ref: 'policy-fixture',
+        profile_ref: 'profile-fixture',
+        purpose: 'evaluation',
+      }),
+    })).status;
     assert.equal(deniedSessionWrite, 403);
     await page.locator('#compare-button').focus();
     assert.equal(await page.evaluate(() => document.activeElement.id), 'compare-button');
@@ -255,7 +257,7 @@ async function run() {
       exit_code: 0,
       result: 'passed',
       evidence_class: ['synthetic', 'compiled_peer'],
-      tool: `Playwright ${require(playwrightModule + '/package.json').version}`,
+      tool: `Playwright ${playwrightVersion}`,
       browser: await browser.version(),
       base_url: base,
       viewport_desktop: { width: 1440, height: 1000 },

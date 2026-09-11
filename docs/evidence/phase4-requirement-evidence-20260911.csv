@@ -71,7 +71,7 @@ R04-069,source_reviewed,diagnostic redaction policy,cargo run --locked --package
 R04-070,source_reviewed,typed route excludes raw RPC,cargo test --locked -p context-service --test phase4_session,source_reviewed,Caller cannot submit a native method.
 R04-071,executed_synthetic,target typed API and CLI,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,API/CLI surfaces are covered.
 R04-072,source_reviewed,web/index.html and web/app.js, node --check web/app.js,source_reviewed,UI reports fixture-only asynchronous metadata; browser execution is pending.
-R04-073,unverified,tools/integrated_browser_audit.cjs,Playwright dependency unavailable in this environment,browser,Current revision has not received a fresh browser run.
+R04-073,executed_synthetic,tools/integrated_browser_audit.cjs,Playwright 1.63.0 integrated_browser_audit.cjs,browser,Fresh current-revision browser run passed with no external requests or persistence.
 R04-074,executed_synthetic,harness usage scope fields,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Usage remains scoped to the binding/operation.
 R04-075,executed_synthetic,harness idempotency records,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Duplicate usage/operation keys are deduplicated.
 R04-076,unverified,native profile compatibility,docs/phase4/NATIVE_CAPABILITIES.md,native_binary,Only generated native schema was inspected; binary compatibility is unverified.

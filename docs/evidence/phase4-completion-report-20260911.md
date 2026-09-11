@@ -58,10 +58,12 @@ Loopback probes against the built integrated demo returned capabilities/list/can
 403 for a wrong-origin candidate write; all reported zero native calls and zero game effects. The
 exact probe record is [`phase4-session-loopback-20260911.json`](phase4-session-loopback-20260911.json).
 
-The current browser audit script is syntax-checked but was not executed because the Playwright and
-Chromium paths used by the historical evidence are unavailable in this environment. The older
-browser artifacts therefore are not treated as proof for this revision. Native-binary execution
-and live-provider/game checks remain unverified.
+The current browser audit ran with Playwright 1.63.0 and Chromium 153.0.8010.12. It exercised the
+Phase 1–3 panels plus the Phase 4 capabilities/list/candidate flow, wrong-origin rejection, reduced
+motion, narrow layout, adversarial text, zero external requests, and zero browser persistence. The
+fresh JSON/PNG evidence is recorded in `docs/evidence/integrated-browser-ui-20260910.json` and the
+same run's 20260911 PNG artifacts. Native-binary execution and live-provider/game checks remain
+unverified.
 
 ## Orchestration and native limits
 
