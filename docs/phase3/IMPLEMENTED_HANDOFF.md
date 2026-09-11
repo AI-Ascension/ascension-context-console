@@ -1,8 +1,7 @@
 # Implemented Phase 3 handoff
 
-Date: 2026-09-10. This is the additive Phase 3 draft on `phase2/context-editing`; the exact
-delivered commit is recorded in `docs/evidence/phase3-completion-report-20260910.md` after the
-draft commit is made.
+Date: 2026-09-10. This is the additive Phase 3 draft on `phase2/context-editing`; the target
+implementation commit is `9b69951` and the companion harness implementation commit is `b923192`.
 
 The target extends the existing Phase 1/2 checkout. `crates/context-service/src/memory.rs`
 contains the target-owned `MemoryRoute`, `MemoryQueryRequest`, capability disclosure, bounded

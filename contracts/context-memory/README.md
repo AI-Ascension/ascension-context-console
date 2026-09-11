@@ -12,9 +12,9 @@ causal cutoffs, revocation epochs, source spans, review bindings, whole-input di
 an operator contract only; local route tests are the executable target evidence.
 
 The artifacts were copied from the Phase 3 package at implementation time and are pinned to the
-Phase 2 target head `0c1f402b0b6c7f0ab79eb369a649286a46482e3a` and companion harness head
-`8674874feccfbf995ed0aa5a8ec8390d9dac137b`. The current Phase 3 branch remains a draft and has
-not been merged, released, deployed, or used with a live provider or game.
+Phase 3 target implementation `9b69951` and companion harness implementation `b923192`. The
+current Phase 3 branch remains a draft and has not been merged, released, deployed, or used with a
+live provider or game.
 
 All new payloads use the `ascension.context-memory.*.v1` namespace. `context_compact=false`,
 provider-session and direct-game-dispatch meanings under the older capability profile remain

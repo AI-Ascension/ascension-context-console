@@ -1,9 +1,9 @@
 # Phase 3 completion report
 
-Date: 2026-09-10. This report describes the bounded implementation currently carried on the
-existing `phase2/context-editing` draft branch. It is an implementation handoff, not a product or
-live-readiness claim. The final target and companion commit IDs are filled after the scoped draft
-commits; until then, `WORKTREE` identifies the source state.
+Date: 2026-09-10. This report describes the bounded implementation carried on the existing
+`phase2/context-editing` draft branch. It is an implementation handoff, not a product or
+live-readiness claim. The target Phase 3 implementation commit is `9b69951`; the companion harness
+implementation commit is `b923192`.
 
 ## Delivered implementation
 
@@ -60,15 +60,14 @@ The target facade is intentionally not the missing end-to-end adapter: when disa
 
 ## Tests and quality
 
-Executed on the final pre-commit worktree so far:
+Executed against the delivered implementation commits:
 
 * target `cargo run --locked --package repo-policy -- --strict`: passed;
 * target `cargo fmt --all -- --check`, Clippy with `-D warnings`, and locked workspace tests:
   passed; target Phase 3 route/CLI test: 3 passed;
 * harness `cargo run --locked --package repo-policy -- --strict`: passed;
-  `cargo fmt --all -- --check`, Clippy with `-D warnings`, and Phase 3 policy tests: 6 passed;
-  the full locked workspace run passed before the final source split and is rerun for the final
-  commit;
+  `cargo fmt --all -- --check`, Clippy with `-D warnings`, Phase 3 policy tests: 6 passed, and the
+  full locked workspace run: 171 passed, 1 ignored;
 * target `integrated_browser_audit.cjs`: passed with Playwright 1.63.0 / Chromium 153, zero
   external requests, zero provider calls, zero game launches, no browser persistence and no narrow
   overflow; target `phase2_browser_audit.cjs`: passed with the same conditions and the existing
@@ -95,8 +94,7 @@ this in-memory policy proof.
 ## External actions and limitations
 
 No merge, release, deployment, live provider call, game launch, or external network request was
-performed. The next delivery step is two scoped commits/pushes and updates to the existing draft
-PRs #3 (target) and #60 (harness), without merging them. The PRs must link this report, the exact
-companion pins, contract hashes, and the complete matrix. Native three-level controls and live
-provider/game evidence remain unavailable; the final handoff must keep those rows unverified or
-blocked rather than converting synthetic evidence into readiness.
+performed. The changes are intended for the existing draft PRs #3 (target) and #60 (harness),
+without merging them. Native three-level controls and live provider/game evidence remain
+unavailable; the final handoff keeps those rows unverified or blocked rather than converting
+synthetic evidence into readiness.
