@@ -1,17 +1,19 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
-Date: 2026-09-11. The current target baseline is `f6b4284b5cb98a9900373a2e9783704e3ce5e28f`.
-The companion harness baseline is `99168da54c3b09b2cfb08b542ef8b014bd0bf5af`.
+Date: 2026-09-11. The current target baseline is `96bdf9ed74d75f693a9b7dbbbd9cfbe89825113e`.
+The companion harness baseline is `5d664f3e0bfd3bf3303066947ba0021698b7c3a6`.
 
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
 | Frozen capture, renderer and Phase 2 held boundary | companion harness `context_capture`, `context_control`, `context_memory` and Exo modules | inherited Phase 1–3 tests and handoff | live provider/game remains unverified |
 | Persistent-session policy and identities | harness `provider_session::{types/*,broker*}` | `tests/provider_session.rs` | in-memory journal; native binary compatibility unverified |
-| Bounded native framing | harness `provider_session::{protocol*,transport*}` | compiled `provider-session-peer` test | fixture envelope is not proof of Codex App Server behavior |
+| Bounded native framing | harness `provider_session::{protocol*,transport*}` | compiled `provider-session-peer` test; JSON-RPC 2.0 strict-frame fixtures | fixture peer is not proof of native-binary compatibility |
 | Client API and CLI | target `provider_session.rs`, `run_phase4_cli`, additive OpenAPI seed | `tests/phase4_session.rs`; `phase4-cli` | target owns no native state or credentials |
 
-The native three-level Luna/max preflight was attempted twice and both streams disconnected before
-metadata could be decoded. No delegated implementation claim is made. No real provider, game,
-deployment, merge, or release was performed. The implementation branch was pushed to GitHub as
-`phase4/persistent-provider` in both companion repositories. The fixture lane is intentionally
-`fixture_only`; native-binary/fake-upstream and live-provider capabilities remain `unverified`.
+The native three-level Luna/max preflight was attempted with a real depth-1 lead observed at
+`gpt-5.6-luna`/`max`. That session exposed no child-spawn, reservation, messaging, or close
+operation, so depth-2/depth-3 ancestry could not be established and no delegated implementation
+claim is made. No real provider, game, deployment, merge, or release was performed. The
+implementation branch is pushed to GitHub as `phase4/persistent-provider` in both companion
+repositories. The fixture lane is intentionally `fixture_only`; native-binary/fake-upstream and
+live-provider capabilities remain `unverified`.

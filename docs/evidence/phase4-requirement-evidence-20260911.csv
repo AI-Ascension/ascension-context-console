@@ -1,0 +1,81 @@
+requirement,status,implementation,evidence_command_or_artifact,evidence_class,notes
+R04-001,executed_synthetic,docs/phase4/IMPLEMENTED_HANDOFF.md,cargo test --locked --workspace --all-targets --all-features --quiet,source_and_product_fixture,Current target/harness pins are recorded.
+R04-002,executed_synthetic,harness provider_session feature-off broker test,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Disabled mode creates no worker.
+R04-003,executed_synthetic,contracts/provider-session and inherited contracts,cargo run --locked --package repo-policy -- --strict,contract_and_policy,Additive schemas remain strict.
+R04-004,blocked,Native preflight hierarchy,docs/phase4/NATIVE_CAPABILITIES.md,native_orchestration,Depth 2/3 could not be established because the native lead exposed no child controls.
+R04-005,executed_synthetic,harness broker ownership and scope tests,cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety,compiled_fixture,Native identity is never caller supplied.
+R04-006,executed_synthetic,harness broker owner epoch policy,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Exclusive writer policy is locally asserted.
+R04-007,executed_synthetic,harness provider-session identity types,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Local/native/turn/game identities remain distinct.
+R04-008,executed_synthetic,harness lifecycle and retirement tests,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Retirement fences local bindings.
+R04-009,executed_synthetic,docs/phase4/NATIVE_CAPABILITIES.md and capability views,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Fixture and discovered schema digests are recorded; native execution is not claimed.
+R04-010,executed_synthetic,OwnedNativeTransport::initialize,cargo test --locked -p sts2-harness --test provider_session,compiled_peer,Exactly-once initialization is enforced.
+R04-011,executed_synthetic,provider_session/protocol_parse.rs,cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety,compiled_peer,JSON-RPC 2.0 line bounds duplicate-key and ambiguity checks pass.
+R04-012,executed_synthetic,transport_io server-request denial,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_peer,Server callbacks are denied and fence the connection.
+R04-013,executed_synthetic,transport notification ordering,cargo test --locked -p sts2-harness --test provider_session,compiled_peer,Notifications are deduplicated before the matching result.
+R04-014,executed_synthetic,broker unknown-outcome state,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Transport IDs are not idempotency receipts.
+R04-015,executed_synthetic,transport method allowlist,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_peer,Unknown methods and path-like methods are rejected.
+R04-016,unverified,Native tool-denial profile,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,Compiled peer denies tools; native binary was not run.
+R04-017,unverified,Ambient-history hardening fields,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,Native personal/default state was not authorized for execution.
+R04-018,unverified,Fixed credential realm,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,No native credential lane was available.
+R04-019,executed_synthetic,target route and harness fixture,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Reads/candidate metadata report zero inference calls.
+R04-020,source_reviewed,OwnedNativeTransport process configuration,cargo run --locked --package repo-policy -- --strict,source_reviewed,Executable/state-root containment is source-checked; native process lane remains unverified.
+R04-021,executed_synthetic,harness broker intent journal,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Intent is persisted before native completion is represented.
+R04-022,executed_synthetic,target and harness idempotency maps,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Same request deduplicates and changed body conflicts.
+R04-023,executed_synthetic,harness retained receipts,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Lost acknowledgement remains recoverable/unknown.
+R04-024,executed_synthetic,harness thread-create fencing,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Unknown thread creation is not silently retried.
+R04-025,executed_synthetic,harness held recovery,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Recovery preserves held state.
+R04-026,executed_synthetic,harness interrupt race tests,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Late results are fenced after interrupt.
+R04-027,executed_synthetic,harness conflicting terminal evidence,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Conflicts quarantine the attempt.
+R04-028,executed_synthetic,harness capacity constants and flood tests,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Frame/queue/binding/operation bounds are exercised.
+R04-029,executed_synthetic,harness prepared boundary binding,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Prepared context remains a separate boundary.
+R04-030,executed_synthetic,harness prepared suffix tests,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Exact prepared suffix and explicit resume are checked.
+R04-031,executed_synthetic,harness continuity fields,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Continuity digest and history epochs are carried.
+R04-032,executed_synthetic,target capability/history views,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Unknown provider-added context stays unknown.
+R04-033,executed_synthetic,harness transform fencing,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Transform policy is detect-and-fence.
+R04-034,executed_synthetic,harness per-turn schemas,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Turn usage/effect fields are typed.
+R04-035,executed_synthetic,target Phase 2/3 prepared-binding route,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Binding requires explicit references.
+R04-036,executed_synthetic,harness commit-held policy,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Commit does not release execution.
+R04-037,executed_synthetic,harness explicit resume claim,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Resume is one-shot and explicit.
+R04-038,executed_synthetic,harness operation lineage,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Plans retain binding and epoch lineage.
+R04-039,executed_synthetic,harness epoch invalidation,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Obsolete plans are rejected.
+R04-040,executed_synthetic,harness unknown game outcome,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Game effects remain zero/unknown; no game is called.
+R04-041,executed_synthetic,target GET route and capability tests,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Reads are metadata-only.
+R04-042,executed_synthetic,target scoped list routes,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Run scope filters bindings and operations.
+R04-043,executed_synthetic,harness history epoch/coverage policy,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Gaps and coverage are explicit.
+R04-044,source_reviewed,harness privacy schemas and redaction tests,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,No reasoning/raw RPC fields are exposed; native execution is unverified.
+R04-045,executed_synthetic,target fork plan route,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Cutoff refs are required.
+R04-046,executed_synthetic,harness evaluation fork isolation,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Evaluation operations have no game effects.
+R04-047,executed_synthetic,target fork plan operation state,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Native fork and clean rehydration remain distinct.
+R04-048,executed_synthetic,target run scope checks,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Cross-run reads are rejected.
+R04-049,executed_synthetic,harness compaction permission,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Compaction is plan/permission gated.
+R04-050,executed_synthetic,harness acknowledgement state,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Acknowledgement does not imply completion.
+R04-051,executed_synthetic,harness compaction epochs,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Compaction epoch is typed and fenced.
+R04-052,executed_synthetic,target opaque history/summary fields,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Summary content is not fabricated.
+R04-053,source_reviewed,harness transform race fencing,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,No native transform run was authorized.
+R04-054,executed_synthetic,harness compaction cancellation,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Cancelled compaction cannot resume automatically.
+R04-055,executed_synthetic,harness dependency closure,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Revocation reaches descendants.
+R04-056,executed_synthetic,harness synchronous revocation,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Revocation fences admission.
+R04-057,executed_synthetic,harness descendant revocation,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Forks/interrupts are fenced.
+R04-058,source_reviewed,harness clean rotation policy,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,Native rotation remains synthetic.
+R04-059,executed_synthetic,target retirement wording and harness cleanup,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Local cleanup never claims remote forgetting.
+R04-060,executed_synthetic,target cleanup route scope,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Cleanup is bounded to the binding scope.
+R04-061,unverified,Native encrypted state capability,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,Native persistence was not run; fixture state is not a native proof.
+R04-062,executed_synthetic,harness volatile fixture semantics,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Fixture close/retire is explicit.
+R04-063,source_reviewed,harness bounded retention policy,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,Finite local bounds are tested; native store retention is unverified.
+R04-064,executed_synthetic,transport path/process safety,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Unsafe paths and symlink components fail closed.
+R04-065,source_reviewed,harness revocation/retirement records,cargo test --locked -p sts2-harness --test provider_session,source_reviewed,Tombstone semantics are local synthetic evidence.
+R04-066,executed_synthetic,target principal and run checks,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Scoped authorization is enforced.
+R04-067,executed_synthetic,integrated demo origin/CSRF adapter,curl loopback POST with wrong Origin,compiled_fixture,Wrong-origin candidate write returned 403.
+R04-068,source_reviewed,target/harness authorization errors,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,Revocation policy is source/test covered; live credentials were not used.
+R04-069,source_reviewed,diagnostic redaction policy,cargo run --locked --package repo-policy -- --strict,source_reviewed,No secret diagnostics are emitted by the fixture route.
+R04-070,source_reviewed,typed route excludes raw RPC,cargo test --locked -p context-service --test phase4_session,source_reviewed,Caller cannot submit a native method.
+R04-071,executed_synthetic,target typed API and CLI,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,API/CLI surfaces are covered.
+R04-072,source_reviewed,web/index.html and web/app.js, node --check web/app.js,source_reviewed,UI reports fixture-only asynchronous metadata; browser execution is pending.
+R04-073,unverified,tools/integrated_browser_audit.cjs,Playwright dependency unavailable in this environment,browser,Current revision has not received a fresh browser run.
+R04-074,executed_synthetic,harness usage scope fields,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Usage remains scoped to the binding/operation.
+R04-075,executed_synthetic,harness idempotency records,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Duplicate usage/operation keys are deduplicated.
+R04-076,unverified,native profile compatibility,docs/phase4/NATIVE_CAPABILITIES.md,native_binary,Only generated native schema was inspected; binary compatibility is unverified.
+R04-077,executed_synthetic,phase4 evidence report and capability tiers,docs/evidence/phase4-completion-report-20260911.md,evidence_tiers,Native/live claims are separated from fixture evidence.
+R04-078,executed_synthetic,integrated_demo provider-session panel,curl loopback capabilities/list/candidate probes,compiled_fixture,Actual built product served the fixture route with zero native/game effects.
+R04-079,unverified,native migration/restore lane,docs/phase4/NATIVE_CAPABILITIES.md,native_binary,No isolated native state root was authorized.
+R04-080,executed_synthetic,pushed reviewable branches,git fetch --prune; git pull --ff-only,delivery,Both branches are committed, pushed and synchronized.
