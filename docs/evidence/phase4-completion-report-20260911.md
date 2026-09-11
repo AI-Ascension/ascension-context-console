@@ -77,13 +77,18 @@ registry exposed no child-spawn, reservation, messaging or close operation, so d
 and depth-3 leaf ancestry could not be verified. No delegated implementation claim is made. The
 installed Codex 0.154.0 binary and generated App Server schema were inspected without inference;
 their digests and reviewed method names are recorded in
-[`NATIVE_CAPABILITIES.md`](../phase4/NATIVE_CAPABILITIES.md). Starting that binary against
-personal/default state was not authorized and no isolated fake-upstream lane was available.
+[`NATIVE_CAPABILITIES.md`](../phase4/NATIVE_CAPABILITIES.md). A bounded isolated native
+initialize/thread-start/thread-read smoke is recorded in
+[`phase4-native-isolated-smoke-20260911.json`](phase4-native-isolated-smoke-20260911.json); it
+sent no turn and does not establish fake-upstream or provider compatibility. No personal/default
+state was used and no isolated fake-upstream lane was available.
 
 ## External effects and handoff
 
-No real provider was called, no game was launched, no credential/account/configuration was changed,
-and no remote repository was merged, released or deployed. The branches are ready for independent
-review. Activation still requires an authorized isolated native binary/fake-upstream profile,
+No authenticated provider inference was executed and no game was launched. An earlier exploratory
+native start reached the provider websocket without credentials and received an HTTP 401; the
+bounded evidence run used a loopback-refused proxy and sent no turn. No credential/account/
+configuration was changed, and no remote repository was merged, released or deployed. The
+branches are ready for independent review. Activation still requires an authorized isolated native binary/fake-upstream profile,
 successful native depth preflight, browser dependencies for a fresh audit, and separately approved
 live-provider/game checks. Until those gates pass, the only enabled profile is `fixture_only`.

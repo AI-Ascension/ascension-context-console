@@ -14,10 +14,15 @@ names present in that schema are `initialize`, `thread/start`, `thread/read`, `t
 `turn/interrupt`, `thread/fork`, and `thread/compact/start`; local retirement remains a broker
 operation because no `thread/retire` method is present in the schema.
 
-Native-binary execution remains unverified. Starting the installed binary against personal/default
-state was not authorized, and no isolated fake-upstream credential/config lane was available. The
-required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but its
-native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
+An isolated native smoke was run with a disposable state root and a loopback-refused proxy. It
+observed successful `initialize`, ephemeral `thread/start`, and metadata-only `thread/read`
+responses, with an idle thread, no instruction sources, and the native `:read-only` profile. The
+machine-readable record is
+[`phase4-native-isolated-smoke-20260911.json`](../evidence/phase4-native-isolated-smoke-20260911.json).
+The smoke deliberately sent no turn and does not establish fake-upstream compatibility or prove
+that all native background egress is trapped; full native execution therefore remains unverified.
+The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
+its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
 depth 3 ancestry could not be established. This is an orchestration and isolation limitation, not
-evidence that the native profile is supported. Authentication, native compaction semantics,
-provider transforms, persistence, and remote cleanup remain unverified.
+evidence that the native profile is supported. Authentication, tool/ambient-history denial, native
+compaction semantics, provider transforms, persistence, and remote cleanup remain unverified.

@@ -14,11 +14,11 @@ R04-012,executed_synthetic,transport_io server-request denial,cargo test --locke
 R04-013,executed_synthetic,transport notification ordering,cargo test --locked -p sts2-harness --test provider_session,compiled_peer,Notifications are deduplicated before the matching result.
 R04-014,executed_synthetic,broker unknown-outcome state,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Transport IDs are not idempotency receipts.
 R04-015,executed_synthetic,transport method allowlist,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_peer,Unknown methods and path-like methods are rejected.
-R04-016,unverified,Native tool-denial profile,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,Compiled peer denies tools; native binary was not run.
-R04-017,unverified,Ambient-history hardening fields,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,Native personal/default state was not authorized for execution.
-R04-018,unverified,Fixed credential realm,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,No native credential lane was available.
+R04-016,unverified,Native tool-denial profile,docs/phase4/NATIVE_CAPABILITIES.md and docs/evidence/phase4-native-isolated-smoke-20260911.json,source_reviewed,No native turn or tool request was sent; denial remains unverified.
+R04-017,unverified,Ambient-history hardening fields,docs/phase4/NATIVE_CAPABILITIES.md and docs/evidence/phase4-native-isolated-smoke-20260911.json,source_reviewed,Metadata smoke had no instruction sources; ambient-history denial remains unverified.
+R04-018,unverified,Fixed credential realm,docs/phase4/NATIVE_CAPABILITIES.md and docs/evidence/phase4-native-isolated-smoke-20260911.json,source_reviewed,No credentials were supplied or migrated; native credential realm remains unverified.
 R04-019,executed_synthetic,target route and harness fixture,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Reads/candidate metadata report zero inference calls.
-R04-020,source_reviewed,OwnedNativeTransport process configuration,cargo run --locked --package repo-policy -- --strict,source_reviewed,Executable/state-root containment is source-checked; native process lane remains unverified.
+R04-020,source_reviewed,OwnedNativeTransport process configuration,cargo run --locked --package repo-policy -- --strict,source_reviewed,Executable/state-root containment is source-checked; isolated native metadata smoke observed; full process containment remains unverified.
 R04-021,executed_synthetic,harness broker intent journal,cargo test --locked -p sts2-harness --test provider_session --test provider_session_snapshot,compiled_fixture,Intent is persisted before native completion is represented; bounded metadata restore is explicit.
 R04-022,executed_synthetic,target and harness idempotency maps,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Same request deduplicates and changed body conflicts.
 R04-023,executed_synthetic,harness retained receipts,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Lost acknowledgement remains recoverable/unknown.
@@ -59,7 +59,7 @@ R04-057,executed_synthetic,harness descendant revocation,cargo test --locked -p 
 R04-058,source_reviewed,harness clean rotation policy,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,Native rotation remains synthetic.
 R04-059,executed_synthetic,target retirement wording and harness cleanup,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Local cleanup never claims remote forgetting.
 R04-060,executed_synthetic,target cleanup route scope,cargo test --locked -p context-service --test phase4_session,compiled_fixture,Cleanup is bounded to the binding scope.
-R04-061,unverified,Native encrypted state capability,docs/phase4/NATIVE_CAPABILITIES.md,source_reviewed,Native persistence was not run; fixture state is not a native proof.
+R04-061,unverified,Native encrypted state capability,docs/phase4/NATIVE_CAPABILITIES.md and docs/evidence/phase4-native-isolated-smoke-20260911.json,source_reviewed,Metadata smoke did not run native persistence; fixture state is not a native proof.
 R04-062,executed_synthetic,harness fixture metadata semantics,cargo test --locked -p sts2-harness --test provider_session --test provider_session_snapshot,compiled_fixture,Fixture close/retire and bounded metadata restore are explicit.
 R04-063,source_reviewed,harness bounded retention policy,cargo test --locked --workspace --all-targets --all-features --quiet,source_reviewed,Finite local bounds are tested; native store retention is unverified.
 R04-064,executed_synthetic,transport path/process safety,cargo test --locked -p sts2-harness --test provider_session_safety,compiled_fixture,Unsafe paths and symlink components fail closed.
@@ -74,8 +74,8 @@ R04-072,source_reviewed,web/index.html and web/app.js, node --check web/app.js,s
 R04-073,executed_synthetic,tools/integrated_browser_audit.cjs,Playwright 1.63.0 integrated_browser_audit.cjs,browser,Fresh current-revision browser run passed with no external requests or persistence.
 R04-074,executed_synthetic,harness usage scope fields,cargo test --locked --workspace --all-targets --all-features --quiet,compiled_fixture,Usage remains scoped to the binding/operation.
 R04-075,executed_synthetic,harness idempotency records,cargo test --locked -p sts2-harness --test provider_session,compiled_fixture,Duplicate usage/operation keys are deduplicated.
-R04-076,unverified,native profile compatibility,docs/phase4/NATIVE_CAPABILITIES.md,native_binary,Only generated native schema was inspected; binary compatibility is unverified.
+R04-076,unverified,native profile compatibility,docs/phase4/NATIVE_CAPABILITIES.md and docs/evidence/phase4-native-isolated-smoke-20260911.json,native_binary,Isolated initialize/thread-start/thread-read smoke observed; fake-upstream and profile compatibility remain unverified.
 R04-077,executed_synthetic,phase4 evidence report and capability tiers,docs/evidence/phase4-completion-report-20260911.md,evidence_tiers,Native/live claims are separated from fixture evidence.
 R04-078,executed_synthetic,integrated_demo provider-session panel,curl loopback capabilities/list/candidate probes,compiled_fixture,Actual built product served the fixture route with zero native/game effects.
-R04-079,unverified,native migration/restore lane,docs/phase4/NATIVE_CAPABILITIES.md,native_binary,No isolated native state root was authorized.
+R04-079,unverified,native migration/restore lane,docs/phase4/NATIVE_CAPABILITIES.md and docs/evidence/phase4-native-isolated-smoke-20260911.json,native_binary,Isolated metadata smoke did not exercise native migration or persistence restore.
 R04-080,executed_synthetic,pushed reviewable branches,git fetch --prune; git pull --ff-only,delivery,Both branches are committed; pushed and synchronized.
