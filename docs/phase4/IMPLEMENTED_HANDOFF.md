@@ -1,7 +1,7 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
 Date: 2026-09-11. The target implementation source baseline is `35271da`.
-The companion harness baseline is `d9849aa`. Subsequent target commits are evidence/documentation-only.
+The companion harness baseline is `f57a765`. Subsequent target commits are evidence/documentation-only.
 
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
@@ -52,3 +52,7 @@ Finite retention is enforced at admission and restore: policy validation caps co
 and scope lifetime at 24 hours; history refresh, turn completion and snapshot restore apply the
 selected turn and aggregate-byte limits; fork-created evaluation bindings and combined fork/
 compaction maintenance consume the four-candidate and two-job quotas.
+
+Pending candidate, reconnect and compaction completions are fenced after retirement, while pending
+fork/compaction maintenance is invalidated on owner rotation or crash recovery; the companion
+retirement regression lane covers these no-resurrection transitions.
