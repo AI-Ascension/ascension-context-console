@@ -35,8 +35,10 @@ harness tests cover causal scope and cutoff filtering, deterministic lexical tie
 citations, an independent hand-labelled oracle, fake summary input capture and unknown outcomes,
 independent review/admission, whole rendered selection budgets, approval held/resume fencing,
 encrypted SQLite restore/revocation, map generation checks, least-privilege roles, and telemetry
-redaction. The enabled corpus is synthetic; live adapter, native game, migration/restore process,
-and deployment lanes are recorded with their exact evidence class in the Phase 3 evidence report.
+redaction. The enabled corpus is synthetic. The checked-in `phase3-adapter-demo` proves the offline
+target↔harness process seam, exact Phase 2 binding, and zero-effect tripwires; live provider, native
+game, migration/restore process, and deployment lanes remain separate evidence classes in the Phase 3
+evidence report.
 
 `phase2_cli` includes direct reducer checks and a compiled-process workflow covering init, metadata
 capabilities, redacted eligible items, typed stdin draft editing, exploratory/applicable preview,

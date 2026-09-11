@@ -3,8 +3,8 @@
 Date: 2026-09-11. This is the bounded implementation and evidence record for the additive
 `ascension.context-memory.*.v1` surface on the `phase2/context-editing` draft branch. It is not a
 product-readiness or live-runtime claim. Target implementation code is pinned to
-`f22296225c9e6b5a36004d1d689f9e27384920ba`; the companion harness implementation is pinned to
-`ae5a0cb09a34b766e9b0c899f8f8298f630b9111` (projection, map-policy and race-test additions).
+`8e52da837ae0a23cea18d7cd3d5164765911e6b6`; the companion harness implementation is pinned to
+`3cb72968bee8943e89158a28cec27d7b88e1ce91`.
 
 The target extends the existing Phase 1/2 checkout with the eleven versioned context-memory
 contracts and synthetic fixtures, a permissioned `/v3/memory` facade, bounded `phase3-cli`
@@ -22,16 +22,18 @@ rendered-input selection, Phase 2 binding records, held approvals, explicit one-
 generation-fenced map bundles, role ACLs, redacted telemetry, encrypted SQLite persistence,
 revocation-first restore, generation-aware cache invalidation, finite retention, resumable migration,
 downgrade fences, immutable per-attempt usage, held-out evaluation records, and an executable fake
-peer. The harness also provides bounded CLI, peer, and measurement binaries. These are deterministic
-component and synthetic-boundary lanes; they are not the missing target↔harness Phase 2 adapter.
+peer. The harness also provides bounded CLI, peer, measurement, and executable adapter-demo binaries.
+The checked-in adapter binds a reviewed selection to the target's Phase 2 prepared manifest and
+atomic SQLite memory-binding record in an offline synthetic fixture; it does not attach a production
+projection or claim live provider/game behavior.
 
 The 90-row requirement CSV and 90-row failure matrix are synchronized to these revisions. Their
 status classes are deliberately evidence classes: local deterministic tests and source-backed
 records are `executed_synthetic`; lanes that have an implementation seam but no current proof are
 `unverified`; unavailable mandatory integrations are `blocked`. The current matrix records
-`executed_synthetic` for 84 policy, persistence, CLI, fake-peer, oracle, map, review, resume,
-migration, measurement and browser rows, with 6 blocked cross-repository, real-process, end-to-end
-and native-review rows. No row is silently skipped or labeled product verified.
+`executed_synthetic` for 89 policy, persistence, CLI, fake-peer, oracle, map, review, resume,
+migration, measurement, browser, and adapter-process rows, with 1 blocked native-review row. No row
+is silently skipped or labeled product verified.
 
 ## Gates
 
@@ -42,6 +44,7 @@ cargo run --locked --package repo-policy -- --strict
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked -- --test-threads=1
+PHASE3_TARGET_BINARY=.../phase2-target/target/debug/context-console PHASE3_FAKE_PEER_BINARY=.../phase2-harness/target/debug/context-memory-peer ./target/debug/phase3-adapter-demo
 ```
 
 The package verifier also passed from the package directory:
@@ -66,10 +69,10 @@ Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked i
 
 No merge was initiated by this work; harness PR #68 merged externally during the handoff and the
 new follow-up remains draft. No release, deployment, live provider call, game launch, credential
-use, or unrelated write was performed. The target has no attached persistent projection or summary adapter. The following
-mandatory evidence remains unavailable or blocked: atomic cross-repository Phase 2 binding, a real
-summary process/tool tripwire, target↔harness end-to-end process and network tripwires, and an
-independent native three-level reviewer. A durable local policy proof cannot establish provider
-quality, native game/action effects, production storage operations, browser compatibility, or live
-deployment. Target PR #3 and the new harness follow-up remain open and draft, and the handoff does not claim that all
-mandatory requirements are product-verified.
+use, or unrelated write was performed. The target's default facade still has no attached persistent
+projection; the explicit adapter proof is an offline synthetic path. The remaining mandatory
+evidence is the independent native three-level reviewer. Synthetic adapter, process, and network
+tripwire evidence cannot establish provider quality, native game/action effects, production storage
+operations, browser compatibility, or live deployment. Target PR #3 and the new harness follow-up
+remain open and draft, and the handoff does not claim that all mandatory requirements are
+product-verified.
