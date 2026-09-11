@@ -32,9 +32,12 @@ session bearer and same-origin CSRF proof. The UI reports `fixture_only`, `compi
 accepts raw RPC methods, provider credentials, game actions or automatic resume.
 
 The harness snapshot lane persists only the bounded local metadata journal: operation
-idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a
-fresh owner token and never serializes prepared turn bytes or auto-resumes an in-flight turn;
-native encrypted-state durability remains unverified.
+idempotency, epochs, maintenance records and redacted history projections. Local admission enforces
+validated expiry and bounded aggregate history/prepared bytes. Restore rotates to a fresh owner
+epoch, applies retirement tombstones before operations/history are exposed, preserves in-flight
+turns as unknown and held, and offers a checked restore that rejects scope/policy/profile drift;
+it never serializes prepared turn bytes or auto-resumes an in-flight turn. Native encrypted-state
+durability remains unverified.
 
 ## Verification
 

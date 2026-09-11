@@ -26,8 +26,10 @@ kept regular native state files volatile. Runtime developer instructions, missin
 encrypted persistent state remain explicit limits.
 
 The harness snapshot lane persists only the bounded local metadata journal: operation
-idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a
-fresh owner token and never serializes prepared turn bytes or auto-resumes an in-flight turn;
-the fixture capability reports encrypted state as unverified and native encrypted-state durability
-remains unverified. The harness rejects an enabled profile until that boundary is independently
-verified.
+idempotency, epochs, maintenance records and redacted history projections. Admission enforces
+validated expiry and aggregate local byte bounds. Restore rotates to a fresh owner epoch, applies
+retirement tombstones before exposing operations/history, preserves in-flight turns as unknown and
+held, and rejects checked restores whose scope/policy/profile drifts; it never serializes prepared
+turn bytes or auto-resumes an in-flight turn. The fixture capability reports encrypted state as
+unverified and native encrypted-state durability remains unverified. The harness rejects inspect
+or enabled native profiles until that boundary is independently verified.
