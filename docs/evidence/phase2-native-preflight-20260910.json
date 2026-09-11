@@ -92,7 +92,46 @@
           "agent_list": "command-center-visible-only"
         },
         "observed_depth": 1,
-        "child_handle": "none"
+        "child_handle": "none",
+        "feature_override_probe": {
+          "rechecked_at": "2026-09-11T05:01:07Z",
+          "commands": [
+            "codex1 --enable multi_agent_v2 features list",
+            "TERM=xterm-256color codex1 --enable multi_agent_v2 -m gpt-5.6-luna -c model_reasoning_effort=max agents --no-alt-screen",
+            "codex1 exec resume 01a08eb5-b4e6-7503-ae9a-e2c63c432404 --enable multi_agent_v2 -m gpt-5.6-luna -c model_reasoning_effort=max",
+            "codex1 exec resume 01a089fd-0c23-7061-8b6c-a8d5b8aa4835 --enable multi_agent_v2 -m gpt-5.6-luna -c model_reasoning_effort=max"
+          ],
+          "feature_flag": {
+            "name": "multi_agent_v2",
+            "exit_code": 0,
+            "observed": "stable/true when explicitly enabled for the invocation"
+          },
+          "standalone_probe": {
+            "status": "one-child-only-and-invalid-as-required-chain",
+            "root_thread_id": "01a08ecd-56d5-7040-90cb-786e33cfbdf6",
+            "root_source": "vscode",
+            "root_parent_thread_id": null,
+            "root_model": "gpt-5.6-luna",
+            "root_effort": "max",
+            "child_thread_id": "01a08ecd-c026-7af1-a5cf-a2abfb30f01b",
+            "child_parent_thread_id": "01a08ecd-56d5-7040-90cb-786e33cfbdf6",
+            "child_depth": 1,
+            "child_model": "gpt-5.6-luna",
+            "child_effort": "max",
+            "child_agent_path": "/root/delivery_coordinator",
+            "child_result": "read-only codex_tui task APIs were visible; no native child-spawn or reservation surface was exposed, so no depth-2 descendant was created",
+            "cleanup": "both probe threads were interrupted and archived; no product or external-system writes occurred"
+          },
+          "existing_chain_resume": {
+            "lead_thread_id": "01a08eb5-b4e6-7503-ae9a-e2c63c432404",
+            "lead_resume_exit_code": 1,
+            "lead_resume_observed": "cannot resume an unloaded multi-agent v2 sub-agent through its parent; resume the parent first",
+            "root_thread_id": "01a089fd-0c23-7061-8b6c-a8d5b8aa4835",
+            "root_resume_exit_code": 1,
+            "root_resume_observed": "thread-store conflict: the root already has an active writer"
+          },
+          "conclusion": "explicitly enabling multi_agent_v2 changes the feature flag but does not expose a verified nested coordinator-to-leaf path in this account/runtime; the required native three-level chain remains blocked"
+        }
       }
     }
   },
