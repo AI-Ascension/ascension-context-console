@@ -76,12 +76,18 @@ fn compiled_phase3_cli_exposes_capabilities_and_bounded_search() {
         .stdout(Stdio::piped())
         .spawn()
         .expect("search process");
-    child
+    if let Err(error) = child
         .stdin
         .as_mut()
         .expect("stdin")
         .write_all(&serde_json::to_vec(&query).expect("query bytes"))
-        .expect("write query");
+    {
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::BrokenPipe,
+            "write query: {error}"
+        );
+    }
     let output = child.wait_with_output().expect("search output");
     assert!(output.status.success());
     let value: Value = serde_json::from_slice(&output.stdout).expect("search JSON");
@@ -97,12 +103,13 @@ fn cli_and_browser_route_share_the_same_closed_validation() {
         .stdout(Stdio::piped())
         .spawn()
         .expect("search process");
-    child
-        .stdin
-        .take()
-        .expect("stdin")
-        .write_all(duplicate)
-        .expect("duplicate query");
+    if let Err(error) = child.stdin.take().expect("stdin").write_all(duplicate) {
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::BrokenPipe,
+            "duplicate query: {error}"
+        );
+    }
     assert!(!child.wait().expect("wait").success());
 
     let mut route = MemoryRoute::new(scope(), false);

@@ -44,12 +44,20 @@ fn cli_process_with_env(
     }
     let mut child = command.spawn().expect("spawn context-console");
     if let Some(input) = input {
-        child
+        // A command may reject the input and exit before reading it, so only a broken pipe is
+        // tolerated here; any other write failure still fails the test.
+        if let Err(error) = child
             .stdin
             .as_mut()
             .expect("stdin")
             .write_all(input.as_bytes())
-            .expect("write patch");
+        {
+            assert_eq!(
+                error.kind(),
+                std::io::ErrorKind::BrokenPipe,
+                "write patch: {error}"
+            );
+        }
     }
     child.wait_with_output().expect("wait context-console")
 }

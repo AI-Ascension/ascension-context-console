@@ -427,12 +427,18 @@ fn phase4_cli_rejects_authority_input_without_echoing_secrets() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("spawn context-console");
-    child
+    if let Err(error) = child
         .stdin
         .as_mut()
         .expect("stdin")
         .write_all(body.as_bytes())
-        .expect("write body");
+    {
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::BrokenPipe,
+            "write body: {error}"
+        );
+    }
     let output = child.wait_with_output().expect("wait");
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
