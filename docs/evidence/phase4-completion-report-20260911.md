@@ -88,7 +88,11 @@ establish complete hardening, clean rehydration or compaction semantics, OS-leve
 provider compatibility. A provider-generated `request_user_input` callback attempt emitted no native
 server request and repeatedly reported the tool unavailable in Default mode. The read-only migration
 dry run found no eligible sessions in an empty disposable root, so persisted-state migration remains
-unverified.
+unverified. A fully disabled native fake profile forwarded zero tool definitions and ignored a forged
+`exec` function-call without a server request; a Linux tmpfs variant kept all regular native state
+files volatile and wrote no `history.jsonl`. Those lanes strengthen the explicit candidate profiles,
+but the runtime developer envelope, missing bubblewrap/OS egress trap and lack of encrypted persistent
+storage keep complete native hardening and cross-platform guarantees unverified.
 
 ## External effects and handoff
 

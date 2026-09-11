@@ -20,7 +20,10 @@ repositories. The fixture lane is intentionally `fixture_only`. A bounded native
 lane with durable restart/read, fork, compact/start endpoint probes, and a restricted feature/config
 probe is recorded in the Phase 4 evidence directory. The restricted probe removed forbidden
 executable tool classes but retained `request_user_input`; complete native hardening and full
-native/live-provider capabilities remain `unverified`.
+native/live-provider capabilities remain `unverified`. A fully disabled native fake profile forwarded
+zero tool definitions and ignored a forged `exec` call without a server request; a Linux tmpfs lane
+kept regular native state files volatile. Runtime developer instructions, missing OS egress proof and
+encrypted persistent state remain explicit limits.
 
 The harness snapshot lane persists only the bounded local metadata journal: operation
 idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a

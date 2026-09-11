@@ -39,6 +39,14 @@ A provider-generated `request_user_input` callback denial attempt produced no na
 the router repeatedly reported that the residual tool was unavailable in Default mode, so no clean
 denial response was established. A read-only `migrate-rollouts --json --verbose` dry run on an empty
 disposable state root returned zero outcomes; it did not exercise migration of persisted state.
+A fully disabled native fake profile then forwarded zero tool definitions and completed a synthetic
+turn; a forged `exec` function-call response produced no server request or execution. The request
+still contained a bounded runtime developer envelope, and the binary warned that bubblewrap was
+unavailable, so this is profile-level tool suppression rather than complete OS/instruction
+containment. A Linux tmpfs variant kept all 78 regular native state files on tmpfs (four helper
+symlinks pointed only to the installed executable) and wrote no `history.jsonl`; that proves the
+explicit volatile setup in this environment, not encrypted persistent storage or cross-platform
+spill resistance.
 The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
 its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
 depth 3 ancestry could not be established. This is an orchestration and isolation limitation, not

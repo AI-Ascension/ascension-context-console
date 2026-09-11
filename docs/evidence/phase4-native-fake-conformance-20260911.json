@@ -152,6 +152,65 @@
     "outcome": "not_reached_tool_unavailable_default_mode",
     "interpretation": "The native router did not emit a server request for the provider-generated request_user_input item; it repeatedly reported the residual tool unavailable in Default mode. No clean denial response or successful elicitation path was established."
   },
+  "hardened_profile_probe": {
+    "tested": true,
+    "profile_scope": "native fake-upstream with every reviewed executable, app, memory, plugin, MCP, skill, search and collaboration feature disabled",
+    "config_overrides": [
+      "history.persistence=none",
+      "skills.include_instructions=false",
+      "apps._default.enabled=false",
+      "include_apps_instructions=false",
+      "include_permissions_instructions=false",
+      "include_environment_context=false",
+      "include_collaboration_mode_instructions=false",
+      "developer_instructions=empty",
+      "instructions=empty",
+      "tools.experimental_request_user_input.enabled=false",
+      "skip_host_skill_discovery=true"
+    ],
+    "initialize_success": true,
+    "thread_start_success": true,
+    "turn_start_response": true,
+    "turn_completed": true,
+    "fake_provider_calls": 1,
+    "provider_request_body_sha256": "a77f9ad3f8c064b8b0f6339eb8daf3f69d64b4536d1f42810b7f9b36a348649c",
+    "provider_tools_count": 0,
+    "provider_tool_names": [],
+    "input_role_counts": {
+      "developer": 1,
+      "user": 1
+    },
+    "developer_item_bytes": 5705,
+    "forged_exec_function_call_probe": {
+      "provider_calls": 1,
+      "server_requests": [],
+      "turn_completed": true,
+      "execution_observed": false
+    },
+    "history_jsonl_present": false,
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true,
+    "interpretation": "The fully disabled native fake profile forwarded no tool definitions and completed a synthetic turn; a forged exec function-call response produced no server request or execution. A runtime developer envelope remained, and the installed binary still warned that bubblewrap was unavailable, so this is profile-level tool suppression evidence rather than complete OS/instruction containment."
+  },
+  "volatile_state_probe": {
+    "tested": true,
+    "profile": "same hardened native fake profile with CODEX_HOME, XDG roots and TMPDIR on Linux tmpfs",
+    "initialize_success": true,
+    "thread_start_success": true,
+    "turn_start_response": true,
+    "turn_completed": true,
+    "fake_provider_calls": 1,
+    "provider_request_body_sha256": "003440ab9070e4ae6cc3234757fe2e75b8944a9d7f16166b5d1a691841c56ea4",
+    "provider_tools_count": 0,
+    "filesystem_type": "tmpfs",
+    "regular_state_file_count": 78,
+    "regular_state_files_on_tmpfs": true,
+    "helper_executable_symlink_count": 4,
+    "history_jsonl_present": false,
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true,
+    "interpretation": "In this Linux lane every regular native state file created under the configured roots was on tmpfs; the four non-regular entries were helper symlinks to the installed executable. This supports the explicit volatile profile in the tested environment only and does not establish encrypted persistent storage or cross-platform spill resistance."
+  },
   "migration_dry_run": {
     "tested": true,
     "command": "codex migrate-rollouts --json --verbose",
