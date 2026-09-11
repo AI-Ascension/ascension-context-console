@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "28222e5115b041a430003f9ede4293ca8780f756"
+    "revision": "58a283930b30348f34b9c19a0ccb432112521184"
   },
   "platform": {
     "os": "linux",
@@ -24,7 +24,7 @@
   },
   "command": {
     "server": "cargo run --locked --package context-service --bin context-console -- integrated-demo 0",
-    "audit": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/ascension-browser-audit/node_modules/playwright PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/integrated_browser_audit.cjs"
+    "audit": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/phase3-playwright/node_modules/playwright node tools/integrated_browser_audit.cjs"
   },
   "exit_code": 0,
   "result": "passed",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:38459",
+  "base_url": "http://127.0.0.1:34119",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,19 +46,19 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:38459/web/",
-    "http://127.0.0.1:38459/web/styles.css",
-    "http://127.0.0.1:38459/web/app.js",
-    "http://127.0.0.1:38459/offline-bundle.json",
-    "http://127.0.0.1:38459/demo/snapshot",
-    "http://127.0.0.1:38459/demo/events",
-    "http://127.0.0.1:38459/demo/comparison",
-    "http://127.0.0.1:38459/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:38459/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:38459/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:38459/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:38459/v3/memory/capabilities",
-    "http://127.0.0.1:38459/v3/memory/status"
+    "http://127.0.0.1:34119/web/",
+    "http://127.0.0.1:34119/web/styles.css",
+    "http://127.0.0.1:34119/web/app.js",
+    "http://127.0.0.1:34119/offline-bundle.json",
+    "http://127.0.0.1:34119/demo/snapshot",
+    "http://127.0.0.1:34119/demo/events",
+    "http://127.0.0.1:34119/demo/comparison",
+    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:34119/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:34119/v3/memory/capabilities",
+    "http://127.0.0.1:34119/v3/memory/status"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -157,11 +157,11 @@
   "artifacts": [
     {
       "path": "docs/evidence/integrated-browser-desktop-20260910.png",
-      "sha256": "bc22799138ada51c5630e11da3a7128270d07483b6a0be46244b3d05c69bed80"
+      "sha256": "4d22cae564042b76bdc3d31b0ce18082d33699b057d7f50798080dbb7f880a2d"
     },
     {
       "path": "docs/evidence/integrated-browser-narrow-20260910.png",
-      "sha256": "b85bf4e993a8773c642875fc54ee639bc1b1d4251abdf86cb4ea35cf32b7aac1"
+      "sha256": "5e75420a83403f89953336ceec8f84a48fa69aeacbc1b969213a19f66d9b7b0d"
     }
   ]
 }

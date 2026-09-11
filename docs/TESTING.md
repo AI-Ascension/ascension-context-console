@@ -46,17 +46,18 @@ against the durable fixture without provider or game effects. CLI stdin is cappe
 uses the same duplicate-key/depth checks as the HTTP path; shell-facing exit classes are documented
 in [docs/API.md](API.md).
 
-The checked-in browser and CLI demo are offline synthetic evidence. The current Chromium audit was
-attempted for desktop and narrow viewports but could not start because the cached browser is
-missing `libglib-2.0.so.0`; no page assertions or screenshots were produced at this revision.
-Historical browser artifacts remain in `docs/evidence/` for comparison only and are not counted as
-current gate evidence.
+The checked-in browser and CLI demo are offline synthetic evidence. The current Chromium audit
+passed at desktop (`1440x1000`) and narrow (`375x800`) viewports with reduced motion, keyboard
+comparison, same-origin-only requests, zero browser persistence, no normal-flow page errors,
+adversarial text rendered inertly, and no forbidden manifest path requests. Its result and
+screenshots are in `docs/evidence/integrated-browser-ui-20260910.json` and the adjacent PNG files.
 
-The integrated browser audit still runs `context-console integrated-demo 0` as a loopback server
-when the required browser libraries are available. Its intended assertions cover the synthetic
-producer projection, `MemoryCapture`, `Store`, declared `/demo/*` artifacts, zero provider/game/
-external calls, adversarial text, keyboard behavior, persistence, and narrow layout. The current
-environment did not reach those assertions.
+The integrated browser audit runs `context-console integrated-demo 0` as a loopback server. The
+current result asserts the synthetic producer projection, `MemoryCapture`, `Store`, declared
+`/demo/*` artifacts, zero provider/game/external calls, adversarial text, keyboard behavior,
+persistence, and narrow layout. The separate Phase 2 browser audit also passed the typed
+pin/restore, pause/commit/resume, denial and conflict probes; its result is in
+`docs/evidence/phase2-browser-ui-20260910.json`.
 
 The companion harness branch records a bounded baseline/successor differential run for Astra and
 Ollama with synthetic fake downstreams; its machine-readable result is

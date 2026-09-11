@@ -97,11 +97,24 @@ component facts, mapping, lifecycle timeline, qualified measurements, comparison
 disclosure states. It never contacts a provider or game, stores a capability in browser
 persistence, or renders fixture strings as HTML.
 
-The browser audit remains an executable command, but the current environment cannot launch its
-cached Chromium shell because `libglib-2.0.so.0` is unavailable. The current run therefore exits
-before page assertions and is recorded as unavailable rather than reusing artifacts from an older
-revision. The checked-in screenshots and JSON are historical synthetic observations and are not
-current-revision browser proof.
+The current Chromium audit passed with the bounded library environment below. It exercised the load,
+comparison, keyboard focus, reduced-motion, narrow-layout, same-origin request, browser-storage,
+adversarial-text and manifest-path checks at the current target revision. The machine-readable
+result and sanitized screenshots are committed as
+[`docs/evidence/integrated-browser-ui-20260910.json`](evidence/integrated-browser-ui-20260910.json),
+[`docs/evidence/integrated-browser-desktop-20260910.png`](evidence/integrated-browser-desktop-20260910.png),
+and [`docs/evidence/integrated-browser-narrow-20260910.png`](evidence/integrated-browser-narrow-20260910.png).
+The run reports zero external requests, zero provider calls, zero game launches, empty browser
+storage and no narrow-layout overflow.
+
+```text
+FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts \
+FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf \
+XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share \
+LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib \
+PLAYWRIGHT_MODULE=/tmp/phase3-playwright/node_modules/playwright \
+node tools/integrated_browser_audit.cjs
+```
 
 The Phase 2 control workflow has a separate executable browser audit. Run it with the same bounded
 Chromium library environment:
@@ -115,12 +128,14 @@ PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright \
 node tools/phase2_browser_audit.cjs
 ```
 
-It is expected to exercise draft creation and save, note/objective authorization, exploratory and
-applicable previews, pause readiness, commit while paused, explicit resume, control events, zero
-provider/game effects, narrow layout, and browser-storage/network assertions. It currently fails at
-Chromium startup for the same missing shared library, before those assertions run.
+It exercises draft creation and save, note/objective authorization, exploratory and applicable
+previews, pause readiness, commit while paused, explicit resume, control events, zero provider/game
+effects, narrow layout, and browser-storage/network assertions. The current result and screenshots
+are [`docs/evidence/phase2-browser-ui-20260910.json`](evidence/phase2-browser-ui-20260910.json),
+[`docs/evidence/phase2-browser-desktop-20260910.png`](evidence/phase2-browser-desktop-20260910.png),
+and [`docs/evidence/phase2-browser-narrow-20260910.png`](evidence/phase2-browser-narrow-20260910.png).
 
-This is source/synthetic evidence plus an unavailable current browser lane over synthetic data. It
-does not claim a live provider receipt, actual game launch, production or native storage
-enforcement, or cross-platform browser compatibility. The companion harness repository records
-fake-only process fidelity against synthetic downstreams.
+This is source/synthetic evidence plus a local browser observation over synthetic data. It does not
+claim a live provider receipt, actual game launch, production or native storage enforcement, or
+cross-platform browser compatibility. The companion harness repository records fake-only process
+fidelity against synthetic downstreams.

@@ -30,9 +30,9 @@ The 90-row requirement CSV and 90-row failure matrix are synchronized to these r
 status classes are deliberately evidence classes: local deterministic tests and source-backed
 records are `executed_synthetic`; lanes that have an implementation seam but no current proof are
 `unverified`; unavailable mandatory integrations are `blocked`. The current matrix records
-`executed_synthetic` for 77 implemented policy, persistence, CLI, fake-peer, oracle, map, review,
-resume, migration, and measurement rows, with 7 explicit unverified browser/current-adapter rows
-and 6 blocked real-process, end-to-end, and native-review rows.
+`executed_synthetic` for 80 policy, persistence, CLI, fake-peer, oracle, map, review, resume,
+migration, measurement and browser rows, with 4 explicit unverified adapter/authority rows and 6
+blocked cross-repository, real-process, end-to-end and native-review rows.
 
 ## Gates
 
@@ -56,10 +56,12 @@ That verifier checked 90 requirements, 90 failure scenarios, 100 JSON documents,
 and the finite reference model. It explicitly reports package validation only and is not product
 proof.
 
-The current integrated and Phase 2 browser audits were attempted with Playwright 1.63.0. Chromium
-exited before launch because `libglib-2.0.so.0` is unavailable in the environment, so no current
-browser assertions or screenshots are claimed. Historical browser artifacts from an earlier target
-revision remain clearly out of the current gate record.
+The current integrated and Phase 2 browser audits passed with Playwright 1.63.0 / Chromium
+153.0.8010.12 at target revision `58a283930b30348f34b9c19a0ccb432112521184`. They recorded zero
+external requests, zero provider calls, zero game launches, no browser persistence, inert
+adversarial text, no forbidden manifest fetch, no narrow overflow, and the complete typed
+Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked in under
+`docs/evidence/`.
 
 ## Limits and blockers
 
