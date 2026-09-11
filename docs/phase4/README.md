@@ -7,4 +7,5 @@ native session. The harness owns the real adapter boundary and must keep explici
 only execution release. The integrated demo also serves the same typed projection under
 `/v1/runs/fixture-run-001/provider-sessions*`; the browser panel is an explicit fixture action and
 reports `compiled_peer` rather than native-binary support. See the current evidence ledger and
-completion report under `docs/evidence/`.
+completion report under `docs/evidence/`. Migration, restore and downgrade handling are described
+in [`MIGRATION_AND_ROLLBACK.md`](MIGRATION_AND_ROLLBACK.md).
