@@ -8,7 +8,7 @@
 
 use crate::{
     ControlCommand, ControlError, ControlPatch, ControlPlane, DurableControlStore,
-    parse_control_json,
+    MAX_MEMORY_BODY_BYTES, MemoryQueryRequest, MemoryRoute, MemoryScope, parse_control_json,
 };
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -22,6 +22,8 @@ const STORE_KEY: [u8; 32] = [0x42; 32];
 const OBJECTIVE_TOKEN: &str = "fixture-objective-token";
 const CONTENT_TOKEN: &str = "fixture-content-token";
 const MAX_PATCH_BYTES: usize = 16 * 1024;
+
+const PHASE3_CLI_SCHEMA: &str = "ascension.context-memory.cli-result.v1";
 
 pub fn run_phase2_cli(arguments: Vec<String>) -> Result<(), String> {
     let mut arguments = arguments.into_iter();
@@ -217,6 +219,60 @@ pub fn run_phase2_cli(arguments: Vec<String>) -> Result<(), String> {
     }
 }
 
+/// Run the bounded target facade for Phase 3 memory operations.  Corpus mutation remains owned
+/// by the harness; this command exposes capability/status/search through the same validated route
+/// and deliberately reports a projection-unavailable result until a harness adapter is attached.
+pub fn run_phase3_cli(arguments: Vec<String>) -> Result<(), String> {
+    let mut arguments = arguments.into_iter();
+    let operation = arguments.next().unwrap_or_else(|| "help".to_owned());
+    if matches!(operation.as_str(), "help" | "--help" | "-h") {
+        println!("phase3-cli capabilities|status|search");
+        println!("  search reads a bounded query.v1 document from stdin");
+        return Ok(());
+    }
+    ensure_no_arguments(&mut arguments, "phase3-cli")?;
+    let scope = MemoryScope {
+        project_id: "project-fixture".to_owned(),
+        run_id: "run-fixture".to_owned(),
+        episode_id: "episode-fixture".to_owned(),
+        agent_id: "agent-fixture".to_owned(),
+    };
+    let mut route = MemoryRoute::new(scope, true);
+    route.grant_search("operator-cli");
+    route.grant_review("reviewer-cli");
+    let value = match operation.as_str() {
+        "capabilities" => route
+            .handle("GET", "/v3/memory/capabilities", "operator-cli", &[])
+            .map_err(|error| error.to_string())?,
+        "status" => route
+            .handle("GET", "/v3/memory/status", "operator-cli", &[])
+            .map_err(|error| error.to_string())?,
+        "search" => {
+            let body = stdin_bytes_bounded(MAX_MEMORY_BODY_BYTES)?;
+            let _: MemoryQueryRequest = serde_json::from_slice(&body)
+                .map_err(|_| "phase3-cli: invalid query JSON".to_owned())?;
+            route
+                .handle("POST", "/v3/memory/search", "operator-cli", &body)
+                .map_err(|error| error.to_string())?
+        }
+        _ => {
+            return cli_error(
+                "phase3-cli",
+                "unsupported_command",
+                "memory command is unavailable",
+            );
+        }
+    };
+    let output = json!({
+        "schema": PHASE3_CLI_SCHEMA,
+        "operation": operation,
+        "status": "completed",
+        "value": value
+    });
+    println!("{}", serde_json::to_string(&output).map_err(encode)?);
+    Ok(())
+}
+
 fn open_store(path: &Path) -> Result<(DurableControlStore, ControlPlane), String> {
     let store = DurableControlStore::open(path, STORE_KEY, RUN_ID).map_err(store_error)?;
     let plane = store.load_for_operator().map_err(store_error)?;
@@ -331,13 +387,17 @@ fn parse_optional_bool(
 }
 
 fn stdin_bytes() -> Result<Vec<u8>, String> {
+    stdin_bytes_bounded(MAX_PATCH_BYTES)
+}
+
+fn stdin_bytes_bounded(limit: usize) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     io::stdin()
-        .take((MAX_PATCH_BYTES + 1) as u64)
+        .take((limit + 1) as u64)
         .read_to_end(&mut bytes)
         .map_err(|_| "cannot read stdin".to_owned())?;
-    if bytes.len() > MAX_PATCH_BYTES {
-        return Err("draft-edit: body_too_large: patch exceeds 16 KiB".to_owned());
+    if bytes.len() > limit {
+        return Err(format!("body_too_large: input exceeds {limit} bytes"));
     }
     Ok(bytes)
 }

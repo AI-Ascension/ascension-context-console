@@ -209,6 +209,28 @@ th {
   max-width: 48rem;
 }
 
+.memory-search {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  align-items: end;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.memory-search label {
+  grid-column: 1 / -1;
+}
+
+.memory-search input {
+  min-width: 0;
+  border: 1px solid #40515f;
+  border-radius: 0.45rem;
+  padding: 0.65rem;
+  color: #e8edf2;
+  background: #0e151b;
+  font: inherit;
+}
+
 .restore-row {
   display: flex;
   flex-wrap: wrap;
@@ -310,6 +332,10 @@ footer {
 
   .panel {
     padding: 1rem;
+  }
+
+  .memory-search {
+    grid-template-columns: 1fr;
   }
 }
 

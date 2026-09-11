@@ -13,6 +13,7 @@ use crate::control::{
 };
 use crate::read_api::{ApiError, HttpRequest, HttpResponse, ReadApi, read_request_bytes};
 use crate::store::{CapturePrivilege, IngestError, ReadGrant, Store};
+use crate::{MemoryRoute, MemoryRouteError, MemoryScope};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use std::fs;
@@ -73,6 +74,7 @@ struct DemoState {
     control: ControlPlane,
     control_store: DurableControlStore,
     control_store_path: PathBuf,
+    memory: MemoryRoute,
 }
 
 impl DemoState {
@@ -148,6 +150,18 @@ impl DemoState {
         )
         .map_err(|_| IngestError::Capacity)?;
         control = control_store.load().map_err(|_| IngestError::Capacity)?;
+        let control_scope = control.scope().clone();
+        let mut memory = MemoryRoute::new(
+            MemoryScope {
+                project_id: control_scope.project_id,
+                run_id: control_scope.run_id,
+                episode_id: control_scope.episode_id,
+                agent_id: control_scope.agent_id,
+            },
+            false,
+        );
+        memory.grant_search("fixture-editor-token");
+        memory.grant_review("fixture-objective-token");
         Ok(Self {
             store,
             grant,
@@ -162,6 +176,7 @@ impl DemoState {
             control,
             control_store,
             control_store_path,
+            memory,
         })
     }
 
@@ -175,7 +190,11 @@ impl DemoState {
                 br#"{"error":"get_body_not_allowed","read_only":true}"#.to_vec(),
             );
         }
-        if request.method != "GET" && !path.starts_with("/v1/") && !path.starts_with("/v2/") {
+        if request.method != "GET"
+            && !path.starts_with("/v1/")
+            && !path.starts_with("/v2/")
+            && !path.starts_with("/v3/memory/")
+        {
             return static_response(
                 405,
                 "application/json",
@@ -204,6 +223,7 @@ impl DemoState {
             "/demo/events" => self.api_events(),
             "/demo/metrics" => self.metrics_response(),
             _ if path.starts_with("/v2/") => self.control_request(request, path),
+            _ if path.starts_with("/v3/memory/") => self.memory_request(request, path),
             _ if path.starts_with("/v1/") => self.api_request(request),
             _ => static_response(
                 404,
@@ -443,6 +463,28 @@ impl DemoState {
         match result {
             Ok(value) => control_value_response(200, value),
             Err(error) => control_error_response(error),
+        }
+    }
+
+    fn memory_request(&mut self, request: &HttpRequest, path: &str) -> HttpResponse {
+        let Some(token) = request
+            .header("authorization")
+            .and_then(|value| value.strip_prefix("Bearer "))
+        else {
+            return memory_error_response(MemoryRouteError::PermissionDenied);
+        };
+        if request.method != "GET"
+            && (request.header("origin") != Some(self.expected_origin.as_str())
+                || request.header("x-csrf-token") != Some(CSRF_TOKEN))
+        {
+            return memory_error_response(MemoryRouteError::PermissionDenied);
+        }
+        match self
+            .memory
+            .handle(&request.method, path, token, &request.body)
+        {
+            Ok(value) => control_value_response(200, value),
+            Err(error) => memory_error_response(error),
         }
     }
 
@@ -765,6 +807,23 @@ fn control_error_response(error: ControlError) -> HttpResponse {
     control_value_response(
         status,
         serde_json::json!({"error":{"code":error.code,"message":error.message}}),
+    )
+}
+
+fn memory_error_response(error: MemoryRouteError) -> HttpResponse {
+    let status = match error {
+        MemoryRouteError::PermissionDenied => 403,
+        MemoryRouteError::BodyTooLarge | MemoryRouteError::InvalidRequest => 400,
+        MemoryRouteError::MethodNotAllowed => 405,
+        MemoryRouteError::Unsupported => 404,
+    };
+    control_value_response(
+        status,
+        json!({
+            "schema": "ascension.context-memory.error.v1",
+            "error": error.to_string(),
+            "effect_class": "local_read_no_inference"
+        }),
     )
 }
 

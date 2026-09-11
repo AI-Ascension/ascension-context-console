@@ -5,6 +5,8 @@ Run:
 ```text
 cargo run --locked --package context-service --bin context-console -- demo
 cargo run --locked --package context-service --bin context-console -- phase2-demo
+cargo run --locked --package context-service --bin context-console -- phase3-cli capabilities
+cargo run --locked --package context-service --bin context-console -- phase3-cli status
 ```
 
 The command uses only checked-in synthetic fixtures. It parses and stores one complete CLI-boundary
@@ -18,6 +20,22 @@ draft, includes an editable history item, builds an exploratory preview, pauses,
 applicable preview, commits a revision while paused, and resumes explicitly. Its output includes
 the prepared manifest digest, separate commit/resume effects, `provider_calls=0`, and
 `game_launches=0`.
+
+The Phase 3 CLI is a bounded inspection path over the additive memory facade:
+
+```text
+cargo run --locked --package context-service --bin context-console -- phase3-cli capabilities
+cargo run --locked --package context-service --bin context-console -- phase3-cli status
+printf '%s' '{"schema":"ascension.context-memory.query.v1","scope":{"project_id":"project-fixture","run_id":"run-fixture","episode_id":"episode-fixture","agent_id":"agent-fixture"},"branch_id":"branch-a","query":"settled","cutoff":10,"corpus_generation":10,"ranker_version":"lexical-v1","limit":8,"max_candidates":64,"effect_class":"local_read_no_inference"}' \
+  | cargo run --locked --package context-service --bin context-console -- phase3-cli search
+```
+
+The integrated fixture starts with memory disabled, so the search result is explicitly
+`projection_unavailable`, contains no candidates, and reports zero inference calls. The harness
+tests exercise the enabled synthetic corpus for scope/cutoff filtering, deterministic lexical
+ranking, exact extracts, isolated fake summary jobs, review/admission, whole-input selection,
+approval held state, and revocation. They do not claim a live provider, native game, deployment,
+or three-level native development hierarchy.
 
 The equivalent compiled CLI can run the same operations against its opt-in encrypted fixture:
 

@@ -4,6 +4,7 @@ const MAX_FIXTURE_BYTES = 1024 * 1024;
 const MAX_EVENTS = 256;
 const bundleManifestUrl = new URL("../offline-bundle.json", document.baseURI);
 const CONTROL_BASE = "/v2/runs/fixture-run/context-control";
+const MEMORY_BASE = "/v3/memory";
 const CONTROL_TOKEN = "fixture-editor-token";
 const OBJECTIVE_TOKEN = "fixture-objective-token";
 const CSRF_TOKEN = "fixture-csrf-token";
@@ -180,6 +181,80 @@ async function controlJson(path, options = {}) {
   const value = await response.json();
   if (!response.ok) throw new Error(value.error?.message || value.error?.code || `control request returned ${response.status}`);
   return value;
+}
+
+async function memoryJson(path, options = {}) {
+  const { token = CONTROL_TOKEN, ...requestOptions } = options;
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  if (requestOptions.method && requestOptions.method !== "GET") headers.set("X-CSRF-Token", CSRF_TOKEN);
+  const response = await fetch(`${MEMORY_BASE}${path}`, { ...requestOptions, headers, cache: "no-store" });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error || `memory request returned ${response.status}`);
+  return value;
+}
+
+function renderMemory(capabilities, memoryStatus) {
+  showText("#memory-badge", capabilities.enabled ? "enabled" : "disabled");
+  showText("#memory-capability", capabilities.enabled ? "enabled" : "disabled by default");
+  showText("#memory-retrieval", capabilities.local_lexical_retrieval);
+  showText("#memory-compaction", `${capabilities.extractive_compaction} · adapter ${capabilities.abstractive_adapter}`);
+  showText("#memory-approval", capabilities.phase2_approval_required ? "Phase 2 approval required" : "unavailable");
+  showText("#memory-generation", memoryStatus.corpus_generation);
+  showText("#memory-revocation", memoryStatus.revocation_epoch);
+  document.querySelector("#memory-panel").hidden = false;
+  document.querySelector("#compaction-panel").hidden = false;
+  const message = document.querySelector("#memory-message");
+  message.textContent = capabilities.enabled
+    ? "Lexical search is scoped to the pinned corpus and cutoff; reads do not call a provider."
+    : "Memory is disabled by default; no corpus is created and no inference is available.";
+  document.querySelector("#memory-search-button").disabled = !capabilities.enabled;
+}
+
+async function searchMemory(event) {
+  event.preventDefault();
+  const query = document.querySelector("#memory-query").value;
+  const body = {
+    schema: "ascension.context-memory.query.v1",
+    scope: scopeForControl(),
+    branch_id: "branch-a",
+    query,
+    cutoff: 10,
+    corpus_generation: 10,
+    ranker_version: "lexical-v1",
+    limit: 8,
+    max_candidates: 64,
+    effect_class: "local_read_no_inference",
+  };
+  try {
+    const value = await memoryJson("/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    document.querySelector("#memory-results").textContent = JSON.stringify({
+      coverage: value.coverage,
+      results: value.results,
+      inference_calls: value.inference_calls,
+    }, null, 2);
+  } catch (error) {
+    document.querySelector("#memory-results").textContent = error instanceof Error ? error.message : "search unavailable";
+  }
+}
+
+async function loadMemory() {
+  try {
+    const [capabilities, memoryStatus] = await Promise.all([
+      memoryJson("/capabilities"),
+      memoryJson("/status"),
+    ]);
+    renderMemory(capabilities, memoryStatus);
+    document.querySelector("#memory-search-form").addEventListener("submit", searchMemory);
+  } catch (error) {
+    document.querySelector("#memory-panel").hidden = false;
+    document.querySelector("#compaction-panel").hidden = false;
+    document.querySelector("#memory-message").textContent = error instanceof Error ? error.message : "memory facade unavailable";
+  }
 }
 
 function setManagementControls(enabled) {
@@ -512,6 +587,7 @@ async function loadFixture() {
       : `The retained snapshots differ at the application boundary (${rendered.capture_mode} vs ${comparison.capture_mode}); no future input was changed.`;
   });
   await loadControl();
+  await loadMemory();
 }
 
 loadFixture().catch((error) => {

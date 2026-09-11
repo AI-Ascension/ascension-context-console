@@ -44,3 +44,7 @@ path = "../../tests/phase2_durable.rs"
 [[test]]
 name = "phase2_cli"
 path = "../../tests/phase2_cli.rs"
+
+[[test]]
+name = "phase3_memory"
+path = "../../tests/phase3_memory.rs"

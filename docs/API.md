@@ -53,6 +53,26 @@ key and command-window identity. The journal envelope preserves drafts, revision
 events, pause state, and selected bytes across a controller recovery; old boundary/plan epochs are
 fenced. The copied schemas are in `contracts/context-control`.
 
+## Phase 3 memory facade
+
+The additive memory surface is served by the integrated fixture under `/v3/memory`. It is
+permissioned separately from Phase 2 writes and delegates policy/content ownership to the
+companion harness. The default target has no attached corpus or projection.
+
+| Route | Permission/effect | Result |
+| --- | --- | --- |
+| `/v3/memory/capabilities` | `memory.search` / read | Versioned capability disclosure; disabled means no supported operations. |
+| `/v3/memory/status` | `memory.search` / `local_read_no_inference` | Bounded generation, projection, revocation and inference counters; unavailable values are null. |
+| `/v3/memory/search` | `memory.search` / `local_read_no_inference` | Closed `query.v1` body with scope, branch, cutoff, generation and limits; returns retrieval metadata or `projection_unavailable`. |
+| `/v3/memory/generate` | `memory.review` / explicit generation | Target facade is intentionally unsupported until a harness adapter is attached. |
+| `/v3/memory/review` | `memory.review` / review-only | Target facade is intentionally unsupported; review cannot commit or resume a run. |
+
+The query body is capped at 4 KiB and the request envelope at 16 KiB. Query text is not placed in
+the URL. Search never invokes inference; summaries require a distinct explicit job, exact source
+manifest, independent review, and the existing Phase 2 approval/explicit-resume path. The schemas
+and OpenAPI contract are pinned in [`contracts/context-memory`](../contracts/context-memory), and
+the harness implementation is documented in its `docs/MEMORY.md`.
+
 The equivalent bounded operator CLI is exposed by the compiled `context-console` binary:
 
 ```text

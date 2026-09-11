@@ -20,8 +20,10 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked
 cargo test --locked --package context-service --test phase2_durable
+cargo test --locked --package context-service --test phase3_memory
 cargo run --locked --package context-service --bin context-console -- demo
 cargo run --locked --package context-service --bin context-console -- phase2-demo
+cargo run --locked --package context-service --bin context-console -- phase3-cli capabilities
 ```
 
 The browser fixture can be served from the repository root with any static file server and opened
@@ -62,3 +64,32 @@ require `CONTEXT_CONSOLE_OBJECTIVE_TOKEN=fixture-objective-token`. The CLI is a 
 fixture: it makes no provider/game calls, uses a fixed local key, and does not claim production
 authentication or storage. Standalone commands use the persisted operator epoch; controller-owned
 recovery still increments the epoch and invalidates old continuation previews.
+
+## Phase 3 context memory
+
+The additive `ascension.context-memory.*.v1` contracts are copied under
+[`contracts/context-memory`](contracts/context-memory). The harness owns bounded source admission,
+causal and revocation filtering, lexical retrieval, exact extraction, summary-job review, selection
+and policy; this target exposes only the authenticated `/v3/memory` facade and operator views.
+Memory is disabled by default, and the target does not invoke a provider, game, process, URL, or
+second scheduler. With the integrated fixture, the read-only routes are:
+
+```text
+GET  /v3/memory/capabilities
+GET  /v3/memory/status
+POST /v3/memory/search
+```
+
+The equivalent bounded CLI uses the same closed query shape and reports projection availability:
+
+```text
+cargo run --locked --package context-service --bin context-console -- phase3-cli capabilities
+cargo run --locked --package context-service --bin context-console -- phase3-cli status
+printf '%s' '{"schema":"ascension.context-memory.query.v1", ...}' \
+  | cargo run --locked --package context-service --bin context-console -- phase3-cli search
+```
+
+Search is `local_read_no_inference`; a disabled or unattached projection returns an explicit
+`projection_unavailable` result. Generation, independent review, admission, Phase 2 commit, and
+explicit resume remain separate states. See [`docs/MEMORY.md`](docs/MEMORY.md), the Phase 3 ADR,
+and the dated evidence report for limits and unverified native/live lanes.

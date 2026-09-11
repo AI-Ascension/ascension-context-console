@@ -77,6 +77,42 @@
         <p id="comparison-result" class="callout">Comparison is a local view and cannot apply or submit context.</p>
       </section>
 
+      <section id="memory-panel" class="panel" hidden aria-labelledby="memory-title">
+        <div class="section-heading">
+          <h2 id="memory-title">Historical memory</h2>
+          <span id="memory-badge" class="badge">disabled</span>
+        </div>
+        <dl class="facts">
+          <div><dt>Memory capability</dt><dd id="memory-capability"></dd></div>
+          <div><dt>Lexical retrieval</dt><dd id="memory-retrieval"></dd></div>
+          <div><dt>Compaction</dt><dd id="memory-compaction"></dd></div>
+          <div><dt>Policy authority</dt><dd id="memory-approval"></dd></div>
+          <div><dt>Corpus generation</dt><dd id="memory-generation"></dd></div>
+          <div><dt>Revocation epoch</dt><dd id="memory-revocation"></dd></div>
+        </dl>
+        <p id="memory-message" class="callout">Memory is disabled by default. Search is local-only and cannot start inference.</p>
+        <form id="memory-search-form" class="memory-search">
+          <label for="memory-query">Scoped lexical query</label>
+          <input id="memory-query" name="query" maxlength="4096" autocomplete="off" placeholder="Search retained historical observations">
+          <button id="memory-search-button" type="submit">Search locally</button>
+        </form>
+        <pre id="memory-results" class="preview-diff" tabindex="0" aria-live="polite">No search performed.</pre>
+      </section>
+
+      <section id="compaction-panel" class="panel" hidden aria-labelledby="compaction-title">
+        <div class="section-heading">
+          <h2 id="compaction-title">Compaction review</h2>
+          <span class="muted">generation and admission stay separate</span>
+        </div>
+        <p id="compaction-message" class="callout">Summary jobs require explicit permission, bounded source bytes, independent review, and the existing Phase 2 approval before adoption.</p>
+        <div class="state-grid">
+          <span><strong>Extract</strong> exact source spans remain inspectable.</span>
+          <span><strong>Proposal</strong> generated output is review-required.</span>
+          <span><strong>Admission</strong> never commits or resumes a run.</span>
+          <span><strong>Revocation</strong> fences descendants before cleanup.</span>
+        </div>
+      </section>
+
       <section id="control-panel" class="panel" hidden aria-labelledby="control-title">
         <div class="section-heading">
           <h2 id="control-title">Run control</h2>

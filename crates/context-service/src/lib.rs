@@ -11,6 +11,7 @@ mod capture;
 mod cli;
 mod control;
 mod integrated_demo;
+mod memory;
 mod observability;
 mod private_store;
 mod read_api;
@@ -20,7 +21,7 @@ pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,
 };
-pub use cli::run_phase2_cli;
+pub use cli::{run_phase2_cli, run_phase3_cli};
 pub use control::{
     Boundary as ControlBoundary, CURRENT_DURABLE_STORE_SCHEMA_VERSION,
     Capabilities as ControlCapabilities, Command as ControlCommand, ControlError, ControlPlane,
@@ -47,6 +48,10 @@ pub use store::{
 };
 
 pub use integrated_demo::run as run_integrated_demo;
+pub use memory::{
+    MAX_MEMORY_BODY_BYTES, MAX_MEMORY_QUERY_BYTES, MemoryCapabilities, MemoryQueryRequest,
+    MemoryRoute, MemoryRouteError, MemoryScope,
+};
 
 /// Parse a management payload with the same bounded duplicate-key/depth checks used by the
 /// integrated HTTP fixture. The CLI uses this helper so private note text arrives through stdin
