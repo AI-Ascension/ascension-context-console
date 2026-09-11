@@ -10,7 +10,7 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
 | [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` implementation source baseline `1508164` | [draft PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12); committed and pushed; subsequent target commits are evidence/documentation-only; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
-| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `20b867f` | [draft PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
+| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `d82ccb6` | [draft PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
 reset or overwritten.
