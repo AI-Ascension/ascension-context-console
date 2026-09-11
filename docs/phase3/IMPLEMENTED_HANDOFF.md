@@ -1,8 +1,8 @@
 # Implemented Phase 3 handoff
 
 Date: 2026-09-11. This is the additive Phase 3 draft on `phase2/context-editing`. The target
-implementation is covered by target revision `b21083719fb825be83088c9a6ab09531463a1a72`; the
-companion harness revision is `f801ee8`.
+implementation is covered by target revision `f22296225c9e6b5a36004d1d689f9e27384920ba`; the
+companion harness revision is `ae5a0cb`.
 
 The target extends the existing Phase 1/2 checkout. `crates/context-service/src/memory.rs`
 contains the target-owned `MemoryRoute`, `MemoryQueryRequest`, capability disclosure, bounded
@@ -42,7 +42,7 @@ when no harness projection is attached; it does not claim an enabled end-to-end 
 | Summary/review | companion `SummaryJobStore`, `MemoryReview` | summary-job/proposal/review v1 | harness | companion phase3 tests | fake peer only; live adapter unverified |
 | Phase 2 adoption | existing control serializer; target route does not mutate it | selection/approval v1 + existing control v1 | existing Phase 2 owner | existing phase2 tests/audits; approval unit path | exact first request and commit-held identity need adapter |
 | Revocation | companion corpus/revocation records | revocation v1; deny before cleanup | harness | companion revocation test | restore/backup ordering unverified |
-| Map | companion `MapBundle::validate` | original synthetic map generation fence | harness/target adapter | unit coverage | no current game authority |
+| Map | companion `MapBundle::validate` and `MapMemoryGate` | original synthetic map generation fence plus current legal authority | harness/target adapter | map policy tests | no current game authority |
 
 ## Required next adapter checks
 

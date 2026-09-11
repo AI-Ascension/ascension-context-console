@@ -3,9 +3,8 @@
 Date: 2026-09-11. This is the bounded implementation and evidence record for the additive
 `ascension.context-memory.*.v1` surface on the `phase2/context-editing` draft branch. It is not a
 product-readiness or live-runtime claim. Target implementation code is pinned to
-`b21083719fb825be83088c9a6ab09531463a1a72`; the companion harness implementation is pinned to
-`f801ee8a005d6df12a3ddc901f71a4d97eebb8cb` (the clean merge of the current remote harness tip
-and the Phase 3 implementation).
+`f22296225c9e6b5a36004d1d689f9e27384920ba`; the companion harness implementation is pinned to
+`ae5a0cb09a34b766e9b0c899f8f8298f630b9111` (projection, map-policy and race-test additions).
 
 The target extends the existing Phase 1/2 checkout with the eleven versioned context-memory
 contracts and synthetic fixtures, a permissioned `/v3/memory` facade, bounded `phase3-cli`
@@ -30,9 +29,9 @@ The 90-row requirement CSV and 90-row failure matrix are synchronized to these r
 status classes are deliberately evidence classes: local deterministic tests and source-backed
 records are `executed_synthetic`; lanes that have an implementation seam but no current proof are
 `unverified`; unavailable mandatory integrations are `blocked`. The current matrix records
-`executed_synthetic` for 80 policy, persistence, CLI, fake-peer, oracle, map, review, resume,
-migration, measurement and browser rows, with 4 explicit unverified adapter/authority rows and 6
-blocked cross-repository, real-process, end-to-end and native-review rows.
+`executed_synthetic` for 84 policy, persistence, CLI, fake-peer, oracle, map, review, resume,
+migration, measurement and browser rows, with 6 blocked cross-repository, real-process, end-to-end
+and native-review rows. No row is silently skipped or labeled product verified.
 
 ## Gates
 
@@ -57,7 +56,7 @@ and the finite reference model. It explicitly reports package validation only an
 proof.
 
 The current integrated and Phase 2 browser audits passed with Playwright 1.63.0 / Chromium
-153.0.8010.12 at target revision `58a283930b30348f34b9c19a0ccb432112521184`. They recorded zero
+153.0.8010.12 at target revision `f22296225c9e6b5a36004d1d689f9e27384920ba`. They recorded zero
 external requests, zero provider calls, zero game launches, no browser persistence, inert
 adversarial text, no forbidden manifest fetch, no narrow overflow, and the complete typed
 Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked in under
@@ -65,11 +64,12 @@ Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked i
 
 ## Limits and blockers
 
-No merge, release, deployment, live provider call, game launch, credential use, or unrelated write
-was performed. The target has no attached persistent projection or summary adapter. The following
+No merge was initiated by this work; harness PR #68 merged externally during the handoff and the
+new follow-up remains draft. No release, deployment, live provider call, game launch, credential
+use, or unrelated write was performed. The target has no attached persistent projection or summary adapter. The following
 mandatory evidence remains unavailable or blocked: atomic cross-repository Phase 2 binding, a real
 summary process/tool tripwire, target↔harness end-to-end process and network tripwires, and an
 independent native three-level reviewer. A durable local policy proof cannot establish provider
 quality, native game/action effects, production storage operations, browser compatibility, or live
-deployment. The draft PRs therefore remain open and draft, and the handoff does not claim that all
+deployment. Target PR #3 and the new harness follow-up remain open and draft, and the handoff does not claim that all
 mandatory requirements are product-verified.

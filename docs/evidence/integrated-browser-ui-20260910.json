@@ -15,7 +15,7 @@
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
     "branch": "phase2/context-editing",
-    "revision": "665fdf557d7e8af13aef74c07870f71b929a6ff2"
+    "revision": "f22296225c9e6b5a36004d1d689f9e27384920ba"
   },
   "platform": {
     "os": "linux",
@@ -34,7 +34,7 @@
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:43275",
+  "base_url": "http://127.0.0.1:43379",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,19 +46,19 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:43275/web/",
-    "http://127.0.0.1:43275/web/styles.css",
-    "http://127.0.0.1:43275/web/app.js",
-    "http://127.0.0.1:43275/offline-bundle.json",
-    "http://127.0.0.1:43275/demo/snapshot",
-    "http://127.0.0.1:43275/demo/events",
-    "http://127.0.0.1:43275/demo/comparison",
-    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/capabilities",
-    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/state",
-    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/eligible-items",
-    "http://127.0.0.1:43275/v2/runs/fixture-run/context-control/revisions",
-    "http://127.0.0.1:43275/v3/memory/capabilities",
-    "http://127.0.0.1:43275/v3/memory/status"
+    "http://127.0.0.1:43379/web/",
+    "http://127.0.0.1:43379/web/styles.css",
+    "http://127.0.0.1:43379/web/app.js",
+    "http://127.0.0.1:43379/offline-bundle.json",
+    "http://127.0.0.1:43379/demo/snapshot",
+    "http://127.0.0.1:43379/demo/events",
+    "http://127.0.0.1:43379/demo/comparison",
+    "http://127.0.0.1:43379/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:43379/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:43379/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:43379/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:43379/v3/memory/capabilities",
+    "http://127.0.0.1:43379/v3/memory/status"
   ],
   "external_requests": [],
   "fixture_requests": [],
