@@ -39,6 +39,11 @@ turns as unknown and held, and offers a checked restore that rejects scope/polic
 it never serializes prepared turn bytes or auto-resumes an in-flight turn. Native encrypted-state
 durability remains unverified.
 
+The journal has an explicit volatile adapter and a broker-owned encrypted-persistent adapter. The
+encrypted adapter authenticates only this bounded metadata envelope and uses fail-closed absolute,
+owner-checked, restrictive path validation with atomic replacement; it is not a claim about native
+Codex storage or auxiliary-file containment.
+
 ## Verification
 
 Passed on the committed source:

@@ -16,6 +16,14 @@ operation because no `thread/retire` method is present in the schema.
 The compiled fixture capability reports `encrypted_state: false`; persistent `enabled` operation is
 therefore unavailable until a native encrypted boundary is independently verified.
 
+The harness now exposes an explicit broker-owned metadata store with `volatile` and
+`encrypted_persistent` modes. The persistent mode authenticates an XChaCha20-Poly1305 envelope,
+uses a private owner-checked path with atomic replacement, and restores only after exact
+scope/policy/profile matching. This protects the bounded harness journal (epochs, idempotency,
+retirements and redacted projections); it does not contain or attest to native Codex state,
+rollouts, WAL files, logs or temporary files. Native encrypted-state durability therefore remains
+unverified.
+
 An isolated native smoke was run with a disposable state root and a loopback-refused proxy. It
 observed successful `initialize`, ephemeral `thread/start`, and metadata-only `thread/read`
 responses, with an idle thread, no instruction sources, and the native `:read-only` profile. The

@@ -33,3 +33,7 @@ held, and rejects checked restores whose scope/policy/profile drifts; it never s
 turn bytes or auto-resumes an in-flight turn. The fixture capability reports encrypted state as
 unverified and native encrypted-state durability remains unverified. The harness rejects inspect
 or enabled native profiles until that boundary is independently verified.
+
+The broker journal also has explicit `volatile` and `encrypted_persistent` adapters. The latter
+authenticates only the bounded metadata snapshot and uses private, owner-checked path validation;
+it does not encrypt or contain native Codex state, rollout files, WAL/log files or temporary files.
