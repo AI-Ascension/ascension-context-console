@@ -1,6 +1,7 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
-Date: 2026-09-11. The current target baseline is `96bdf9ed74d75f693a9b7dbbbd9cfbe89825113e`.
+Date: 2026-09-11. The current target baseline is `ba7388c` (feature source commit
+`96bdf9ed74d75f693a9b7dbbbd9cfbe89825113e`).
 The companion harness baseline is `5d664f3e0bfd3bf3303066947ba0021698b7c3a6`.
 
 | Seam | Owner and implementation | Evidence | Limit |

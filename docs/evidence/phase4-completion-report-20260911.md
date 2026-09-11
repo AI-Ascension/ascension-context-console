@@ -9,7 +9,7 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
-| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `96bdf9ed74d75f693a9b7dbbbd9cfbe89825113e` | committed and pushed; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
+| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `ba7388c` (feature source `96bdf9e`) | committed and pushed; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
 | [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `5d664f3e0bfd3bf3303066947ba0021698b7c3a6` | committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
