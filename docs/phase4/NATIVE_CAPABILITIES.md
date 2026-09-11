@@ -24,6 +24,15 @@ retirements and redacted projections); it does not contain or attest to native C
 rollouts, WAL files, logs or temporary files. Native encrypted-state durability therefore remains
 unverified.
 
+The owned stdio transport now clears the parent environment and binds conventional `HOME`,
+`CODEX_HOME`, XDG, Windows profile and temporary roots to the approved state root; callers cannot
+override those names through the inherited-environment list. The child still needs an independently
+verified native profile, runtime quota observer and OS-level containment before this source boundary
+can be promoted to persistent native capability. Startup now scans the complete private state tree
+against the 256 MiB bound and fails closed on symlinks, special files, unsafe child roots or
+over-limit bytes. The compiled fixture reports the bound-root invariant at initialization; this
+does not establish the installed native binary's own precedence behavior or runtime growth control.
+
 An isolated native smoke was run with a disposable state root and a loopback-refused proxy. It
 observed successful `initialize`, ephemeral `thread/start`, and metadata-only `thread/read`
 responses, with an idle thread, no instruction sources, and the native `:read-only` profile. The

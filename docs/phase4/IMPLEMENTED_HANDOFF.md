@@ -37,3 +37,8 @@ or enabled native profiles until that boundary is independently verified.
 The broker journal also has explicit `volatile` and `encrypted_persistent` adapters. The latter
 authenticates only the bounded metadata snapshot and uses private, owner-checked path validation;
 it does not encrypt or contain native Codex state, rollout files, WAL/log files or temporary files.
+The owned stdio transport clears ambient environment roots and binds conventional home/config/cache/
+temporary variables to its approved state root; native OS containment and quota observation remain
+unverified. Startup scans the private state tree against a 256 MiB bound and fails closed on unsafe
+entries, while runtime growth observation remains unverified. The compiled fixture reports this
+binding during initialization, while installed-native precedence remains unverified.

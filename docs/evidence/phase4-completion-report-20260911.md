@@ -43,6 +43,10 @@ The journal has an explicit volatile adapter and a broker-owned encrypted-persis
 encrypted adapter authenticates only this bounded metadata envelope and uses fail-closed absolute,
 owner-checked, restrictive path validation with atomic replacement; it is not a claim about native
 Codex storage or auxiliary-file containment.
+The owned stdio transport clears ambient environment roots, binds conventional home/config/cache/
+temporary variables to its approved state root, and scans that private tree against a 256 MiB startup
+quota. These checks fail closed on unsafe entries, but native precedence and runtime growth
+observation remain unverified.
 
 ## Verification
 
@@ -59,6 +63,9 @@ harness: cargo check --locked --workspace --all-targets
 harness: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 harness: cargo run --locked --package repo-policy -- --strict
 harness: TMPDIR=<dedicated persistent temp directory> cargo test --locked --workspace --all-targets --all-features --quiet
+harness: cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety --test provider_session_snapshot --test provider_session_store
+harness: cargo test --locked -p sts2-harness --lib provider_session::transport::config::tests::process_environment_is_bound_to_state_root
+harness: cargo test --locked -p sts2-harness --lib provider_session::transport::io::tests::state_quota_scan_is_bounded_and_fail_closed
 target: node --check web/app.js && node --check tools/integrated_browser_audit.cjs
 target: cargo test --locked -p context-service --test phase4_session
 harness: cargo test --locked -p sts2-harness --test provider_session --test provider_session_safety --test provider_session_snapshot
