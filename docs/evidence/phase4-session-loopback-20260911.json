@@ -3,7 +3,7 @@
   "evidence_id": "PHASE4-SESSION-LOOPBACK-20260911",
   "repository": "AI-Ascension/ascension-context-console",
   "branch": "phase4/persistent-provider",
-  "revision": "cdfbbe3851a4e062e5019dfbd20503c1f98733a6",
+  "revision": "72382b5b3e1355cf782ae236b7be8185033ac749",
   "evidence_class": ["synthetic", "compiled_peer"],
   "server_command": "cargo run --locked -p context-service -- integrated-demo 0",
   "probes": [
