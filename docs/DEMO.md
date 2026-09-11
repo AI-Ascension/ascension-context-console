@@ -97,19 +97,11 @@ component facts, mapping, lifecycle timeline, qualified measurements, comparison
 disclosure states. It never contacts a provider or game, stores a capability in browser
 persistence, or renders fixture strings as HTML.
 
-A local Chromium run exercised the load, comparison, keyboard focus, reduced-motion, narrow-layout,
-same-origin request, and browser-storage checks. The machine-readable result and sanitized
-screenshots are committed as
-[`docs/evidence/browser-ui-20260910.json`](evidence/browser-ui-20260910.json),
-[`docs/evidence/browser-desktop-20260910.png`](evidence/browser-desktop-20260910.png), and
-[`docs/evidence/browser-narrow-20260910.png`](evidence/browser-narrow-20260910.png). The record
-identifies Chromium `153.0.8010.12`, both viewport sizes, zero external requests, empty browser
-storage, and the keyboard comparison outcome.
-
-The integrated result and screenshots are
-[`docs/evidence/integrated-browser-ui-20260910.json`](evidence/integrated-browser-ui-20260910.json),
-[`docs/evidence/integrated-browser-desktop-20260910.png`](evidence/integrated-browser-desktop-20260910.png),
-and [`docs/evidence/integrated-browser-narrow-20260910.png`](evidence/integrated-browser-narrow-20260910.png).
+The browser audit remains an executable command, but the current environment cannot launch its
+cached Chromium shell because `libglib-2.0.so.0` is unavailable. The current run therefore exits
+before page assertions and is recorded as unavailable rather than reusing artifacts from an older
+revision. The checked-in screenshots and JSON are historical synthetic observations and are not
+current-revision browser proof.
 
 The Phase 2 control workflow has a separate executable browser audit. Run it with the same bounded
 Chromium library environment:
@@ -123,14 +115,12 @@ PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright \
 node tools/phase2_browser_audit.cjs
 ```
 
-It exercises draft creation and save, note/objective authorization, exploratory and applicable
-previews, pause readiness, commit while paused, explicit resume, control events, zero provider/game
-effects, narrow layout, and browser-storage/network assertions. The result and screenshots are
-[`docs/evidence/phase2-browser-ui-20260910.json`](evidence/phase2-browser-ui-20260910.json),
-[`docs/evidence/phase2-browser-desktop-20260910.png`](evidence/phase2-browser-desktop-20260910.png),
-and [`docs/evidence/phase2-browser-narrow-20260910.png`](evidence/phase2-browser-narrow-20260910.png).
+It is expected to exercise draft creation and save, note/objective authorization, exploratory and
+applicable previews, pause readiness, commit while paused, explicit resume, control events, zero
+provider/game effects, narrow layout, and browser-storage/network assertions. It currently fails at
+Chromium startup for the same missing shared library, before those assertions run.
 
-This is source/synthetic evidence plus a local browser observation over synthetic data. It does not
-claim a live provider receipt, actual game launch, production or native storage enforcement, or
-cross-platform browser compatibility. The companion harness repository records fake-only
-Astra/Ollama process fidelity against synthetic downstreams.
+This is source/synthetic evidence plus an unavailable current browser lane over synthetic data. It
+does not claim a live provider receipt, actual game launch, production or native storage
+enforcement, or cross-platform browser compatibility. The companion harness repository records
+fake-only process fidelity against synthetic downstreams.

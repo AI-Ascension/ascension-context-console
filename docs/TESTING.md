@@ -46,24 +46,17 @@ against the durable fixture without provider or game effects. CLI stdin is cappe
 uses the same duplicate-key/depth checks as the HTTP path; shell-facing exit classes are documented
 in [docs/API.md](API.md).
 
-The checked-in browser and CLI demo are offline synthetic evidence. A local Chromium run exercised
-the browser fixture at desktop (`1440x1000`) and narrow (`375x800`) viewports with reduced motion,
-keyboard comparison, same-origin-only requests, zero browser persistence, and no normal-flow
-console or page errors. It also exercises typed pin/restore operations and denial probes, injects
-an HTML payload into untrusted provider/component fields, and confirms text-only rendering with no
-markup nodes, script execution, or external request. Its result and
-screenshots are in `docs/evidence/browser-ui-20260910.json` and the two adjacent PNG files. The
-run covers the normal synthetic flow; filesystem spies and native storage enforcement remain
-separate evidence limits.
+The checked-in browser and CLI demo are offline synthetic evidence. The current Chromium audit was
+attempted for desktop and narrow viewports but could not start because the cached browser is
+missing `libglib-2.0.so.0`; no page assertions or screenshots were produced at this revision.
+Historical browser artifacts remain in `docs/evidence/` for comparison only and are not counted as
+current gate evidence.
 
-The integrated browser audit runs `context-console integrated-demo 0` as a loopback server and
-loads `/web/` from that process. The server creates and reopens the temporary durable control
-journal, creates the synthetic producer projection, passes the
-same bytes through `MemoryCapture`, retains them in `Store`, and routes the browser's declared
-`/demo/*` artifacts through `ReadApi`. The audit asserts seven events, two captured records, at
-least three API projections, zero provider/game/external calls, and the same adversarial,
-keyboard, reduced-motion, persistence, and narrow-layout conditions. Its result and screenshots
-are the three `integrated-browser-*` artifacts in `docs/evidence/`.
+The integrated browser audit still runs `context-console integrated-demo 0` as a loopback server
+when the required browser libraries are available. Its intended assertions cover the synthetic
+producer projection, `MemoryCapture`, `Store`, declared `/demo/*` artifacts, zero provider/game/
+external calls, adversarial text, keyboard behavior, persistence, and narrow layout. The current
+environment did not reach those assertions.
 
 The companion harness branch records a bounded baseline/successor differential run for Astra and
 Ollama with synthetic fake downstreams; its machine-readable result is
