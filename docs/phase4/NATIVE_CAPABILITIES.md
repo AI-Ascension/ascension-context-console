@@ -19,10 +19,18 @@ observed successful `initialize`, ephemeral `thread/start`, and metadata-only `t
 responses, with an idle thread, no instruction sources, and the native `:read-only` profile. The
 machine-readable record is
 [`phase4-native-isolated-smoke-20260911.json`](../evidence/phase4-native-isolated-smoke-20260911.json).
-The smoke deliberately sent no turn and does not establish fake-upstream compatibility or prove
-that all native background egress is trapped; full native execution therefore remains unverified.
+
+A second controlled lane configured the installed binary with a synthetic `fake` model provider
+whose Responses endpoint was a local loopback HTTP/SSE server. It completed two streamed turns and
+read the idle thread metadata; a durable one-turn run wrote a rollout and recovered it by ID after a
+process restart. The complete bounded record is
+[`phase4-native-fake-conformance-20260911.json`](../evidence/phase4-native-fake-conformance-20260911.json).
+This does not establish OS-level egress trapping or full profile compatibility. In particular, the
+native request forwarded 11 built-in tool definitions on each turn, so worker tool denial is
+contradicted and the native hardening profile must remain unavailable for the default product path.
 The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
 its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
 depth 3 ancestry could not be established. This is an orchestration and isolation limitation, not
-evidence that the native profile is supported. Authentication, tool/ambient-history denial, native
-compaction semantics, provider transforms, persistence, and remote cleanup remain unverified.
+evidence that the native profile is supported. Authentication realm, ambient-history exclusion,
+encrypted-state guarantees, migration, native compaction/transforms, and remote cleanup remain
+unverified; the tool-denial failure is recorded above.

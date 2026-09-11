@@ -9,7 +9,7 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
-| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `59f1bc3` (feature source `96bdf9e`) | committed and pushed; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
+| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `9aff6d4` (feature source `96bdf9e`) | committed and pushed; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
 | [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `998e800` | committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
@@ -67,7 +67,7 @@ The current browser audit ran with Playwright 1.63.0 and Chromium 153.0.8010.12.
 Phase 1–3 panels plus the Phase 4 capabilities/list/candidate flow, wrong-origin rejection, reduced
 motion, narrow layout, adversarial text, zero external requests, and zero browser persistence. The
 fresh JSON/PNG evidence is recorded in `docs/evidence/integrated-browser-ui-20260910.json` and the
-same run's 20260911 PNG artifacts. Native-binary execution and live-provider/game checks remain
+same run's 20260911 PNG artifacts. Full native-profile and live-provider/game checks remain
 unverified.
 
 ## Orchestration and native limits
@@ -77,18 +77,20 @@ registry exposed no child-spawn, reservation, messaging or close operation, so d
 and depth-3 leaf ancestry could not be verified. No delegated implementation claim is made. The
 installed Codex 0.154.0 binary and generated App Server schema were inspected without inference;
 their digests and reviewed method names are recorded in
-[`NATIVE_CAPABILITIES.md`](../phase4/NATIVE_CAPABILITIES.md). A bounded isolated native
-initialize/thread-start/thread-read smoke is recorded in
-[`phase4-native-isolated-smoke-20260911.json`](phase4-native-isolated-smoke-20260911.json); it
-sent no turn and does not establish fake-upstream or provider compatibility. No personal/default
-state was used and no isolated fake-upstream lane was available.
+[`NATIVE_CAPABILITIES.md`](../phase4/NATIVE_CAPABILITIES.md). The bounded metadata smoke and the
+loopback fake-upstream/two-turn plus durable restart evidence are recorded in
+[`phase4-native-isolated-smoke-20260911.json`](phase4-native-isolated-smoke-20260911.json) and
+[`phase4-native-fake-conformance-20260911.json`](phase4-native-fake-conformance-20260911.json).
+The fake lane used no real provider credentials, but it observed native tool-definition forwarding
+and does not establish the required hardening, OS-level egress trap, or full provider compatibility.
 
 ## External effects and handoff
 
-No authenticated provider inference was executed and no game was launched. An earlier exploratory
-native start reached the provider websocket without credentials and received an HTTP 401; the
-bounded evidence run used a loopback-refused proxy and sent no turn. No credential/account/
-configuration was changed, and no remote repository was merged, released or deployed. The
-branches are ready for independent review. Activation still requires an authorized isolated native binary/fake-upstream profile,
+No authenticated real-provider inference was executed and no game was launched. An earlier
+exploratory native start reached the provider websocket without credentials and received an HTTP
+401; the bounded fake-upstream lane sent turns only to a local loopback server, while the metadata
+smoke used a loopback-refused proxy and sent no turn. No credential/account/configuration was
+changed, and no remote repository was merged, released or deployed. The branches are ready for
+independent review. Activation still requires an authorized isolated native binary/fake-upstream profile,
 successful native depth preflight, browser dependencies for a fresh audit, and separately approved
 live-provider/game checks. Until those gates pass, the only enabled profile is `fixture_only`.

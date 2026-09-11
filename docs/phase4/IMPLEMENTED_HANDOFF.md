@@ -1,6 +1,6 @@
 # Phase 4 implementation handoff (fixture/source scope)
 
-Date: 2026-09-11. The current target baseline is `59f1bc3` (feature source commit
+Date: 2026-09-11. The current target baseline is `9aff6d4` (feature source commit
 `96bdf9ed74d75f693a9b7dbbbd9cfbe89825113e`).
 The companion harness baseline is `998e800`.
 
@@ -16,8 +16,9 @@ The native three-level Luna/max preflight was attempted with a real depth-1 lead
 operation, so depth-2/depth-3 ancestry could not be established and no delegated implementation
 claim is made. No real provider, game, deployment, merge, or release was performed. The
 implementation branch is pushed to GitHub as `phase4/persistent-provider` in both companion
-repositories. The fixture lane is intentionally `fixture_only`; native-binary/fake-upstream and
-live-provider capabilities remain `unverified`.
+repositories. The fixture lane is intentionally `fixture_only`. A bounded native fake-upstream
+lane and durable metadata restart/read lane are recorded in the Phase 4 evidence directory, but
+native tool hardening failed and full native/live-provider capabilities remain `unverified`.
 
 The harness snapshot lane persists only the bounded local metadata journal: operation
 idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a

@@ -1,0 +1,99 @@
+{
+  "evidence_id": "NATIVE-FAKE-CONFORMANCE-20260911",
+  "captured_at": "2026-09-11",
+  "evidence_class": "native_binary_fake_upstream",
+  "scope": "isolated_app_server_metadata_and_two_turn_streaming",
+  "invocation": {
+    "binary": "/tmp/codex-account1-bin/codex",
+    "command": "codex app-server --listen stdio://",
+    "provider_configuration": "model_provider=fake; model_providers.fake.base_url=http://127.0.0.1:<ephemeral>/v1; wire_api=responses",
+    "state_root": "disposable temporary root; path intentionally omitted"
+  },
+  "binary": {
+    "version": "codex-cli 0.154.0",
+    "sha256": "3188814c35471432d4123203e0eb38e5bddc60226e3d7ddf0e59e649ea140022",
+    "schema_bundle_sha256": "9045dc90eb460503ec0420fcc8452f110038f6d211b3d26ae9c77e7aa27be1bb"
+  },
+  "isolation": {
+    "isolated_root": true,
+    "personal_codex_home_used": false,
+    "synthetic_api_key_only": true,
+    "provider_endpoint_loopback_only": true,
+    "non_loopback_proxy": "loopback_refused",
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true
+  },
+  "fake_upstream_run": {
+    "transport": "stdio_jsonrpc_2.0_to_local_http_sse",
+    "initialize_success": true,
+    "thread_start_success": true,
+    "thread_start_ephemeral": true,
+    "turns": [
+      {
+        "ordinal": 1,
+        "turn_start_response": true,
+        "fake_response_stream": true,
+        "turn_completed": true,
+        "status": "completed",
+        "request_path": "/v1/responses",
+        "request_body_sha256": "f596fe5b1439f4eaa524013ad8cee8a35ad76f543b1a971f0f1712b44608e80c"
+      },
+      {
+        "ordinal": 2,
+        "turn_start_response": true,
+        "fake_response_stream": true,
+        "turn_completed": true,
+        "status": "completed",
+        "request_path": "/v1/responses",
+        "request_body_sha256": "f3d0d101958f016c35277338c0174da2602ff0b3e0d08fdbc5bb348ad8ef4c18"
+      }
+    ],
+    "thread_read_success": true,
+    "thread_read_status": "idle",
+    "fork_attempt": {
+      "tested": true,
+      "outcome": "rejected_no_rollout_for_ephemeral_thread"
+    }
+  },
+  "durable_restart_run": {
+    "thread_start_ephemeral": false,
+    "fake_turn_completed": true,
+    "rollout_path_created": true,
+    "process_restarted": true,
+    "thread_list_success": true,
+    "thread_list_count": 1,
+    "thread_read_success": true,
+    "thread_read_same_id": true,
+    "encrypted_state_boundary_verified": false,
+    "migration_exercised": false
+  },
+  "hardening_observation": {
+    "native_tool_definitions_forwarded_per_turn": 11,
+    "native_tool_definitions_forwarded_total": 22,
+    "namespaces": ["functions", "clock", "collaboration"],
+    "tool_names": [
+      "exec",
+      "wait",
+      "request_user_input",
+      "request_user_input_async",
+      "sleep",
+      "followup_task",
+      "interrupt_agent",
+      "list_agents",
+      "send_message",
+      "spawn_agent",
+      "wait_agent"
+    ],
+    "denial_passed": false,
+    "interpretation": "The native App Server forwarded its built-in tool definitions to the fake provider request. No tool call was returned or executed, but forwarding alone fails the worker tool-denial requirement."
+  },
+  "negative_scope": {
+    "real_provider_authentication": false,
+    "game_effects": 0,
+    "compaction_started": false,
+    "server_request_rejection": false,
+    "native_cleanup": false,
+    "provider_context_claimed_exact": false
+  },
+  "interpretation": "This evidence establishes a bounded loopback fake-upstream lane for initialize, ephemeral thread/start, two streamed turns, metadata thread/read, and a durable thread restart/read. It does not establish OS-level egress trapping, native tool or ambient-history denial, encrypted-state guarantees, migration, cleanup, fork support, compaction semantics, or live-provider compatibility. The observed native tool-definition forwarding keeps the native hardening profile unavailable for the default product path."
+}
