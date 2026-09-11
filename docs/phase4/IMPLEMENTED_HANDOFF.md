@@ -28,4 +28,6 @@ encrypted persistent state remain explicit limits.
 The harness snapshot lane persists only the bounded local metadata journal: operation
 idempotency, epochs, maintenance records and redacted history projections. Restore rotates to a
 fresh owner token and never serializes prepared turn bytes or auto-resumes an in-flight turn;
-native encrypted-state durability remains unverified.
+the fixture capability reports encrypted state as unverified and native encrypted-state durability
+remains unverified. The harness rejects an enabled profile until that boundary is independently
+verified.

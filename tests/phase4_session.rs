@@ -15,6 +15,7 @@ fn capabilities_are_scoped_and_explicitly_fixture_only() {
         .expect("capabilities");
     assert_eq!(route.mode(), SessionRouteMode::FixtureOnly);
     assert_eq!(value["value"]["hardening"]["tools_enabled"], false);
+    assert_eq!(value["value"]["hardening"]["encrypted_state"], false);
     assert_eq!(value["value"]["raw_rpc"], false);
     assert_eq!(value["inference_calls"], 0);
     assert_eq!(

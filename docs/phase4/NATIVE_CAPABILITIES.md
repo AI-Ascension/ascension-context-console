@@ -13,6 +13,8 @@ with binary SHA-256
 names present in that schema are `initialize`, `thread/start`, `thread/read`, `turn/start`,
 `turn/interrupt`, `thread/fork`, and `thread/compact/start`; local retirement remains a broker
 operation because no `thread/retire` method is present in the schema.
+The compiled fixture capability reports `encrypted_state: false`; persistent `enabled` operation is
+therefore unavailable until a native encrypted boundary is independently verified.
 
 An isolated native smoke was run with a disposable state root and a loopback-refused proxy. It
 observed successful `initialize`, ephemeral `thread/start`, and metadata-only `thread/read`

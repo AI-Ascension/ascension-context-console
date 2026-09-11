@@ -197,7 +197,7 @@ impl ProviderSessionRoute {
                 hardening: SessionHardeningView {
                     tools_enabled: false,
                     ambient_history: false,
-                    encrypted_state: true,
+                    encrypted_state: false,
                     configuration_verified: true,
                     transform_handling: "detect_and_fence".to_owned(),
                 },
