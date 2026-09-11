@@ -71,12 +71,12 @@ Phase 2 pause/commit/resume flow. The exact JSON and PNG artifacts are checked i
 Target PR #3 was merged after its `policy` and `Rust quality gates` checks passed; the squash merge
 commit is `114b3e5ae28cd60d9dafc421711dee859b602c4d`. Harness PR #70 was also merged externally;
 its merge commit is `8d771f128bc0ba13071063425c9a852bac2c40c1`. No release, deployment, live provider
-call, game launch, credential use, or unrelated write was performed. The latest native recheck
-opened the Codex `0.153.4` agent command center, but it showed only existing finished tasks. An
-explicit `--enable multi_agent_v2` probe changed the flag to `stable/true` and created one recorded
-`gpt-5.6-luna`/`max` child under a standalone probe root, but that child exposed only read-only task
-APIs and no nested spawn or reservation surface; the probe root was not attached to the integration
-root and no depth-three child was created. The target's default facade still has no attached persistent
+call, game launch, credential use, or unrelated write was performed. A daemon-backed native recheck
+used Codex `0.154.0` with `multi_agent_v2` explicitly enabled and created one real
+`gpt-5.6-luna`/`max` depth-1 child with observed parentage. That lead reported that its session
+exposed no native child-spawn, reservation, or messaging surface, so no depth-2 coordinator or
+depth-3 leaf was created; the root and lead were completed and archived. Earlier `0.153.4`
+command-center and standalone probes remain in the preflight artifact for comparison. The target's default facade still has no attached persistent
 projection; the explicit adapter proof is an offline synthetic path. The remaining mandatory
 evidence is the independent native three-level reviewer. Synthetic adapter, process, and network
 tripwire evidence cannot establish provider quality, native game/action effects, production storage
