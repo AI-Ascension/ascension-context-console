@@ -7,6 +7,7 @@
 //! `integrated-demo` executable places a provider-free synthetic loopback transport around these
 //! primitives for end-to-end review.
 
+mod association;
 mod capture;
 mod cli;
 mod control;
@@ -19,6 +20,9 @@ mod read_api;
 mod store;
 mod telemetry;
 
+pub use association::{
+    AssociationResolutionError, ResolvedWorkflowContext, resolve_workflow_context_association,
+};
 pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,
