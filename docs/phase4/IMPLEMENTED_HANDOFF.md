@@ -3,6 +3,19 @@
 Date: 2026-09-11. The target implementation source baseline is `1508164`.
 The companion harness baseline is `d82ccb6`. Subsequent target commits are test-helper, evidence and documentation updates.
 
+## Operator waivers (2026-09-12)
+
+The operator directed delivery to proceed without the exact three-level native ancestry and the other
+remaining native-only verifications. Those items are recorded as operator-accepted limitations; their
+verification status is unchanged and they are **not** claimed as verified, and no orchestration
+success is claimed:
+
+- `R04-004` (three-level native ancestry) remains `blocked`.
+- `R04-016`, `R04-017`, `R04-018`, `R04-061`, `R04-076`, `R04-079` remain `unverified`.
+
+Only the fixture/source lane is closed as complete; native/live behavior stays out of scope for this
+delivery by operator decision. Fixture-only activation is retained.
+
 | Seam | Owner and implementation | Evidence | Limit |
 | --- | --- | --- | --- |
 | Frozen capture, renderer and Phase 2 held boundary | companion harness `context_capture`, `context_control`, `context_memory` and Exo modules | inherited Phase 1–3 tests and handoff | live provider/game remains unverified |

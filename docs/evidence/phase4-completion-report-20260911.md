@@ -5,6 +5,14 @@ claim native Codex-binary compatibility, live provider/game behavior, deployment
 the unavailable native three-level orchestration gate. The per-requirement ledger is
 [`phase4-requirement-evidence-20260911.csv`](phase4-requirement-evidence-20260911.csv).
 
+## Operator acceptance
+
+On 2026-09-12 the operator directed delivery to proceed without the exact three-level native ancestry
+and the remaining native-only verifications. Those items are recorded as operator-accepted
+limitations and are not claimed as verified: `R04-004` remains `blocked`, and `R04-016`, `R04-017`,
+`R04-018`, `R04-061`, `R04-076` and `R04-079` remain `unverified`. The fixture/source lane is closed
+as complete on that basis; no orchestration success is claimed.
+
 ## Delivered source
 
 | Repository | Branch and commit | Publication | Scope |
