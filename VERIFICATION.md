@@ -142,7 +142,7 @@ Gate-output comparison:
 
 ---
 
-## 5. Browser audit
+## 5. Browser audit (superseded by §8)
 
 `node tools/browser-audit/integrated_browser_audit.cjs` → **FAILS to run**:
 `Error: Cannot find module 'playwright'` (`MODULE_NOT_FOUND`), `EXIT=1`
@@ -198,7 +198,7 @@ fully exercised without Playwright.
 
 ## 7. Unverified / unsupported / caveats
 
-1. **Browser audit — unverified.** `playwright` is not installed, so no browser run, screenshots,
+1. **Browser audit — unverified at the time of this run (superseded by §8).** `playwright` is not installed, so no browser run, screenshots,
    rendered-DOM assertions, storage/CSP checks, or adversarial-payload checks were performed.
    `docs/evidence/*.json` were therefore **not** regenerated.
 2. **`docs/evidence/*.json` still name old paths** (`web/app.js`, `web/styles.css`,
@@ -227,3 +227,36 @@ fully exercised without Playwright.
 8. **`raw code diff equivalence` not independently recomputed line-by-line.** The verifier relied on
    the behavioral differential (29/29) and the symbol/constant checks rather than per-line AST
    comparison; the worker-supplied verbatim-diff reports were not re-derived.
+
+---
+
+## 8. Update — mainline integration browser audit (2026-09-12, revision b03f2f5)
+
+Supersedes §5 and §7 items 1-2 for the merged `main` revision.
+
+Playwright 1.63.0 is available from the cached module path and Chromium 1243 is installed; the
+headless system libraries are staged under `/tmp/ascension-browser-libs/root-20260911`. The browser
+audits were re-run at merge revision `b03f2f56af05549cf33b43a95be2c4217ecb06fa` (`main`):
+
+```bash
+export LD_LIBRARY_PATH=/tmp/ascension-browser-libs/root-20260911/usr/lib/x86_64-linux-gnu:/tmp/ascension-browser-libs/root-20260911/lib/x86_64-linux-gnu
+export FONTCONFIG_FILE=/tmp/ascension-browser-libs/fontconfig-runtime-20260911.conf
+export FONTCONFIG_PATH=/tmp/ascension-browser-libs/root-20260911/etc/fonts
+export XDG_DATA_DIRS=/tmp/ascension-browser-libs/root-20260911/usr/share:/usr/local/share:/usr/share
+export PLAYWRIGHT_MODULE=/home/agent/.npm/_npx/e41f203b7505f1fb/node_modules/playwright
+
+node tools/browser-audit/integrated_browser_audit.cjs   # EXIT=0
+node tools/phase2_browser_audit.cjs                      # EXIT=0
+node tools/phase4_session_loopback.cjs                   # EXIT=0
+```
+
+- Integrated audit: `result=passed`, `exit_code=0`, Playwright 1.63.0, browser 153.0.8010.12,
+  all 18 assertions true (adversarial text-only payload, manifest path rejection, keyboard
+  comparison, reduced motion, no browser persistence, no narrow overflow, memory-disabled shadow,
+  phase4 session fixture, CSRF denied, async-state distinctness).
+- Refreshed evidence: `docs/evidence/integrated-browser-ui-20260910.json` (revision b03f2f5, no
+  stale paths; `source_artifacts` point at `demo/*.rs` and `web/js/*`), plus
+  `phase2-browser-ui-20260910.json`, the two phase2 screenshots, and
+  `phase4-session-loopback-20260911.json` (all `passed`, zero provider/game/external calls).
+- §7 item 1 (browser audit unverified) and item 2 (evidence still names old paths) no longer apply
+  to the current `main` revision.

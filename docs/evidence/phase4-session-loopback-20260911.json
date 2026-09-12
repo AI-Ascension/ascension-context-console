@@ -2,9 +2,9 @@
   "schema": "ascension.phase4-session-loopback-evidence.v1",
   "evidence_id": "PHASE4-SESSION-LOOPBACK-20260911",
   "repository": "AI-Ascension/ascension-context-console",
-  "branch": "phase4/persistent-provider",
-  "revision": "150816417681f74bb853c2ef4816e779b66e2c08",
-  "captured_at": "2026-09-11T22:27:38.994Z",
+  "branch": "main",
+  "revision": "b03f2f56af05549cf33b43a95be2c4217ecb06fa",
+  "captured_at": "2026-09-12T05:47:13.244Z",
   "evidence_class": [
     "synthetic",
     "compiled_peer"

@@ -31,3 +31,18 @@ resolution path; provide a Playwright installation that is external to this repo
 The audit writes `docs/evidence/integrated-browser-ui-20260910.json` plus desktop and narrow
 screenshots into `docs/evidence/`. Evidence files are owned by the docs workstream; do not edit
 them by hand.
+
+## Headless prerequisites
+
+The audit needs a Playwright module that matches the cached Chromium build and the usual headless
+Chromium shared libraries. When they are not installed system-wide, point the environment at the
+cached module and a staged library root, for example:
+
+```bash
+export LD_LIBRARY_PATH=/tmp/ascension-browser-libs/root-20260911/usr/lib/x86_64-linux-gnu:/tmp/ascension-browser-libs/root-20260911/lib/x86_64-linux-gnu
+export FONTCONFIG_FILE=/tmp/ascension-browser-libs/fontconfig-runtime-20260911.conf
+export FONTCONFIG_PATH=/tmp/ascension-browser-libs/root-20260911/etc/fonts
+export XDG_DATA_DIRS=/tmp/ascension-browser-libs/root-20260911/usr/share:/usr/local/share:/usr/share
+export PLAYWRIGHT_MODULE=/home/agent/.npm/_npx/e41f203b7505f1fb/node_modules/playwright
+node tools/browser-audit/integrated_browser_audit.cjs
+```
