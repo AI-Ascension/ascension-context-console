@@ -24,8 +24,9 @@ zero tool definitions and ignored a forged `exec` call without a server request;
 kept regular native state files volatile. Runtime developer instructions, missing OS egress proof and
 encrypted persistent state remain explicit limits.
 
-Draft review is tracked in [target PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12)
-and [companion PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); both remain unmerged.
+Delivery is tracked in [target PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12)
+and [companion PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); both were merged to
+`main` in `e4ab38a` and `544605b` after their required checks passed.
 
 The harness snapshot lane persists only the bounded local metadata journal: operation
 idempotency, epochs, maintenance records and redacted history projections. Admission enforces
