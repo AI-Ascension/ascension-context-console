@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "classification": "original_local_seed",
+  "producer_qualification": "unverified_not_applicable",
+  "historical_repository": "AI-Ascension/sts2-harness",
+  "historical_revision": "fc44d3ef65fefa6d13ecd5f690e5335a6ef60080",
+  "evidence": [
+    "git ls-tree -r fc44d3ef65fefa6d13ecd5f690e5335a6ef60080 contains none of the context-inspection, token-measurement, or read-api seed paths",
+    "README.md identifies these files as proposed original implementation seeds, not existing runtime interfaces or a published service",
+    "read-api.openapi.json declares 0.1.0-proposed"
+  ],
+  "required_for_producer_qualification": [
+    "explicit adopted producer repository and immutable revision",
+    "declared source paths for every seeded file",
+    "matching producer byte digests"
+  ]
+}

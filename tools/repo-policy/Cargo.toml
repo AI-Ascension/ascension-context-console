@@ -6,5 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 description = "Small, read-only policy gate for the Context Console repository"
 
+[dependencies]
+serde_json.workspace = true
+sha2.workspace = true
+
 [lints]
 workspace = true

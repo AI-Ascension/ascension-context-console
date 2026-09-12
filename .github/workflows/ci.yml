@@ -30,6 +30,15 @@ jobs:
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy --component rustfmt --no-self-update
 
+      - name: Install pinned Node for provenance checks
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.16.0'
+      - name: Verify original-seed classification and rejection semantics
+        run: |
+          node tools/verify-context-seed-provenance.mjs
+          node --test tools/verify-context-seed-provenance.test.mjs
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -38,3 +47,42 @@ jobs:
 
       - name: Run Rust tests
         run: cargo test --workspace --all-targets --all-features --locked -- --test-threads=1
+
+  browser:
+    name: Integrated browser audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --no-self-update
+      - name: Install pinned Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.16.0'
+          cache: npm
+          cache-dependency-path: tools/browser-audit/package-lock.json
+      - name: Build synthetic demo before readiness timer
+        run: cargo build --locked --package context-service --bin context-console
+      - name: Install locked browser dependencies
+        working-directory: tools/browser-audit
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run synthetic integrated and adversarial browser audit
+        working-directory: tools/browser-audit
+        run: CONTEXT_CONSOLE_BIN="$GITHUB_WORKSPACE/target/debug/context-console" CONTEXT_BROWSER_AUDIT_OUT="$RUNNER_TEMP/context-browser-audit" npm run audit
+      - name: Upload disposable audit evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: context-browser-audit-${{ github.sha }}
+          path: ${{ runner.temp }}/context-browser-audit
+          if-no-files-found: error
+          retention-days: 14

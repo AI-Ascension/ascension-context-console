@@ -3,14 +3,19 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..', '..');
 const playwrightModule = process.env.PLAYWRIGHT_MODULE || 'playwright';
 const { chromium } = require(playwrightModule);
 const playwrightVersion = require(`${playwrightModule}/package.json`).version;
-const evidenceDir = path.join(root, 'docs', 'evidence');
+const prebuiltBinary = process.env.CONTEXT_CONSOLE_BIN ? path.resolve(process.env.CONTEXT_CONSOLE_BIN) : undefined;
+// Historical evidence is immutable. CI must supply its own disposable directory.
+const evidenceDir = process.env.CONTEXT_BROWSER_AUDIT_OUT
+  ? path.resolve(process.env.CONTEXT_BROWSER_AUDIT_OUT)
+  : fs.mkdtempSync(path.join(os.tmpdir(), 'context-browser-audit-'));
 fs.mkdirSync(evidenceDir, { recursive: true });
 const auditCommand = [
   `FONTCONFIG_PATH=${process.env.FONTCONFIG_PATH || '<unset>'}`,
@@ -29,31 +34,37 @@ function sha256(file) {
 function waitForServer(child) {
   return new Promise((resolve, reject) => {
     let output = '';
+    const timeout = setTimeout(() => reject(new Error('integrated demo did not become ready within 30 seconds')), 30_000);
     const onData = (chunk) => {
       output += chunk.toString();
       const line = output.split(/\r?\n/).find((value) => value.startsWith('integrated_demo_ready='));
       if (line) {
+        clearTimeout(timeout);
         child.stdout.off('data', onData);
         resolve(line.slice('integrated_demo_ready='.length).trim());
       }
     };
     child.stdout.on('data', onData);
-    child.once('error', reject);
-    child.once('exit', (code, signal) => reject(new Error(`integrated demo exited before readiness: ${code}/${signal}`)));
+    child.once('error', (error) => { clearTimeout(timeout); reject(error); });
+    child.once('exit', (code, signal) => { clearTimeout(timeout); reject(new Error(`integrated demo exited before readiness: ${code}/${signal}`)); });
   });
 }
 
 async function stopServer(child) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   child.kill('SIGTERM');
-  await new Promise((resolve) => child.once('exit', resolve));
+  await Promise.race([
+    new Promise((resolve) => child.once('exit', resolve)),
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+  if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
 }
 
 async function run() {
   const child = spawn(
-    process.env.CONTEXT_CONSOLE_BIN || 'cargo',
-    process.env.CONTEXT_CONSOLE_BIN
-      ? []
+    prebuiltBinary || 'cargo',
+    prebuiltBinary
+      ? ['integrated-demo', '0']
       : ['run', '--locked', '--package', 'context-service', '--bin', 'context-console', '--', 'integrated-demo', '0'],
     {
       cwd: root,
@@ -66,7 +77,10 @@ async function run() {
   let browser;
   try {
     const readyUrl = await waitForServer(child);
-    const base = new URL(readyUrl).origin;
+    const address = new URL(readyUrl);
+    assert.equal(address.protocol, 'http:');
+    assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(address.hostname), 'demo must bind loopback');
+    const base = address.origin;
     browser = await chromium.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
@@ -76,6 +90,7 @@ async function run() {
       reducedMotion: 'reduce',
       viewport: { width: 1440, height: 1000 },
     });
+    await context.route('**/*', (route) => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
     const page = await context.newPage();
     const requests = [];
     const consoleErrors = [];
@@ -222,13 +237,13 @@ async function run() {
     assert.deepEqual(stateRequests.filter((url) => !url.startsWith(base)), []);
     await statePage.close();
 
-    const desktopPath = path.join(evidenceDir, 'integrated-browser-desktop-20260911.png');
+    const desktopPath = path.join(evidenceDir, 'integrated-browser-desktop.png');
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: desktopPath, fullPage: true });
     await page.setViewportSize({ width: 375, height: 800 });
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(100);
-    const narrowPath = path.join(evidenceDir, 'integrated-browser-narrow-20260911.png');
+    const narrowPath = path.join(evidenceDir, 'integrated-browser-narrow.png');
     await page.screenshot({ path: narrowPath, fullPage: true });
     const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     assert.equal(horizontalOverflow, false);
@@ -271,15 +286,22 @@ async function run() {
     const manifestBytes = Buffer.from(await manifestResponse.arrayBuffer());
     const manifestSha256 = crypto.createHash('sha256').update(manifestBytes).digest('hex');
 
+    const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }).trim();
+    const untracked = git('ls-files', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean);
+    const completedAt = new Date().toISOString();
     const evidence = {
       schema: 'ascension.integrated-browser-evidence.v1',
-      evidence_id: 'INTEGRATED-BROWSER-20260911',
+      evidence_id: `INTEGRATED-BROWSER-${completedAt}`,
+      completed_at: completedAt,
       requirement_ids: ['P1-025', 'P1-031', 'P1-032', 'P1-033', 'R04-001', 'R04-010', 'R04-060'],
       case_ids: ['INTEGRATED-NORMAL-001', 'INTEGRATED-ADVERSARIAL-001', 'INTEGRATED-MANIFEST-PATH-001', 'PHASE4-SESSION-001'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
         revision: require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+        working_tree_dirty: Boolean(git('status', '--porcelain')),
+        tracked_diff_sha256: crypto.createHash('sha256').update(execFileSync('git', ['diff', '--binary', 'HEAD'], { cwd: root, maxBuffer: 32 * 1024 * 1024 })).digest('hex'),
+        untracked_inputs: untracked.map((name) => ({ path: name, sha256: sha256(path.join(root, name)) })),
       },
       platform: {
         os: require('node:os').platform(),
@@ -287,7 +309,8 @@ async function run() {
         architecture: require('node:os').arch(),
       },
       command: {
-        server: 'cargo run --locked --package context-service --bin context-console -- integrated-demo 0',
+        server: prebuiltBinary ? 'prebuilt context-console integrated-demo 0' : 'cargo run --locked --package context-service --bin context-console -- integrated-demo 0',
+        prebuilt_binary_sha256: prebuiltBinary ? sha256(prebuiltBinary) : null,
         audit: auditCommand,
       },
       exit_code: 0,
@@ -385,16 +408,19 @@ async function run() {
         phase4_async_states_distinct: new Set(renderedStates).size === 4,
       },
       artifacts: [
-        { path: 'docs/evidence/integrated-browser-desktop-20260911.png', sha256: sha256(desktopPath) },
-        { path: 'docs/evidence/integrated-browser-narrow-20260911.png', sha256: sha256(narrowPath) },
+        { path: desktopPath, sha256: sha256(desktopPath) },
+        { path: narrowPath, sha256: sha256(narrowPath) },
       ],
     };
-    const evidencePath = path.join(evidenceDir, 'integrated-browser-ui-20260910.json');
+    const evidencePath = path.join(evidenceDir, 'integrated-browser-ui.json');
     fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
     console.log(JSON.stringify(evidence, null, 2));
   } finally {
-    if (browser) await browser.close();
-    await stopServer(child);
+    try {
+      if (browser) await browser.close();
+    } finally {
+      await stopServer(child);
+    }
     if (serverStderr && process.env.SHOW_SERVER_STDERR === '1') process.stderr.write(serverStderr);
   }
 }

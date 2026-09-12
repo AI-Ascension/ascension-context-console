@@ -3,34 +3,43 @@
 Read-only Playwright audit for the Context Console web surface. It starts the local
 `context-console` integrated demo, drives `/web/` in headless Chromium, and checks normal,
 adversarial (markup injection), and manifest path-rejection flows. It writes screenshots and a
-JSON evidence file under `docs/evidence/`.
+JSON evidence file in a newly created temporary directory, or in the explicit
+`CONTEXT_BROWSER_AUDIT_OUT` directory. Historical `docs/evidence/` files are not overwritten.
 
 ## Usage
 
-From the repository root:
+Use Node 24.16.0 and the exact locked Playwright dependency. From the repository root:
 
 ```bash
-node tools/browser-audit/integrated_browser_audit.cjs
+cargo build --locked --package context-service --bin context-console
+npm ci --prefix tools/browser-audit
+cd tools/browser-audit
+npx playwright install --with-deps chromium
+CONTEXT_CONSOLE_BIN="../../target/debug/context-console" npm run audit
 ```
 
-`package.json` declares no runtime dependencies beyond Node built-ins. The script resolves
-Playwright at run time from `PLAYWRIGHT_MODULE` when set, otherwise from the ambient module
-resolution path; provide a Playwright installation that is external to this repository.
+`package-lock.json` binds Playwright 1.63.0 and its dependency integrity. CI provisions
+Node explicitly and builds the demo before starting the 30-second readiness timer.
+The script resolves Playwright locally unless `PLAYWRIGHT_MODULE` is explicitly set
+for a diagnostic environment; such an override must be recorded in its evidence.
 
 ## Environment variables
 
 - `PLAYWRIGHT_MODULE` - module path or name used to resolve Playwright (default: `playwright`).
 - `CONTEXT_CONSOLE_BIN` - prebuilt demo binary; when set the audit runs it directly instead of
   `cargo run`.
+- `CONTEXT_BROWSER_AUDIT_OUT` - disposable output directory; unset creates a new temporary directory.
 - `SHOW_SERVER_STDERR` - set to `1` to echo the demo server's stderr.
 - `FONTCONFIG_PATH`, `FONTCONFIG_FILE`, `XDG_DATA_DIRS`, `LD_LIBRARY_PATH` - recorded in the
   evidence file to describe the headless browser environment.
 
 ## Evidence
 
-The audit writes `docs/evidence/integrated-browser-ui-20260910.json` plus desktop and narrow
-screenshots into `docs/evidence/`. Evidence files are owned by the docs workstream; do not edit
-them by hand.
+The audit writes `integrated-browser-ui.json` plus desktop and narrow screenshots into
+its disposable output directory. Do not point it at historical evidence. Browser traffic
+is restricted to the demo's loopback origin, and the owned server is stopped in cleanup
+even if closing the browser fails. These tests exercise the local integrated demo, not
+native provider/harness interoperability.
 
 ## Headless prerequisites
 

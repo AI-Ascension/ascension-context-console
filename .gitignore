@@ -2,3 +2,4 @@
 *.swp
 .context-console/
 /phase1-preflight-current/
+/tools/browser-audit/node_modules/

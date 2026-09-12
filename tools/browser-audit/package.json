@@ -5,9 +5,12 @@
   "description": "Read-only Playwright audit for the Context Console web surface",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": "24.16.0"
   },
   "scripts": {
     "audit": "node integrated_browser_audit.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
   }
 }
