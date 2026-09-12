@@ -1,0 +1,98 @@
+{
+  "schema": "ascension.phase4-native-orchestration-and-envelope-evidence.v1",
+  "evidence_id": "PHASE4-NATIVE-ORCH-ENVELOPE-20260912",
+  "captured_at": "2026-09-12",
+  "repository": "AI-Ascension/ascension-context-console",
+  "evidence_class": [
+    "native_orchestration",
+    "native_binary_local_probe"
+  ],
+  "binary": {
+    "version": "codex-cli 0.154.0",
+    "sha256": "3188814c35471432d4123203e0eb38e5bddc60226e3d7ddf0e59e649ea140022",
+    "observed_via": "/tmp/codex-account1-bin/codex (symlink to the accounts-1 standalone install)"
+  },
+  "side_effect_limits": {
+    "inference_calls": 0,
+    "provider_calls": 0,
+    "real_credentials_supplied": false,
+    "game_launched": false,
+    "raw_prompt_text_retained": false
+  },
+  "orchestration_preflight": {
+    "operator_note": "The exact gpt-5.6-luna/max ancestry requirement was relaxed by the operator to 'use the controls actually available'; this record replaces the earlier assumption with a direct observation.",
+    "requested_depth": 3,
+    "observed_depth": 1,
+    "descendant_ceiling": "min(12, runtime capacity); only depth 1 was creatable",
+    "root_control": "native agent spawn operation",
+    "depth_1": {
+      "spawned": true,
+      "descendant_controls_observed": [],
+      "descendant_controls_absent": [
+        "child spawn",
+        "reservation",
+        "messaging",
+        "resume",
+        "close"
+      ],
+      "model_reported_by_child": "not exposed by the runtime",
+      "parent_identity_exposed": false
+    },
+    "depth_2": {
+      "created": false,
+      "reason": "the depth-1 child exposed no descendant control operation"
+    },
+    "depth_3": {
+      "created": false,
+      "reason": "no depth-2 ancestry existed"
+    },
+    "simulation_used": false,
+    "model_or_effort_substitution_used": false,
+    "orchestration_success_claimed": false
+  },
+  "ambient_envelope_probe": {
+    "command": "codex debug prompt-input <text> (local, no inference, no network)",
+    "isolation": {
+      "disposable_home": true,
+      "disposable_codex_home": true,
+      "empty_environment_probe": true
+    },
+    "sections_present_by_default": [
+      "skills_instructions",
+      "permissions_instructions",
+      "collaboration_mode",
+      "multi_agent_role",
+      "multi_agent_mode",
+      "environment_context"
+    ],
+    "suppression_overrides_tested": [
+      "include_permissions_instructions=false",
+      "include_environment_context=false",
+      "include_collaboration_mode_instructions=false",
+      "include_apps_instructions=false",
+      "include_skills_instructions=false",
+      "web_search=disabled",
+      "--disable multi_agent",
+      "--disable multi_agent_v2"
+    ],
+    "sections_removed_by_overrides": [
+      "permissions_instructions",
+      "collaboration_mode",
+      "environment_context"
+    ],
+    "sections_residual_after_overrides": [
+      "skills_instructions",
+      "multi_agent_role",
+      "multi_agent_mode"
+    ],
+    "residual_present_with_empty_environment": true,
+    "conclusion": "The installed binary injects a non-empty runtime developer envelope into model-visible input even with a cleared environment and isolated home/config roots; the tested configuration knobs reduce but do not remove it."
+  },
+  "os_containment_probe": {
+    "unshare_network_namespace": "denied: operation not permitted",
+    "codex_sandbox_plain": "executed a local command",
+    "codex_sandbox_disable_network": "requires --sandbox-state-json produced by codex/sandbox-state-meta, which is not reachable from the available local CLI surface",
+    "egress_containment_proof": false,
+    "conclusion": "OS-level egress containment remains unproven in this environment."
+  }
+}

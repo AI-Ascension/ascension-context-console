@@ -121,7 +121,21 @@ unverified.
 
 The latest native preflight observed a real depth-1 `gpt-5.6-luna`/`max` lead. Its native callable
 registry exposed no child-spawn, reservation, messaging or close operation, so depth-2 coordinator
-and depth-3 leaf ancestry could not be verified. No delegated implementation claim is made. The
+and depth-3 leaf ancestry could not be verified. After the operator relaxed the exact-settings
+requirement to "use the controls actually available", a second preflight spawned a real depth-1
+descendant with the runtime's native agent control; that child's tool surface still contained no
+spawn, reservation, messaging, resume or close operation, so depth 2 and depth 3 remained
+uncreatable. No ancestry was simulated and no model or effort was substituted; the child's model and
+effort are not exposed by the runtime, so the model/effort facts stay unverified. No delegated
+implementation claim is made. The same local probe lane added two further native observations: the
+installed binary injects a non-suppressible `skills_instructions`/`multi_agent_role`/`multi_agent_mode`
+developer envelope into model-visible input even with an emptied environment and isolated home/config
+roots (`include_*` knobs removed only the permissions, collaboration-mode and environment sections);
+and OS egress containment stays unproven because `unshare -n` is denied and
+`codex sandbox --sandbox-state-disable-network` needs an unreachable `codex/sandbox-state-meta`
+payload. The bounded record is
+[`phase4-native-orchestration-and-envelope-20260912.json`](phase4-native-orchestration-and-envelope-20260912.json).
+The
 installed Codex 0.154.0 binary and generated App Server schema were inspected without inference;
 their digests and reviewed method names are recorded in
 [`NATIVE_CAPABILITIES.md`](../phase4/NATIVE_CAPABILITIES.md). The bounded metadata smoke and the
