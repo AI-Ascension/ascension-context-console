@@ -85,9 +85,28 @@ explicit volatile setup in this environment, not encrypted persistent storage or
 spill resistance.
 The required development-agent hierarchy was attempted: depth 1 observed `gpt-5.6-luna`/`max`, but
 its native callable registry exposed no child-spawn, reservation, or close operation, so depth 2 and
-depth 3 ancestry could not be established. The continuation runtime similarly exposes spawn/resume/
-messaging/close operations but no selectable `gpt-5.6-luna`/`max` child with reservation controls, so
-no exact-settings three-level native ancestry is claimed or simulated. This is an orchestration and isolation limitation, not
-evidence that the native profile is supported. Authentication realm, ambient-history exclusion,
-encrypted-state guarantees, migration, native compaction/transforms, and remote cleanup remain
-unverified; the tool-denial failure is recorded above.
+depth 3 ancestry could not be established.
+
+The operator subsequently relaxed the exact-settings requirement to "use the controls actually
+available". A fresh preflight then spawned a real depth-1 descendant through the runtime's native
+agent control; that child reported its tool surface contained no spawn, reservation, messaging,
+resume or close operation, so no depth-2 or depth-3 ancestry could be created. No ancestry was
+simulated and no model or effort was substituted. The runtime does not expose a child's model or
+effort, so the model/effort facts stay unverified and the orchestration-success claim remains
+withheld rather than fabricated. The machine-readable record is
+[`phase4-native-orchestration-and-envelope-20260912.json`](../evidence/phase4-native-orchestration-and-envelope-20260912.json).
+
+A separate local probe used `codex debug prompt-input` (no inference, no network) with a disposable
+home/config root and an emptied environment. The installed binary still placed a runtime developer
+envelope — `skills_instructions`, `multi_agent_role` and `multi_agent_mode`, plus `permissions`,
+`collaboration_mode` and `environment_context` by default — into model-visible input. The `include_*`
+and feature switches removed the permissions, collaboration-mode and environment sections but not the
+skills or multi-agent developer messages, and that residual persisted with an empty environment.
+Environment isolation alone therefore cannot prove a clean model-visible envelope; the raw
+instruction text is intentionally not retained. A companion OS probe found `unshare -n` denied and
+`codex sandbox --sandbox-state-disable-network` unusable without the `codex/sandbox-state-meta`
+payload, so OS egress containment remains unproven.
+
+Authentication realm, ambient-history exclusion, encrypted-state guarantees, migration, native
+compaction/transforms, and remote cleanup remain unverified; the tool-denial failure is recorded
+above.
