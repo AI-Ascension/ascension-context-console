@@ -5,6 +5,12 @@ The console owns validation, bounded retention, scoped read projections, and pre
 is no provider, game, gateway, MCP, credential, arbitrary URL, or arbitrary process dependency in
 this repository.
 
+The reader crate is split into `json/` for the bounded parser and accessors, `snapshot/` for
+snapshot types, parsing, mapping and measurement, and `event/` for lifecycle-event types and
+parsing, with the CLI in `src/bin/context-reader/`. The service crate is split into `http/`,
+`store/`, `read_api/`, `capture/`, `private_store/`, `telemetry/` and `demo/`, with the
+`context-console` and `integrated-demo` binaries in `src/bin/`.
+
 `context-reader` parses immutable snapshot and lifecycle-event JSON with a small bounded parser. It
 rejects duplicate or unknown fields, invalid identity reuse, false completeness, unsupported
 measurements, and forbidden raw reasoning fields. The projection retains metadata only; content is
@@ -28,10 +34,11 @@ setup fails closed. The plaintext store rejects private-mode content references 
 them as plaintext. The browser does not use
 localStorage, IndexedDB, cache storage, external resources, or credential-bearing URLs.
 
-The checked-in fixtures and `context-console demo` exercise producer → store → read API evidence
-without launching a provider or game. `context-console integrated-demo` extends that synthetic
-path through `MemoryCapture`, an authenticated `ReadApi` projection, and the browser's same-origin
-`/demo/*` requests; its metrics expose every stage and the zero provider/game counters. The browser
+The checked-in fixtures and `context-console demo` exercise producer -> store -> read API evidence
+without launching a provider or game. The `context-console integrated-demo` subcommand and the
+additive `integrated-demo` binary extend that synthetic path through `MemoryCapture`, an
+authenticated `ReadApi` projection, and the browser's same-origin `/demo/*` requests; its metrics
+expose every stage and the zero provider/game counters. The browser
 evidence also loads the checked-in synthetic bundle from a loopback static server and records the
 rendered projection, comparison, keyboard flow, and browser-storage state. The companion harness branch supplies the actual Exo,
 generic-provider, Astra, and Ollama capture seams. Its bounded fake-process bridge oracle uses

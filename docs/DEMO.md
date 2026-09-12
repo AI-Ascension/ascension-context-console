@@ -12,10 +12,12 @@ short-lived in-memory read capability, and sends one authenticated GET through t
 API. It prints `offline_demo=true`, `provider_calls=0`, `game_launches=0`, the two snapshot IDs,
 `retained_events=7`, a successful API status, and `read_api_is_mutation_free=true`.
 
-For an integrated producer → capture → API → browser run, use the checked-in audit script. It starts
-the Rust demo server, which performs the producer and memory-capture stages, serves `/web/`, and
-adapts the browser's `/demo/snapshot`, `/demo/comparison`, and `/demo/events` requests through the
-authenticated `ReadApi` before returning them to the page:
+For an integrated producer -> capture -> API -> browser run, use the checked-in audit script. It starts
+the Rust demo server with `cargo run --locked --package context-service --bin integrated-demo -- 0`
+(the `context-console integrated-demo 0` subcommand is equivalent). The server performs the producer
+and memory-capture stages, serves `/web/`, and adapts the browser's `/demo/snapshot`,
+`/demo/comparison`, and `/demo/events` requests through the authenticated `ReadApi` before returning
+them to the page:
 
 ```text
 FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts \
@@ -23,7 +25,7 @@ FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf \
 XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share \
 LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib \
 PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright \
-node tools/integrated_browser_audit.cjs
+node tools/browser-audit/integrated_browser_audit.cjs
 ```
 
 The run exits after the browser assertions and reports producer, capture, API, browser, provider,
