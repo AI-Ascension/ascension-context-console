@@ -120,11 +120,26 @@ fn copied_contract_artifact_digest_mismatch_is_reported() {
 #[test]
 fn copied_contract_manifest_rejects_malformed_missing_and_invalid_digest_entries() {
     let tree = TempTree::new();
-    write_file(tree.path(), "contract-artifact/context-inspection-v1/manifest.json", b"{");
+    write_file(
+        tree.path(),
+        "contract-artifact/context-inspection-v1/manifest.json",
+        b"{",
+    );
     assert!(crate::rules::artifact_integrity::violations(tree.path())[0].contains("invalid"));
-    write_file(tree.path(), "contract-artifact/context-inspection-v1/manifest.json", br#"{"files":[{"path":"schema.json","sha256":"bad"}]}"#);
-    assert_eq!(crate::rules::artifact_integrity::violations(tree.path()), vec!["ARTIFACT001 invalid digest: schema.json"]);
-    fs::remove_file(tree.path().join("contract-artifact/context-inspection-v1/manifest.json")).expect("remove manifest");
+    write_file(
+        tree.path(),
+        "contract-artifact/context-inspection-v1/manifest.json",
+        br#"{"files":[{"path":"schema.json","sha256":"bad"}]}"#,
+    );
+    assert_eq!(
+        crate::rules::artifact_integrity::violations(tree.path()),
+        vec!["ARTIFACT001 invalid digest: schema.json"]
+    );
+    fs::remove_file(
+        tree.path()
+            .join("contract-artifact/context-inspection-v1/manifest.json"),
+    )
+    .expect("remove manifest");
     assert!(crate::rules::artifact_integrity::violations(tree.path())[0].contains("cannot read"));
 }
 
@@ -133,9 +148,21 @@ fn copied_contract_manifest_rejects_duplicate_and_symlinked_entries() {
     let tree = TempTree::new();
     let digest = "0".repeat(64);
     let manifest = serde_json::json!({"files": [{"path":"schema.json","sha256": digest}, {"path":"schema.json","sha256": "0".repeat(64)}]});
-    write_file(tree.path(), "contract-artifact/context-inspection-v1/manifest.json", manifest.to_string().as_bytes());
-    write_file(tree.path(), "contract-artifact/context-inspection-v1/schema.json", b"fixture");
-    assert!(crate::rules::artifact_integrity::violations(tree.path()).iter().any(|message| message == "ARTIFACT001 duplicate artifact path: schema.json"));
+    write_file(
+        tree.path(),
+        "contract-artifact/context-inspection-v1/manifest.json",
+        manifest.to_string().as_bytes(),
+    );
+    write_file(
+        tree.path(),
+        "contract-artifact/context-inspection-v1/schema.json",
+        b"fixture",
+    );
+    assert!(
+        crate::rules::artifact_integrity::violations(tree.path())
+            .iter()
+            .any(|message| message == "ARTIFACT001 duplicate artifact path: schema.json")
+    );
 }
 
 #[cfg(unix)]
@@ -145,10 +172,22 @@ fn copied_contract_manifest_rejects_symlinked_artifact_files() {
 
     let tree = TempTree::new();
     let manifest = serde_json::json!({"files": [{"path":"schema.json","sha256":"0".repeat(64)}]});
-    write_file(tree.path(), "contract-artifact/context-inspection-v1/manifest.json", manifest.to_string().as_bytes());
+    write_file(
+        tree.path(),
+        "contract-artifact/context-inspection-v1/manifest.json",
+        manifest.to_string().as_bytes(),
+    );
     write_file(tree.path(), "outside.json", b"fixture");
-    symlink("../../../outside.json", tree.path().join("contract-artifact/context-inspection-v1/schema.json")).expect("create fixture symlink");
-    assert_eq!(crate::rules::artifact_integrity::violations(tree.path()), vec!["ARTIFACT001 symlinked artifact path: schema.json"]);
+    symlink(
+        "../../../outside.json",
+        tree.path()
+            .join("contract-artifact/context-inspection-v1/schema.json"),
+    )
+    .expect("create fixture symlink");
+    assert_eq!(
+        crate::rules::artifact_integrity::violations(tree.path()),
+        vec!["ARTIFACT001 symlinked artifact path: schema.json"]
+    );
 }
 
 #[test]

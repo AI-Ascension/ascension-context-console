@@ -64,7 +64,9 @@ pub fn violations(root: &Path) -> Vec<String> {
                 continue;
             }
             Ok(metadata) if !metadata.is_file() => {
-                violations.push(format!("ARTIFACT001 artifact path is not a file: {relative}"));
+                violations.push(format!(
+                    "ARTIFACT001 artifact path is not a file: {relative}"
+                ));
                 continue;
             }
             Ok(_) => {}
