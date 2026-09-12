@@ -9,8 +9,8 @@ the unavailable native three-level orchestration gate. The per-requirement ledge
 
 | Repository | Branch and commit | Publication | Scope |
 | --- | --- | --- | --- |
-| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` implementation source baseline `1508164` | [draft PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12); committed and pushed; subsequent target commits are test-helper, evidence and documentation updates; not merged/released/deployed | typed client route, integrated demo, browser surface, capability disclosure |
-| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `d82ccb6` | [draft PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87); committed and pushed; not merged/released/deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
+| [ascension-context-console](https://github.com/AI-Ascension/ascension-context-console/tree/phase4/persistent-provider) | `phase4/persistent-provider` implementation source baseline `1508164` | [PR #12](https://github.com/AI-Ascension/ascension-context-console/pull/12) merged to `main` in `e4ab38a` (2026-09-11) after its required checks passed; subsequent target commits are test-helper, evidence and documentation updates; nothing was released or deployed | typed client route, integrated demo, browser surface, capability disclosure |
+| [sts2-harness](https://github.com/AI-Ascension/sts2-harness/tree/phase4/persistent-provider) | `phase4/persistent-provider` at `d82ccb6` | [PR #87](https://github.com/AI-Ascension/sts2-harness/pull/87) merged to `main` in `544605b` (2026-09-11) after its required checks passed; nothing was released or deployed | broker ownership, lifecycle fencing, strict JSON-RPC fixture transport, bounded metadata snapshot restore |
 
 The working trees were fetched and fast-forward synchronized after push. No unrelated changes were
 reset or overwritten.
@@ -147,7 +147,8 @@ No authenticated real-provider inference was executed and no game was launched. 
 exploratory native start reached the provider websocket without credentials and received an HTTP
 401; the bounded fake-upstream lane sent turns only to a local loopback server, while the metadata
 smoke used a loopback-refused proxy and sent no turn. No credential/account/configuration was
-changed, and no remote repository was merged, released or deployed. The branches are ready for
-independent review. Activation still requires an authorized isolated native binary/fake-upstream profile,
+changed, and neither repository was released or deployed. Both feature branches were merged to
+`main` after their required checks passed (target `e4ab38a`, harness `544605b`). Activation still
+requires an authorized isolated native binary/fake-upstream profile,
 successful native depth preflight, browser dependencies for a fresh audit, and separately approved
 live-provider/game checks. Until those gates pass, the only enabled profile is `fixture_only`.
