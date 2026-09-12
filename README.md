@@ -22,6 +22,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked
 cargo run --locked --package context-service --bin context-console -- demo
+cargo run --locked --package context-reader -- fixtures/synthetic/snapshot.json
 ```
 
 The browser fixture can be served from the repository root with any static file server and opened
@@ -30,7 +31,9 @@ at `/web/`. It reads only the checked-in synthetic bundle. A local Chromium run 
 narrow screenshots. See [docs/DEMO.md](docs/DEMO.md), [docs/API.md](docs/API.md), and
 [docs/SECURITY.md](docs/SECURITY.md) for the evidence boundary and operational limits.
 
-The integrated synthetic review is available through `context-console integrated-demo 0`. It
-serves the browser and routes its declared `/demo/*` artifacts through the authenticated read API
-after producer and memory-capture stages. The browser audit script records process counters and
+The integrated synthetic review is available through the `integrated-demo` binary
+(`cargo run --locked --package context-service --bin integrated-demo -- 0`) or the equivalent
+`context-console integrated-demo 0` subcommand. It serves the browser and routes its declared
+`/demo/*` artifacts through the authenticated read API after producer and memory-capture stages.
+The browser audit at `tools/browser-audit/integrated_browser_audit.cjs` records process counters and
 terminates the local server after the run.

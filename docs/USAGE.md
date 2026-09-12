@@ -19,10 +19,11 @@ an in-memory content grant, and makes one authenticated read-only API request. I
 `provider_calls=0`, `game_launches=0`, the snapshot identities, event count, and mutation-free API
 status.
 
-For the integrated synthetic browser path, run `tools/integrated_browser_audit.cjs` with the
-Playwright module and Chromium library environment shown in [DEMO.md](DEMO.md). It starts the
-loopback `integrated-demo` server and verifies that the browser receives API-derived projections
-after producer and memory-capture stages.
+For the integrated synthetic browser path, run `tools/browser-audit/integrated_browser_audit.cjs`
+with the Playwright module and Chromium library environment shown in [DEMO.md](DEMO.md). It starts
+the loopback `integrated-demo` server (`cargo run --locked --package context-service --bin
+integrated-demo -- 0`) and verifies that the browser receives API-derived projections after producer
+and memory-capture stages.
 
 For a browser-only review, serve the repository root so the page can read its same-origin fixture:
 

@@ -1,0 +1,13 @@
+{
+  "name": "context-console-browser-audit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only Playwright audit for the Context Console web surface",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "audit": "node integrated_browser_audit.cjs"
+  }
+}

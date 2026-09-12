@@ -18,11 +18,11 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "context-console"
-path = "src/main.rs"
+path = "src/bin/context-console/main.rs"
+
+[[bin]]
+name = "integrated-demo"
+path = "src/bin/integrated-demo/main.rs"
 
 [lints]
 workspace = true
-
-[[test]]
-name = "phase1_acceptance"
-path = "../../tests/phase1_acceptance.rs"
