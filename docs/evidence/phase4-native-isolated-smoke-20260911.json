@@ -1,0 +1,57 @@
+{
+  "evidence_id": "NATIVE-ISOLATED-SMOKE-20260911",
+  "captured_at": "2026-09-11",
+  "evidence_class": "native_binary_isolated_unauthenticated",
+  "scope": "initialization_and_metadata_read_only",
+  "binary": {
+    "version": "codex-cli 0.154.0",
+    "sha256": "3188814c35471432d4123203e0eb38e5bddc60226e3d7ddf0e59e649ea140022",
+    "schema_bundle_sha256": "9045dc90eb460503ec0420fcc8452f110038f6d211b3d26ae9c77e7aa27be1bb"
+  },
+  "state_boundary": {
+    "isolated_root": true,
+    "personal_codex_home_used": false,
+    "root_path_exported": false,
+    "credential_migration": false
+  },
+  "transport": {
+    "stdio": true,
+    "jsonrpc": "2.0",
+    "proxy_configuration": "loopback_refused",
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true
+  },
+  "requests": [
+    {
+      "id": 1,
+      "method": "initialize",
+      "outcome": "success"
+    },
+    {
+      "id": 2,
+      "method": "thread/start",
+      "outcome": "success",
+      "ephemeral": true,
+      "status": "idle",
+      "instruction_sources": [],
+      "active_permission_profile": ":read-only",
+      "network_access": false
+    },
+    {
+      "id": 3,
+      "method": "thread/read",
+      "outcome": "success",
+      "include_turns": false,
+      "status": "idle"
+    }
+  ],
+  "negative_scope": {
+    "turn_start_sent": false,
+    "provider_inference_asserted": false,
+    "game_effects": 0,
+    "fake_upstream_conformance": false,
+    "native_persistence_restore": false,
+    "server_request_rejection": false
+  },
+  "interpretation": "This bounded native smoke confirms only that isolated initialize/thread-start/thread-read request and response shapes were observed. It does not prove fake-upstream compatibility, tool or ambient-history denial, credential safety, native persistence, provider transforms, compaction, or live execution."
+}

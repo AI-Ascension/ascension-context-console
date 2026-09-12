@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ascension:provider-session:retirement:v1",
+  "title": "Proposed Phase 4 retirement product contract",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "ascension.provider-session.retirement.v1"
+    },
+    "retirement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id",
+        "episode_id",
+        "agent_id"
+      ]
+    },
+    "binding_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+      },
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true
+    },
+    "revoked_source_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+      },
+      "minItems": 0,
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "admission_denied": {
+      "const": true
+    },
+    "local_status": {
+      "enum": [
+        "denied",
+        "cleanup_pending",
+        "closed"
+      ]
+    },
+    "native_cleanup_status": {
+      "enum": [
+        "not_requested",
+        "pending",
+        "completed",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "remote_erasure_status": {
+      "enum": [
+        "not_requested",
+        "unverified",
+        "provider_reported"
+      ]
+    },
+    "cascade_verified": {
+      "type": "boolean"
+    },
+    "affected_native_binding_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+      },
+      "minItems": 0,
+      "maxItems": 32,
+      "uniqueItems": true
+    },
+    "auto_resume": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema",
+    "retirement_id",
+    "scope",
+    "binding_ids",
+    "revoked_source_ids",
+    "admission_denied",
+    "local_status",
+    "native_cleanup_status",
+    "remote_erasure_status",
+    "cascade_verified",
+    "affected_native_binding_ids",
+    "auto_resume"
+  ]
+}

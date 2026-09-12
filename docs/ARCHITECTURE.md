@@ -1,15 +1,9 @@
 # Architecture
 
-The harness owns request construction, capture records, provider boundaries, and decision lineage.
-The console owns validation, bounded retention, scoped read projections, and presentation. There
-is no provider, game, gateway, MCP, credential, arbitrary URL, or arbitrary process dependency in
-this repository.
-
-The reader crate is split into `json/` for the bounded parser and accessors, `snapshot/` for
-snapshot types, parsing, mapping and measurement, and `event/` for lifecycle-event types and
-parsing, with the CLI in `src/bin/context-reader/`. The service crate is split into `http/`,
-`store/`, `read_api/`, `capture/`, `private_store/`, `telemetry/` and `demo/`, with the
-`context-console` and `integrated-demo` binaries in `src/bin/`.
+The harness owns request construction, capture records, provider boundaries, control authority, and
+decision lineage. The console owns validation, bounded retention, scoped read projections, the
+typed Phase 2 draft/preview control surface, and presentation. There is no provider, game, gateway,
+MCP, credential, arbitrary URL, or arbitrary process dependency in this repository.
 
 `context-reader` parses immutable snapshot and lifecycle-event JSON with a small bounded parser. It
 rejects duplicate or unknown fields, invalid identity reuse, false completeness, unsupported
@@ -34,11 +28,19 @@ setup fails closed. The plaintext store rejects private-mode content references 
 them as plaintext. The browser does not use
 localStorage, IndexedDB, cache storage, external resources, or credential-bearing URLs.
 
-The checked-in fixtures and `context-console demo` exercise producer -> store -> read API evidence
-without launching a provider or game. The `context-console integrated-demo` subcommand and the
-additive `integrated-demo` binary extend that synthetic path through `MemoryCapture`, an
-authenticated `ReadApi` projection, and the browser's same-origin `/demo/*` requests; its metrics
-expose every stage and the zero provider/game counters. The browser
+The Phase 2 control module is a separate authority boundary from the Phase 1 read store. It keeps
+immutable item references, versioned drafts, deterministic prepared components, preview manifests,
+CAS command receipts, revision lineage, and a bounded JSON journal envelope. The integrated fixture
+can persist that envelope in an opt-in encrypted SQLite store with a transactional outbox and
+immutable Phase 1 snapshot copies; the pure state-machine demo remains in memory. It can latch
+pause, commit while held, and require an explicit resume; it never dispatches a provider request or
+game action. The companion harness supplies the provider-facing exact-byte dispatch seam and the
+controller owner epoch used during recovery.
+
+The checked-in fixtures and `context-console demo` exercise producer → store → read API evidence
+without launching a provider or game. `context-console integrated-demo` extends that synthetic
+path through `MemoryCapture`, an authenticated `ReadApi` projection, the temporary durable control store, and the browser's same-origin
+`/demo/*` requests; its metrics expose every stage and the zero provider/game counters. The browser
 evidence also loads the checked-in synthetic bundle from a loopback static server and records the
 rendered projection, comparison, keyboard flow, and browser-storage state. The companion harness branch supplies the actual Exo,
 generic-provider, Astra, and Ollama capture seams. Its bounded fake-process bridge oracle uses

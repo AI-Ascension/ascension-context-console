@@ -8,9 +8,13 @@
 //! primitives for end-to-end review.
 
 mod capture;
+mod cli;
+mod control;
 mod demo;
 mod http;
+mod memory;
 mod private_store;
+pub mod provider_session;
 mod read_api;
 mod store;
 mod telemetry;
@@ -19,9 +23,29 @@ pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,
 };
+pub use cli::{run_phase2_cli, run_phase3_adapter, run_phase3_cli, run_phase4_cli};
+pub use control::{
+    Boundary as ControlBoundary, CURRENT_DURABLE_STORE_SCHEMA_VERSION,
+    Capabilities as ControlCapabilities, Command as ControlCommand, ControlError, ControlPlane,
+    Draft as ControlDraft, DurableControlStore, DurableStoreError, DurableStoreFailpoint,
+    DurableStoreSnapshot, EligibleItem as ControlEligibleItem, Event as ControlEvent,
+    ItemRef as ControlItemRef, MemoryBindingRecord as ControlMemoryBindingRecord,
+    Operation as ControlOperation, Patch as ControlPatch, Preview as ControlPreview,
+    PreviewComponent as ControlPreviewComponent, Receipt as ControlReceipt,
+    Relation as ControlRelation, Revision as ControlRevision, Scope as ControlScope,
+    State as ControlState,
+};
 pub use demo::{demo, run as run_integrated_demo};
+pub use memory::{
+    MAX_MEMORY_BODY_BYTES, MAX_MEMORY_QUERY_BYTES, MemoryCapabilities, MemoryQueryRequest,
+    MemoryRoute, MemoryRouteError, MemoryScope,
+};
 pub use private_store::{
     EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,
+};
+pub use provider_session::{
+    ProviderSessionRoute, SessionApiError, SessionBindingView, SessionCapabilitiesView,
+    SessionHardeningView, SessionOperationView, SessionRouteMode, SessionScopeView,
 };
 pub use read_api::{
     ApiError, HttpRequest, HttpResponse, MAX_HTTP_BODY_BYTES, MAX_HTTP_REQUEST_BYTES, ReadApi,
@@ -34,3 +58,10 @@ pub use store::{
 pub use telemetry::{
     CaptureTelemetry, MemoryTelemetry, NoopTelemetry, TelemetryError, TelemetryExporter,
 };
+
+/// Parse a management payload with the same bounded duplicate-key/depth checks used by the
+/// integrated HTTP fixture. The CLI uses this helper so private note text arrives through stdin
+/// and follows the exact control payload validation path.
+pub fn parse_control_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ControlError> {
+    demo::parse_json(body)
+}

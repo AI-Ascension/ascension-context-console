@@ -20,4 +20,4 @@ wildcard_cors = false
 [security]
 reader_has_provider_credentials = false
 reader_has_game_credentials = false
-management_routes = false
+management_routes = true

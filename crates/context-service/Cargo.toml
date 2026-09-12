@@ -4,7 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Bounded local read-only Context Console store and API"
+description = "Bounded Context Console inspector and controlled context API"
 
 [dependencies]
 context-reader.workspace = true
@@ -12,6 +12,8 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 chacha20poly1305.workspace = true
+getrandom.workspace = true
+rusqlite.workspace = true
 
 [lib]
 path = "src/lib.rs"
@@ -26,3 +28,27 @@ path = "src/bin/integrated-demo/main.rs"
 
 [lints]
 workspace = true
+
+[[test]]
+name = "phase2_control"
+path = "../../tests/phase2_control.rs"
+
+[[test]]
+name = "phase2_failure_matrix"
+path = "../../tests/phase2_failure_matrix.rs"
+
+[[test]]
+name = "phase2_durable"
+path = "../../tests/phase2_durable.rs"
+
+[[test]]
+name = "phase2_cli"
+path = "../../tests/phase2_cli.rs"
+
+[[test]]
+name = "phase3_memory"
+path = "../../tests/phase3_memory.rs"
+
+[[test]]
+name = "phase4_session"
+path = "../../tests/phase4_session.rs"

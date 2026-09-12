@@ -1,0 +1,253 @@
+{
+  "evidence_id": "NATIVE-FAKE-CONFORMANCE-20260911",
+  "captured_at": "2026-09-11",
+  "evidence_class": "native_binary_fake_upstream",
+  "scope": "isolated_app_server_metadata_and_two_turn_streaming",
+  "invocation": {
+    "binary": "/tmp/codex-account1-bin/codex",
+    "command": "codex app-server --listen stdio://",
+    "provider_configuration": "model_provider=fake; model_providers.fake.base_url=http://127.0.0.1:<ephemeral>/v1; wire_api=responses",
+    "state_root": "disposable temporary root; path intentionally omitted"
+  },
+  "binary": {
+    "version": "codex-cli 0.154.0",
+    "sha256": "3188814c35471432d4123203e0eb38e5bddc60226e3d7ddf0e59e649ea140022",
+    "schema_bundle_sha256": "9045dc90eb460503ec0420fcc8452f110038f6d211b3d26ae9c77e7aa27be1bb"
+  },
+  "isolation": {
+    "isolated_root": true,
+    "personal_codex_home_used": false,
+    "synthetic_api_key_only": true,
+    "provider_endpoint_loopback_only": true,
+    "non_loopback_proxy": "loopback_refused",
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true
+  },
+  "fake_upstream_run": {
+    "transport": "stdio_jsonrpc_2.0_to_local_http_sse",
+    "initialize_success": true,
+    "thread_start_success": true,
+    "thread_start_ephemeral": true,
+    "turns": [
+      {
+        "ordinal": 1,
+        "turn_start_response": true,
+        "fake_response_stream": true,
+        "turn_completed": true,
+        "status": "completed",
+        "request_path": "/v1/responses",
+        "request_body_sha256": "f596fe5b1439f4eaa524013ad8cee8a35ad76f543b1a971f0f1712b44608e80c"
+      },
+      {
+        "ordinal": 2,
+        "turn_start_response": true,
+        "fake_response_stream": true,
+        "turn_completed": true,
+        "status": "completed",
+        "request_path": "/v1/responses",
+        "request_body_sha256": "f3d0d101958f016c35277338c0174da2602ff0b3e0d08fdbc5bb348ad8ef4c18"
+      }
+    ],
+    "thread_read_success": true,
+    "thread_read_status": "idle",
+    "fork_attempt": {
+      "tested": true,
+      "outcome": "rejected_no_rollout_for_ephemeral_thread"
+    }
+  },
+  "durable_restart_run": {
+    "thread_start_ephemeral": false,
+    "fake_turn_completed": true,
+    "rollout_path_created": true,
+    "process_restarted": true,
+    "thread_list_success": true,
+    "thread_list_count": 1,
+    "thread_read_success": true,
+    "thread_read_same_id": true,
+    "encrypted_state_boundary_verified": false,
+    "migration_exercised": false
+  },
+  "durable_fork_run": {
+    "tested": true,
+    "source_thread_durable": true,
+    "source_turn_completed": true,
+    "fork_request_success": true,
+    "fork_ephemeral": true,
+    "exclude_turns": true,
+    "fork_turn_count": 0,
+    "game_effects": 0,
+    "interpretation": "The native fork endpoint accepted a durable source thread and produced an ephemeral fork with turns excluded; clean rehydration equivalence was not asserted."
+  },
+  "compaction_probe": {
+    "tested": true,
+    "durable_source_thread": true,
+    "seed_turn_completed": true,
+    "compact_start_response": true,
+    "compact_start_result_shape": "empty_object",
+    "local_fake_response_requests": 2,
+    "generated_turn_completed": true,
+    "semantic_completion_verified": false,
+    "interpretation": "The native compact/start request completed against the local fake provider and generated a second completed turn, but no explicit context-compacted event or transformed context was asserted."
+  },
+  "restricted_profile_probe": {
+    "tested": true,
+    "disabled_features": [
+      "auth_elicitation",
+      "browser_use",
+      "browser_use_external",
+      "apps",
+      "plugins",
+      "enable_mcp_apps",
+      "multi_agent",
+      "multi_agent_v2",
+      "shell_tool",
+      "unified_exec",
+      "unified_exec_tty",
+      "view_image",
+      "sleep_tool",
+      "tool_suggest",
+      "in_app_browser",
+      "in_app_local_automation",
+      "skill_search",
+      "default_mode_request_user_input",
+      "current_time_reminder"
+    ],
+    "config_overrides": [
+      "web_search=disabled",
+      "include_apps_instructions=false",
+      "include_permissions_instructions=false",
+      "include_environment_context=false",
+      "include_collaboration_mode_instructions=false"
+    ],
+    "initialize_success": true,
+    "thread_start_success": true,
+    "thread_instruction_sources": [],
+    "thread_network_access": false,
+    "provider_calls": 1,
+    "provider_request_path": "/v1/responses",
+    "provider_request_body_sha256": "6b45be595bff700abeee1b55ddace21edfc274655d5b07f399371ff84591600a",
+    "provider_tools_count": 1,
+    "provider_tool_names": ["request_user_input"],
+    "forbidden_tool_names_seen": [],
+    "input_item_count": 2,
+    "input_roles_or_types": ["developer", "user"],
+    "turn_start_response": true,
+    "turn_completed": true,
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true,
+    "interpretation": "Supported feature/config switches removed shell, file, code, browser, MCP, skill, subagent, background-terminal and web-search tool classes from this native request. A residual request_user_input tool remained, and no OS-level egress proof or server-initiated elicitation denial was established; this is partial hardening evidence only."
+  },
+  "server_request_denial_probe": {
+    "tested": true,
+    "purpose": "Attempted provider-generated request_user_input callback denial under the restricted profile",
+    "initialize_success": true,
+    "thread_start_success": true,
+    "turn_start_response": true,
+    "fake_provider_calls": 558,
+    "server_requests_observed": [],
+    "turn_completed": false,
+    "process_returncode_after_terminate": -15,
+    "native_error_observed": "request_user_input is unavailable in Default mode",
+    "external_egress_proof": false,
+    "outcome": "not_reached_tool_unavailable_default_mode",
+    "interpretation": "The native router did not emit a server request for the provider-generated request_user_input item; it repeatedly reported the residual tool unavailable in Default mode. No clean denial response or successful elicitation path was established."
+  },
+  "hardened_profile_probe": {
+    "tested": true,
+    "profile_scope": "native fake-upstream with every reviewed executable, app, memory, plugin, MCP, skill, search and collaboration feature disabled",
+    "config_overrides": [
+      "history.persistence=none",
+      "skills.include_instructions=false",
+      "apps._default.enabled=false",
+      "include_apps_instructions=false",
+      "include_permissions_instructions=false",
+      "include_environment_context=false",
+      "include_collaboration_mode_instructions=false",
+      "developer_instructions=empty",
+      "instructions=empty",
+      "tools.experimental_request_user_input.enabled=false",
+      "skip_host_skill_discovery=true"
+    ],
+    "initialize_success": true,
+    "thread_start_success": true,
+    "turn_start_response": true,
+    "turn_completed": true,
+    "fake_provider_calls": 1,
+    "provider_request_body_sha256": "a77f9ad3f8c064b8b0f6339eb8daf3f69d64b4536d1f42810b7f9b36a348649c",
+    "provider_tools_count": 0,
+    "provider_tool_names": [],
+    "input_role_counts": {
+      "developer": 1,
+      "user": 1
+    },
+    "developer_item_bytes": 5705,
+    "forged_exec_function_call_probe": {
+      "provider_calls": 1,
+      "server_requests": [],
+      "turn_completed": true,
+      "execution_observed": false
+    },
+    "history_jsonl_present": false,
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true,
+    "interpretation": "The fully disabled native fake profile forwarded no tool definitions and completed a synthetic turn; a forged exec function-call response produced no server request or execution. A runtime developer envelope remained, and the installed binary still warned that bubblewrap was unavailable, so this is profile-level tool suppression evidence rather than complete OS/instruction containment."
+  },
+  "volatile_state_probe": {
+    "tested": true,
+    "profile": "same hardened native fake profile with CODEX_HOME, XDG roots and TMPDIR on Linux tmpfs",
+    "initialize_success": true,
+    "thread_start_success": true,
+    "turn_start_response": true,
+    "turn_completed": true,
+    "fake_provider_calls": 1,
+    "provider_request_body_sha256": "003440ab9070e4ae6cc3234757fe2e75b8944a9d7f16166b5d1a691841c56ea4",
+    "provider_tools_count": 0,
+    "filesystem_type": "tmpfs",
+    "regular_state_file_count": 78,
+    "regular_state_files_on_tmpfs": true,
+    "helper_executable_symlink_count": 4,
+    "history_jsonl_present": false,
+    "external_egress_proof": false,
+    "bubblewrap_warning_observed": true,
+    "interpretation": "In this Linux lane every regular native state file created under the configured roots was on tmpfs; the four non-regular entries were helper symlinks to the installed executable. This supports the explicit volatile profile in the tested environment only and does not establish encrypted persistent storage or cross-platform spill resistance."
+  },
+  "migration_dry_run": {
+    "tested": true,
+    "command": "codex migrate-rollouts --json --verbose",
+    "apply": false,
+    "disposable_state_root": true,
+    "outcomes_count": 0,
+    "interpretation": "A read-only dry run on an empty disposable root found no eligible legacy sessions; actual persisted-state migration, downgrade handling, and tombstone-bypass checks remain unexercised."
+  },
+  "hardening_observation": {
+    "native_tool_definitions_forwarded_per_turn": 11,
+    "native_tool_definitions_forwarded_total": 22,
+    "namespaces": ["functions", "clock", "collaboration"],
+    "tool_names": [
+      "exec",
+      "wait",
+      "request_user_input",
+      "request_user_input_async",
+      "sleep",
+      "followup_task",
+      "interrupt_agent",
+      "list_agents",
+      "send_message",
+      "spawn_agent",
+      "wait_agent"
+    ],
+    "denial_passed": false,
+    "interpretation": "The default native App Server lane forwarded its built-in tool definitions to the fake provider request. The restricted-profile probe removed all forbidden executable classes but retained request_user_input; no tool call was returned or executed, and complete worker hardening remains unverified."
+  },
+  "negative_scope": {
+    "real_provider_authentication": false,
+    "game_effects": 0,
+    "compaction_started": true,
+    "provider_compaction_semantics_verified": false,
+    "restricted_profile_full_hardening_verified": false,
+    "server_request_rejection": false,
+    "native_cleanup": false,
+    "provider_context_claimed_exact": false
+  },
+  "interpretation": "This evidence establishes a bounded loopback fake-upstream lane for initialize, ephemeral thread/start, two streamed turns, metadata thread/read, durable restart/read, a durable-source ephemeral fork, and a compact/start probe. It does not establish OS-level egress trapping, native tool or ambient-history denial, encrypted-state guarantees, migration, cleanup, clean rehydration equivalence, compaction semantics, or live-provider compatibility. The observed native tool-definition forwarding keeps the native hardening profile unavailable for the default product path."
+}

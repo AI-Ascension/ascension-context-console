@@ -12,9 +12,9 @@
   <body>
     <main class="shell">
       <header class="hero">
-        <p class="eyebrow">Phase 1 &middot; read-only inspector</p>
+        <p class="eyebrow">Phase 2 &middot; controlled context console</p>
         <h1>Context Console</h1>
-        <p class="lede">A bounded, read-only view of application-controlled context at a named boundary.</p>
+        <p class="lede">Inspect the named boundary, prepare a bounded context draft, and apply it only after a verified pause, preview, commit, and explicit resume.</p>
         <p id="status" class="status" role="status" aria-live="polite">Loading offline bundle&hellip;</p>
       </header>
 
@@ -77,6 +77,161 @@
         <p id="comparison-result" class="callout">Comparison is a local view and cannot apply or submit context.</p>
       </section>
 
+      <section id="memory-panel" class="panel" hidden aria-labelledby="memory-title">
+        <div class="section-heading">
+          <h2 id="memory-title">Historical memory</h2>
+          <span id="memory-badge" class="badge">disabled</span>
+        </div>
+        <dl class="facts">
+          <div><dt>Memory capability</dt><dd id="memory-capability"></dd></div>
+          <div><dt>Lexical retrieval</dt><dd id="memory-retrieval"></dd></div>
+          <div><dt>Compaction</dt><dd id="memory-compaction"></dd></div>
+          <div><dt>Policy authority</dt><dd id="memory-approval"></dd></div>
+          <div><dt>Corpus generation</dt><dd id="memory-generation"></dd></div>
+          <div><dt>Revocation epoch</dt><dd id="memory-revocation"></dd></div>
+        </dl>
+        <p id="memory-message" class="callout">Memory is disabled by default. Search is local-only and cannot start inference.</p>
+        <p class="muted">Retrieval scores are bounded relevance signals, not factual confidence or probability.</p>
+        <form id="memory-search-form" class="memory-search">
+          <label for="memory-query">Scoped lexical query</label>
+          <input id="memory-query" name="query" maxlength="4096" autocomplete="off" placeholder="Search retained historical observations">
+          <button id="memory-search-button" type="submit">Search locally</button>
+        </form>
+        <pre id="memory-results" class="preview-diff" tabindex="0" aria-live="polite">No search performed.</pre>
+      </section>
+
+      <section id="session-panel" class="panel" hidden aria-labelledby="session-title">
+        <div class="section-heading">
+          <h2 id="session-title">Provider session boundary</h2>
+          <span id="session-badge" class="badge">fixture-only</span>
+        </div>
+        <dl class="facts">
+          <div><dt>Session mode</dt><dd id="session-mode"></dd></div>
+          <div><dt>Profile</dt><dd id="session-profile"></dd></div>
+          <div><dt>Native evidence</dt><dd id="session-evidence"></dd></div>
+          <div><dt>Transport</dt><dd id="session-transport"></dd></div>
+          <div><dt>Hardening</dt><dd id="session-hardening"></dd></div>
+          <div><dt>Enabled methods</dt><dd id="session-method-count"></dd></div>
+        </dl>
+        <p id="session-message" class="callout">No native provider or game call is made by this fixture route.</p>
+        <div class="button-row">
+          <button id="session-create-candidate" type="button">Create evaluation candidate</button>
+          <button id="session-refresh" type="button">Refresh sessions</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Binding</th><th scope="col">State</th><th scope="col">Purpose</th><th scope="col">History</th><th scope="col">Game effects</th></tr></thead>
+            <tbody id="session-rows"></tbody>
+          </table>
+        </div>
+        <h3 id="session-operations-title">Async operations</h3>
+        <div class="table-wrap">
+          <table aria-labelledby="session-operations-title">
+            <thead><tr><th scope="col">Operation</th><th scope="col">Kind</th><th scope="col">State</th><th scope="col">Automatic retry</th><th scope="col">Scheduler</th><th scope="col">Game effects</th></tr></thead>
+            <tbody id="session-operation-rows"></tbody>
+          </table>
+        </div>
+        <pre id="session-methods" class="preview-diff" tabindex="0">Methods unavailable.</pre>
+      </section>
+
+      <section id="compaction-panel" class="panel" hidden aria-labelledby="compaction-title">
+        <div class="section-heading">
+          <h2 id="compaction-title">Compaction review</h2>
+          <span class="muted">generation and admission stay separate</span>
+        </div>
+        <p id="compaction-message" class="callout">Summary jobs require explicit permission, bounded source bytes, independent review, and the existing Phase 2 approval before adoption.</p>
+        <div class="state-grid">
+          <span><strong>Extract</strong> exact source spans remain inspectable.</span>
+          <span><strong>Proposal</strong> generated output is review-required.</span>
+          <span><strong>Evidence</strong> claims expose source spans, critical facts, omissions and contradictions.</span>
+          <span><strong>Admission</strong> never commits or resumes a run.</span>
+          <span><strong>Revocation</strong> fences descendants before cleanup.</span>
+        </div>
+        <dl class="facts" aria-label="Review evidence fields">
+          <div><dt>Source spans</dt><dd>exact byte citations</dd></div>
+          <div><dt>Critical facts</dt><dd>checked before admission</dd></div>
+          <div><dt>Omissions</dt><dd>shown as bounded loss</dd></div>
+          <div><dt>Contradictions</dt><dd>kept visible for review</dd></div>
+        </dl>
+      </section>
+
+      <section id="control-panel" class="panel" hidden aria-labelledby="control-title">
+        <div class="section-heading">
+          <h2 id="control-title">Run control</h2>
+          <span id="management-badge" class="badge"></span>
+        </div>
+        <dl class="facts">
+          <div><dt>Control status</dt><dd id="control-status"></dd></div>
+          <div><dt>Active revision</dt><dd id="active-revision"></dd></div>
+          <div><dt>Control version</dt><dd id="control-version"></dd></div>
+          <div><dt>Pause latch</dt><dd id="pause-latch"></dd></div>
+          <div><dt>Plan epoch</dt><dd id="plan-epoch"></dd></div>
+          <div><dt>Durable store</dt><dd id="durable-store"></dd></div>
+        </dl>
+        <p id="control-message" class="callout">Management reads are authenticated and do not call a provider or game.</p>
+      </section>
+
+      <section id="eligible" class="panel" hidden aria-labelledby="eligible-title">
+        <div class="section-heading">
+          <h2 id="eligible-title">Eligible context items</h2>
+          <span class="muted">Protected host state stays locked.</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Use</th><th scope="col">Pin</th><th scope="col">Item</th><th scope="col">Kind</th><th scope="col">Version</th><th scope="col">Access</th></tr></thead>
+            <tbody id="eligible-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="editor" class="panel" hidden aria-labelledby="editor-title">
+        <div class="section-heading">
+          <h2 id="editor-title">Draft editor</h2>
+          <span id="draft-version" class="muted">No draft saved</span>
+        </div>
+        <div class="editor-grid">
+          <label for="note-text">Attributed operator note (bounded)</label>
+          <textarea id="note-text" rows="3" maxlength="4096" placeholder="Optional note; it remains operator attributed."></textarea>
+          <label for="objective-text">Objective override (separate permission)</label>
+          <textarea id="objective-text" rows="2" maxlength="512" placeholder="Requires the objective scope."></textarea>
+          <label class="checkbox-label" for="budget-risk-ack">
+            <input id="budget-risk-ack" type="checkbox">
+            Acknowledge that total provider token capacity is not measured; the local byte bound still applies.
+          </label>
+        </div>
+        <div class="restore-row">
+          <label for="restore-source">Restore an earlier configuration into this draft</label>
+          <select id="restore-source" aria-describedby="restore-help"></select>
+          <button id="restore-draft" type="button" disabled>Restore as draft</button>
+          <button id="remove-note" type="button" disabled>Remove browser note</button>
+          <span id="restore-help" class="muted">Restore is exclusive and never rolls back host state.</span>
+        </div>
+        <div class="button-row">
+          <button id="create-draft" type="button">Start draft</button>
+          <button id="save-draft" type="button" disabled>Save draft</button>
+          <button id="preview-draft" type="button" disabled>Preview</button>
+          <button id="pause-run" type="button">Request pause</button>
+          <button id="commit-draft" type="button" disabled>Commit while paused</button>
+          <button id="resume-run" type="button">Explicit resume</button>
+        </div>
+        <p id="draft-message" class="callout">Nothing is written until an operator presses a control.</p>
+      </section>
+
+      <section id="preview" class="panel" hidden aria-labelledby="preview-title">
+        <div class="section-heading">
+          <h2 id="preview-title">Prepared input preview</h2>
+          <span id="preview-badge" class="badge"></span>
+        </div>
+        <dl class="facts">
+          <div><dt>Preview</dt><dd id="preview-id"></dd></div>
+          <div><dt>Prepared digest</dt><dd id="prepared-digest"></dd></div>
+          <div><dt>Components</dt><dd id="preview-components"></dd></div>
+          <div><dt>Budget</dt><dd id="preview-budget"></dd></div>
+          <div><dt>Provider-added context</dt><dd id="preview-provider-context"></dd></div>
+        </dl>
+        <pre id="preview-diff" class="preview-diff" tabindex="0"></pre>
+      </section>
+
       <section id="states" class="panel" aria-labelledby="states-title">
         <h2 id="states-title">Disclosure states</h2>
         <p class="state-grid">
@@ -93,7 +248,7 @@
       </section>
 
       <footer>
-        Synthetic offline bundle &middot; no provider or game call &middot; read-only display
+        Synthetic fixture bundle &middot; no real provider, game, or deployment &middot; explicit control only
       </footer>
     </main>
   </body>

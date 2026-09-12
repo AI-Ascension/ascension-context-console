@@ -86,6 +86,11 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .status[data-state="error"],
 .error {
   color: #ffd8d8;
@@ -198,6 +203,116 @@ th {
   color: #b9c6d2;
 }
 
+.editor-grid {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 48rem;
+}
+
+.memory-search {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  align-items: end;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.memory-search label {
+  grid-column: 1 / -1;
+}
+
+.memory-search input {
+  min-width: 0;
+  border: 1px solid #40515f;
+  border-radius: 0.45rem;
+  padding: 0.65rem;
+  color: #e8edf2;
+  background: #0e151b;
+  font: inherit;
+}
+
+.restore-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.restore-row label {
+  flex-basis: 100%;
+}
+
+select {
+  min-width: 14rem;
+  border: 1px solid #40515f;
+  border-radius: 0.45rem;
+  padding: 0.45rem;
+  color: #e8edf2;
+  background: #0e151b;
+  font: inherit;
+}
+
+select:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+label {
+  color: #b9c6d2;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.checkbox-label input {
+  flex: 0 0 auto;
+  margin-top: 0.25rem;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #40515f;
+  border-radius: 0.45rem;
+  padding: 0.65rem;
+  color: #e8edf2;
+  background: #0e151b;
+  font: inherit;
+}
+
+textarea:focus-visible,
+input:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.preview-diff {
+  max-height: 20rem;
+  overflow: auto;
+  margin: 1rem 0 0;
+  border: 1px solid #2d3b47;
+  border-radius: 0.5rem;
+  padding: 0.8rem;
+  color: #c8e6f4;
+  background: #0b1116;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .muted,
 footer {
   color: #9caeba;
@@ -217,6 +332,10 @@ footer {
 
   .panel {
     padding: 1rem;
+  }
+
+  .memory-search {
+    grid-template-columns: 1fr;
   }
 }
 

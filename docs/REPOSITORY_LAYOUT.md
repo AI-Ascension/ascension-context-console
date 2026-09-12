@@ -18,7 +18,9 @@ private vault and the CLI/API/demo boundary:
 - `src/bin/context-console/` - the `health|demo|integrated-demo|inspect` CLI.
 - `src/bin/integrated-demo/` - the additive integrated demonstration binary.
 
-Its crate-level integration tests live in `crates/context-service/tests/`.
+Its Phase 1 crate-level integration tests live in `crates/context-service/tests/`. The Phase 2-4
+integration tests remain in the repository-root `tests/` directory and are wired as explicit
+`[[test]]` targets in `crates/context-service/Cargo.toml`.
 
 `contract-artifact/context-inspection-v1` is the pinned schema copy. `fixtures/` contains original
 synthetic records. `web/` is a small static read-only frontend: `index.html`, `css/styles.css`, and

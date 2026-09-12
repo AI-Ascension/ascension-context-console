@@ -15,5 +15,8 @@ claim crash recovery or a persistent filesystem retention scheduler.
 
 Snapshots are immutable. Expiry, queue loss, write failure, usage, and lineage are represented by
 append-only events or explicit status fields. Source/provider files are never deleted by this
-repository. A future persistent collector must add an independently reviewed TTL, active-reference
-and tombstone implementation before making durable retention claims.
+repository. The opt-in Phase 2 control store persists encrypted journal envelopes and bounded
+immutable Phase 1 copies only for the owned synthetic process; it is removed on integrated-demo
+exit and is not a private capture vault or production retention scheduler. A future persistent
+collector must add an independently reviewed TTL, active-reference and tombstone implementation
+before making durable content-retention claims.

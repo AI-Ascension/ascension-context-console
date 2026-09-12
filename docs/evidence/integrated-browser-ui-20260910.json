@@ -1,21 +1,25 @@
 {
   "schema": "ascension.integrated-browser-evidence.v1",
-  "evidence_id": "INTEGRATED-BROWSER-20260910",
+  "evidence_id": "INTEGRATED-BROWSER-20260911",
   "requirement_ids": [
     "P1-025",
     "P1-031",
     "P1-032",
-    "P1-033"
+    "P1-033",
+    "R04-001",
+    "R04-010",
+    "R04-060"
   ],
   "case_ids": [
     "INTEGRATED-NORMAL-001",
     "INTEGRATED-ADVERSARIAL-001",
-    "INTEGRATED-MANIFEST-PATH-001"
+    "INTEGRATED-MANIFEST-PATH-001",
+    "PHASE4-SESSION-001"
   ],
   "repository": {
     "name": "AI-Ascension/ascension-context-console",
-    "branch": "phase1/t02-bootstrap",
-    "revision": "06c74f61571adc389a7aa27477d4db04bd8b7c26"
+    "branch": "phase4/persistent-provider",
+    "revision": "150816417681f74bb853c2ef4816e779b66e2c08"
   },
   "platform": {
     "os": "linux",
@@ -24,17 +28,17 @@
   },
   "command": {
     "server": "cargo run --locked --package context-service --bin context-console -- integrated-demo 0",
-    "audit": "FONTCONFIG_PATH=/tmp/chromium-libs/etc/fonts FONTCONFIG_FILE=/tmp/chromium-libs/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/chromium-libs/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/chromium-libs/usr/lib/x86_64-linux-gnu:/tmp/chromium-libs/lib/x86_64-linux-gnu:/tmp/chromium-libs/usr/lib PLAYWRIGHT_MODULE=/tmp/ascension-browser-audit/node_modules/playwright node tools/integrated_browser_audit.cjs"
+    "audit": "FONTCONFIG_PATH=/tmp/ascension-browser-libs/root-20260911/etc/fonts FONTCONFIG_FILE=/tmp/ascension-browser-libs/root-20260911/etc/fonts/fonts.conf XDG_DATA_DIRS=/tmp/ascension-browser-libs/root-20260911/usr/share:/usr/share LD_LIBRARY_PATH=/tmp/ascension-browser-libs/root-20260911/usr/lib/x86_64-linux-gnu:/tmp/ascension-browser-libs/root-20260911/lib/x86_64-linux-gnu:/home/agent/playwright-webkit-root/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu PLAYWRIGHT_MODULE=playwright@1.63.0 PLAYWRIGHT_BROWSERS_PATH=<cached-browser> node tools/integrated_browser_audit.cjs"
   },
   "exit_code": 0,
   "result": "passed",
   "evidence_class": [
     "synthetic",
-    "native"
+    "compiled_peer"
   ],
   "tool": "Playwright 1.63.0",
   "browser": "153.0.8010.12",
-  "base_url": "http://127.0.0.1:33981",
+  "base_url": "http://127.0.0.1:42061",
   "viewport_desktop": {
     "width": 1440,
     "height": 1000
@@ -46,13 +50,24 @@
   "reduced_motion": true,
   "reduced_motion_match": true,
   "requests": [
-    "http://127.0.0.1:33981/web/",
-    "http://127.0.0.1:33981/web/styles.css",
-    "http://127.0.0.1:33981/web/app.js",
-    "http://127.0.0.1:33981/offline-bundle.json",
-    "http://127.0.0.1:33981/demo/snapshot",
-    "http://127.0.0.1:33981/demo/events",
-    "http://127.0.0.1:33981/demo/comparison"
+    "http://127.0.0.1:42061/web/",
+    "http://127.0.0.1:42061/web/styles.css",
+    "http://127.0.0.1:42061/web/app.js",
+    "http://127.0.0.1:42061/offline-bundle.json",
+    "http://127.0.0.1:42061/demo/snapshot",
+    "http://127.0.0.1:42061/demo/events",
+    "http://127.0.0.1:42061/demo/comparison",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/capabilities",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/state",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/eligible-items",
+    "http://127.0.0.1:42061/v2/runs/fixture-run/context-control/revisions",
+    "http://127.0.0.1:42061/v3/memory/capabilities",
+    "http://127.0.0.1:42061/v3/memory/status",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions/capabilities",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions/candidates",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions/capabilities",
+    "http://127.0.0.1:42061/v1/runs/fixture-run-001/provider-sessions"
   ],
   "external_requests": [],
   "fixture_requests": [],
@@ -82,12 +97,38 @@
     "page_errors": [],
     "rejected_before_fetch": true
   },
+  "memory_disabled_shadow": {
+    "enabled": false,
+    "supported_operations": [],
+    "inference_calls": 0,
+    "effect_class": "local_read_no_inference",
+    "snapshot_bytes_unchanged": true
+  },
+  "phase4_session": {
+    "mode": "fixture_only",
+    "capability_profile": "codex-app-server-fixture-v1",
+    "candidate_created": true,
+    "binding_rows": 1,
+    "denied_without_csrf_status": 403,
+    "native_calls": 0,
+    "game_effects": 0,
+    "rendered_operation_states": [
+      "intent_persisted",
+      "sent",
+      "unknown",
+      "completed"
+    ]
+  },
   "integration_metrics": {
-    "api_requests": 6,
-    "browser_requests": 19,
+    "api_requests": 31,
+    "browser_requests": 54,
     "capture_records": 2,
+    "control_events": 0,
+    "control_status": "running",
+    "durable_control_store": "supported",
     "external_requests": 0,
     "game_launches": 0,
+    "management_enabled": true,
     "producer_events": 7,
     "producer_snapshots": 2,
     "provider_calls": 0,
@@ -97,15 +138,15 @@
   "source_artifacts": [
     {
       "path": "crates/context-service/src/integrated_demo.rs",
-      "sha256": "bc9a9402eff2ae19d9c1bc0ca835f0891ef107ec96037f5f0fb3bed72107ff3f"
+      "sha256": "20496b31df51c1e825a2743c35ad98e8b4513f6413b9ff63b213b9833f8c41c6"
     },
     {
       "path": "tools/integrated_browser_audit.cjs",
-      "sha256": "bf25a3ea8b3250ca15691d9a8cc76ceed70799c9d445fbacc28613b2d2a75283"
+      "sha256": "6941d8dfcb1d0f8f0e8a023a553634c51adf09dad8579113804d0dd856bde228"
     },
     {
       "path": "web/app.js",
-      "sha256": "43bfa6d9e8e33a45c2dd691d7a1aaa2a41727d10178de74da76aeff9ffbce894"
+      "sha256": "d11b1f2117b01b0319ada227a80f13c7db2aefd0eb099c597f99f79c6615037c"
     },
     {
       "path": "fixtures/valid/snapshot-metadata.json",
@@ -142,16 +183,20 @@
     "keyboard_comparison": true,
     "reduced_motion": true,
     "no_browser_persistence": true,
-    "no_horizontal_overflow_narrow": true
+    "no_horizontal_overflow_narrow": true,
+    "memory_disabled_shadow": true,
+    "phase4_session_fixture": true,
+    "phase4_csrf_denied": true,
+    "phase4_async_states_distinct": true
   },
   "artifacts": [
     {
-      "path": "docs/evidence/integrated-browser-desktop-20260910.png",
-      "sha256": "9451995eb549b6ad7ffcf04b5c83dd0e0c1d840055a8a605d96368e436b80245"
+      "path": "docs/evidence/integrated-browser-desktop-20260911.png",
+      "sha256": "c402ad8c05ce6e9c2cb205054853a17bee3645f0678b1ba3b733cc4b791d2ae8"
     },
     {
-      "path": "docs/evidence/integrated-browser-narrow-20260910.png",
-      "sha256": "85043a12e7c4f2545599505fd2ae9d8af17a958d36f25e1d88105655e5c205df"
+      "path": "docs/evidence/integrated-browser-narrow-20260911.png",
+      "sha256": "c181121f09667eb38b1230d69973881f4db0fab31de1dc985be63835ed608dfe"
     }
   ]
 }

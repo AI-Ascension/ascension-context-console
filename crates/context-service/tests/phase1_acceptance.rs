@@ -4,8 +4,31 @@ mod support;
 
 use context_reader::{CaptureMode, ComponentStatus, parse_event_lines, parse_snapshot};
 use context_service::{CapturePrivilege, ReadGrant, Store, TransportState};
+use sha2::{Digest, Sha256};
 use std::time::{Duration, UNIX_EPOCH};
 use support::fixtures::read_fixture;
+
+#[test]
+fn phase1_contract_pin_and_copied_schema_digests_are_immutable() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../");
+    let readme = std::fs::read_to_string(root.join("contracts/context-control/README.md"))
+        .expect("contract pin");
+    assert!(readme.contains("2e1bfe0d4e62ac7f1efcefe4b1cc940182146880"));
+    assert!(readme.contains("780f2d521508a2aadc76c4d779544d967955f102"));
+
+    let mut checked = 0;
+    for line in readme.lines().filter(|line| line.contains(".schema.json")) {
+        let mut fields = line.split_whitespace();
+        let name = fields.next().expect("schema name");
+        let expected = fields.next().expect("schema digest");
+        let bytes = std::fs::read(root.join("contracts/context-control").join(name))
+            .expect("copied schema");
+        let actual = format!("{:x}", Sha256::digest(&bytes));
+        assert_eq!(actual, expected, "schema digest changed: {name}");
+        checked += 1;
+    }
+    assert!(checked >= 11, "all copied control schemas must be pinned");
+}
 
 #[test]
 fn contract_fixtures_have_strict_positive_and_negative_semantics() {

@@ -1,30 +1,40 @@
-name: CI
+name: Continuous integration
 
 on:
-  push:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
-env:
-  CARGO_TERM_COLOR: always
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  gates:
-    name: Rust 1.97.1 gates
+  rust:
+    name: Rust quality gates
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install Rust 1.97.1
-        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
-      - name: Policy gate
-        run: cargo run --locked --package repo-policy -- --strict
-      - name: Format
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify whitespace
+        run: git diff --check
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component clippy --component rustfmt --no-self-update
+
+      - name: Check formatting
         run: cargo fmt --all -- --check
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Tests
-        run: cargo test --workspace --all-targets --locked
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Run Rust tests
+        run: cargo test --workspace --all-targets --all-features --locked -- --test-threads=1

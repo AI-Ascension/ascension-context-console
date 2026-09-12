@@ -1,0 +1,1430 @@
+{
+  "schema": "ascension.phase2-failure-matrix-evidence.v1",
+  "date": "2026-09-10",
+  "repository": "AI-Ascension/ascension-context-console",
+  "source_matrix": "ascension-context-console-phase2-meta-prompt-package/tests/failure-matrix.csv",
+  "row_count": 80,
+  "executed_row_count": 79,
+  "rows": [
+    {
+      "id": "P2-F001",
+      "category": "compatibility",
+      "trigger": "Old v1 snapshot decoded by old reader",
+      "forbidden_effect": "No mutation or schema widening",
+      "expected_outcome": "v1 round-trip unchanged",
+      "owner_task": "T02",
+      "requirements": [
+        "P2-R004",
+        "P2-R008"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser assertion passed"
+    },
+    {
+      "id": "P2-F002",
+      "category": "compatibility",
+      "trigger": "Management disabled across both bridges",
+      "forbidden_effect": "No new input fields/settings",
+      "expected_outcome": "Final semantic bytes match baseline",
+      "owner_task": "T07",
+      "requirements": [
+        "P2-R005",
+        "P2-R023"
+      ],
+      "evidence_status": "executed",
+      "test_id": "ASTRA-OFF-001; OLLAMA-OFF-001; renderer_is_bounded_and_legacy_content_is_byte_stable; ollama_renderer_preserves_legacy_and_marks_enabled_context",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/499f29018dbb4d7fe4bd80159bafb15781a2b90d/docs/evidence/context-capture-fidelity-20260910.json",
+      "observed": "companion disabled-mode fidelity artifact matched Astra and Ollama baseline components; current legacy renderer regressions preserve the baseline bytes"
+    },
+    {
+      "id": "P2-F003",
+      "category": "compatibility",
+      "trigger": "Management profile sent to legacy adapter",
+      "forbidden_effect": "No provider call",
+      "expected_outcome": "Unsupported profile before send",
+      "owner_task": "T07",
+      "requirements": [
+        "P2-R005",
+        "P2-R023"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser assertion passed"
+    },
+    {
+      "id": "P2-F004",
+      "category": "authorization",
+      "trigger": "Read-only token attempts draft edit",
+      "forbidden_effect": "No stored draft change",
+      "expected_outcome": "Denied scope",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser read-only token received authentication_failed and no draft was changed"
+    },
+    {
+      "id": "P2-F005",
+      "category": "authorization",
+      "trigger": "Ingest token attempts resume",
+      "forbidden_effect": "No gate release",
+      "expected_outcome": "Denied scope",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser assertion passed"
+    },
+    {
+      "id": "P2-F006",
+      "category": "authorization",
+      "trigger": "Client supplies forged actor/role",
+      "forbidden_effect": "No privilege change",
+      "expected_outcome": "Closed schema rejection",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser strict-schema probe rejected forged actor and role fields with invalid_json and left the draft version unchanged"
+    },
+    {
+      "id": "P2-F007",
+      "category": "authorization",
+      "trigger": "Another-run item or preview ID supplied",
+      "forbidden_effect": "No existence leak or cross-run access",
+      "expected_outcome": "Scope-concealing rejection",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser cross-run state route returned route_not_found without an existence leak"
+    },
+    {
+      "id": "P2-F008",
+      "category": "authorization",
+      "trigger": "Permission revoked after preview before commit",
+      "forbidden_effect": "No revision activation",
+      "expected_outcome": "Current policy denial",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f008_permission_revoked_after_preview_blocks_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust deactivation after an applicable preview denied commit with management_disabled and preserved the paused revision"
+    },
+    {
+      "id": "P2-F009",
+      "category": "authorization",
+      "trigger": "Permission revoked after commit before resume",
+      "forbidden_effect": "No inference",
+      "expected_outcome": "Stay paused and deny release",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f009_permission_revoked_after_commit_blocks_resume",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust deactivation after commit denied resume with management_disabled and kept the run paused_committed"
+    },
+    {
+      "id": "P2-F010",
+      "category": "authorization",
+      "trigger": "Cross-origin browser POST or CSRF",
+      "forbidden_effect": "No command application",
+      "expected_outcome": "Origin/CSRF rejection",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser missing-CSRF and cross-origin writes returned csrf_rejected"
+    },
+    {
+      "id": "P2-F011",
+      "category": "authorization",
+      "trigger": "Expired command window replayed after receipt retention",
+      "forbidden_effect": "No second pause/resume",
+      "expected_outcome": "Replay window expired",
+      "owner_task": "T05",
+      "requirements": [
+        "P2-R040",
+        "P2-R041",
+        "P2-R043",
+        "P2-R047",
+        "P2-R048"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser assertion passed"
+    },
+    {
+      "id": "P2-F012",
+      "category": "authorization",
+      "trigger": "Offline bundle references live run ID",
+      "forbidden_effect": "No control privilege",
+      "expected_outcome": "Offline remains read-only",
+      "owner_task": "T15",
+      "requirements": [
+        "P2-R049",
+        "P2-R051",
+        "P2-R063"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser offline manifest contained no live control route or run identifier and exposes read-only bundle data"
+    },
+    {
+      "id": "P2-F013",
+      "category": "editing",
+      "trigger": "Two operators edit same draft version",
+      "forbidden_effect": "No lost update",
+      "expected_outcome": "One CAS winner and explicit conflict",
+      "owner_task": "T08",
+      "requirements": [
+        "P2-R010",
+        "P2-R013",
+        "P2-R016"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f013_two_operators_have_one_cas_winner",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust CAS regression passed; one stale operator was rejected"
+    },
+    {
+      "id": "P2-F014",
+      "category": "editing",
+      "trigger": "Two operators commit same base different previews",
+      "forbidden_effect": "No overwrite or double revision",
+      "expected_outcome": "One serialized winner",
+      "owner_task": "T11",
+      "requirements": [
+        "P2-R033",
+        "P2-R034",
+        "P2-R035",
+        "P2-R036"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f014_two_previews_have_one_serialized_commit_winner",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust serialized two prepared previews; the first commit won and the second stale operator received stale_revision without a second revision"
+    },
+    {
+      "id": "P2-F015",
+      "category": "editing",
+      "trigger": "Exclude protected state or catalog",
+      "forbidden_effect": "No changed mandatory input",
+      "expected_outcome": "Protected item rejection",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f015_protected_item_cannot_be_excluded_or_selected",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust protected-item regression passed; draft stayed unchanged"
+    },
+    {
+      "id": "P2-F016",
+      "category": "editing",
+      "trigger": "Note aliases protected item identity",
+      "forbidden_effect": "No authority substitution",
+      "expected_outcome": "Identity/protection rejection",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f016_note_identity_cannot_alias_protected_item",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust identity/protection regression passed"
+    },
+    {
+      "id": "P2-F017",
+      "category": "editing",
+      "trigger": "Unicode note passes character cap but exceeds bytes",
+      "forbidden_effect": "No oversized store/send",
+      "expected_outcome": "UTF-8 byte rejection",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser assertion passed"
+    },
+    {
+      "id": "P2-F018",
+      "category": "editing",
+      "trigger": "Invalid UTF-8/NUL or duplicate JSON keys",
+      "forbidden_effect": "No ambiguous decode or persistence",
+      "expected_outcome": "Parser rejection",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "compiled_cli_rejects_duplicate_and_oversized_stdin_without_mutation",
+      "evidence_artifact": "tests/phase2_cli.rs",
+      "observed": "compiled CLI rejected duplicate JSON before decode and oversized stdin with no draft mutation"
+    },
+    {
+      "id": "P2-F019",
+      "category": "editing",
+      "trigger": "Excessive nesting/operations or oversized body",
+      "forbidden_effect": "No resource exhaustion",
+      "expected_outcome": "Bounded parse rejection",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "compiled_cli_rejects_duplicate_and_oversized_stdin_without_mutation",
+      "evidence_artifact": "tests/phase2_cli.rs",
+      "observed": "compiled CLI rejected a 17 KiB stdin body with exit code 2 and preserved draft version 1"
+    },
+    {
+      "id": "P2-F020",
+      "category": "editing",
+      "trigger": "Pin unselected or exclude pinned item",
+      "forbidden_effect": "No silent policy change",
+      "expected_outcome": "Explicit invalid operation order",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f020_pin_requires_selection_and_exclude_requires_unpin",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust pin ordering regression passed"
+    },
+    {
+      "id": "P2-F021",
+      "category": "editing",
+      "trigger": "Pin expired content",
+      "forbidden_effect": "No TTL bypass",
+      "expected_outcome": "Unavailable/expired item",
+      "owner_task": "T08",
+      "requirements": [
+        "P2-R010",
+        "P2-R013",
+        "P2-R016"
+      ],
+      "evidence_status": "executed",
+      "test_id": "renderer_rejects_unreadable_expired_and_unselected_pinned_content",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control.rs",
+      "observed": "selected and pinned content at its expiry returned ExpiredItem without bypassing TTL"
+    },
+    {
+      "id": "P2-F022",
+      "category": "editing",
+      "trigger": "Restore old revision with obsolete host IDs",
+      "forbidden_effect": "No old game/action identities",
+      "expected_outcome": "Fresh draft with reusable config only",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f022_restore_is_a_fresh_configuration_draft",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust restore regression passed; browser restore flow also passed"
+    },
+    {
+      "id": "P2-F023",
+      "category": "editing",
+      "trigger": "Restore combined with other patch operations",
+      "forbidden_effect": "No ambiguous bulk edit",
+      "expected_outcome": "Single-operation restore rejection",
+      "owner_task": "T03",
+      "requirements": [
+        "P2-R009",
+        "P2-R011",
+        "P2-R012",
+        "P2-R015",
+        "P2-R017"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f023_restore_cannot_be_combined_with_other_operations",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust restore exclusivity regression passed"
+    },
+    {
+      "id": "P2-F024",
+      "category": "editing",
+      "trigger": "Set objective without elevated permission",
+      "forbidden_effect": "No objective change",
+      "expected_outcome": "Objective-specific denial",
+      "owner_task": "T14",
+      "requirements": [
+        "P2-R014",
+        "P2-R044",
+        "P2-R045",
+        "P2-R046"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f024_objective_requires_elevated_authorization",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust objective authorization regression passed"
+    },
+    {
+      "id": "P2-F025",
+      "category": "editing",
+      "trigger": "No-op configuration commit",
+      "forbidden_effect": "No new provider call or arbitrary epoch churn",
+      "expected_outcome": "Documented no_change",
+      "owner_task": "T11",
+      "requirements": [
+        "P2-R033",
+        "P2-R034",
+        "P2-R035",
+        "P2-R036"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f025_identical_configuration_is_a_no_change_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust no-change commit regression passed"
+    },
+    {
+      "id": "P2-F026",
+      "category": "preview",
+      "trigger": "Exploratory preview while running",
+      "forbidden_effect": "No pause/inference/action",
+      "expected_outcome": "Non-applicable preview",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f026_running_preview_is_exploratory_only",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust running preview regression passed"
+    },
+    {
+      "id": "P2-F027",
+      "category": "preview",
+      "trigger": "Host generation changes before commit",
+      "forbidden_effect": "No stale activation",
+      "expected_outcome": "Boundary conflict",
+      "owner_task": "T11",
+      "requirements": [
+        "P2-R033",
+        "P2-R034",
+        "P2-R035",
+        "P2-R036"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f027_boundary_change_invalidates_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust boundary freshness regression passed"
+    },
+    {
+      "id": "P2-F028",
+      "category": "preview",
+      "trigger": "Catalog bytes change without changed display label",
+      "forbidden_effect": "No stale action catalog approval",
+      "expected_outcome": "Digest conflict",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f028_catalog_bytes_change_with_same_state_label_stales_preview",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust catalog-boundary regression kept the state label stable, changed the catalog digest, and rejected the old preview with preview_stale"
+    },
+    {
+      "id": "P2-F029",
+      "category": "preview",
+      "trigger": "Config/model/adapter binary changes after preview",
+      "forbidden_effect": "No different render sent",
+      "expected_outcome": "Fingerprint conflict",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f029_provider_fingerprint_change_stales_preview",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust provider-boundary regression changed adapter, model, and configuration fingerprints and rejected the old preview with preview_stale"
+    },
+    {
+      "id": "P2-F030",
+      "category": "preview",
+      "trigger": "Selected item bytes change behind same logical name",
+      "forbidden_effect": "No substitution",
+      "expected_outcome": "Immutable-version/digest rejection",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "renderer_rejects_content_digest_mismatch_for_selected_note_and_objective",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control.rs",
+      "observed": "companion renderer recomputed selected, note, and objective digests and rejected same-reference byte substitution"
+    },
+    {
+      "id": "P2-F031",
+      "category": "preview",
+      "trigger": "Editable content is redacted/expired/unavailable",
+      "forbidden_effect": "No false exact preview",
+      "expected_outcome": "Blocked or exploratory only",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser assertion passed"
+    },
+    {
+      "id": "P2-F032",
+      "category": "preview",
+      "trigger": "Mandatory context exceeds adapter budget",
+      "forbidden_effect": "No trimming mandatory facts",
+      "expected_outcome": "Explicit budget failure",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "mandatory_context_over_adapter_budget_is_rejected_without_trimming",
+      "evidence_artifact": "crates/context-service/src/control/render.rs",
+      "observed": "Rust renderer regression constructed 64 valid 3000-byte items and rejected the mandatory aggregate with mandatory_budget_exceeded without trimming"
+    },
+    {
+      "id": "P2-F033",
+      "category": "preview",
+      "trigger": "Unknown total token capacity",
+      "forbidden_effect": "No fabricated exact fit",
+      "expected_outcome": "Qualified policy/acknowledgement",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "preview_reports_unknown_total_budget_until_operator_acknowledges_it; tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "tests/phase2_control.rs; docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "unknown provider capacity remains bounded_unknown_total; an applicable preview is blocked until the operator explicitly acknowledges the uncertainty, and the browser assertion records that acknowledgement"
+    },
+    {
+      "id": "P2-F034",
+      "category": "preview",
+      "trigger": "Unsupported image or omitted note mapping",
+      "forbidden_effect": "No false applied edit",
+      "expected_outcome": "Capability failure before commit",
+      "owner_task": "T07",
+      "requirements": [
+        "P2-R005",
+        "P2-R023"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser capability metadata reports optional images unsupported and a put_image operation is rejected with invalid_json before any commit"
+    },
+    {
+      "id": "P2-F035",
+      "category": "preview",
+      "trigger": "Draft changes after preview",
+      "forbidden_effect": "No stale approval reuse",
+      "expected_outcome": "Draft-version mismatch",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f035_draft_change_invalidates_previous_preview",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust draft freshness regression passed"
+    },
+    {
+      "id": "P2-F036",
+      "category": "preview",
+      "trigger": "Preview TTL expires or clock rolls backward",
+      "forbidden_effect": "No extended approval",
+      "expected_outcome": "Expiry/controller policy rejection",
+      "owner_task": "T09",
+      "requirements": [
+        "P2-R018",
+        "P2-R020",
+        "P2-R024",
+        "P2-R025",
+        "P2-R026"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f036_expired_preview_cannot_be_committed",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust expiry regression passed"
+    },
+    {
+      "id": "P2-F037",
+      "category": "preview",
+      "trigger": "Manifest/schema bytes tampered",
+      "forbidden_effect": "No different prepared input",
+      "expected_outcome": "Digest verification failure",
+      "owner_task": "T06",
+      "requirements": [
+        "P2-R006",
+        "P2-R019",
+        "P2-R022"
+      ],
+      "evidence_status": "executed",
+      "test_id": "journal_recovery_rejects_tampered_or_duplicate_retained_items",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust journal recovery rejected a tampered prepared-manifest digest before a continuation could be recovered"
+    },
+    {
+      "id": "P2-F038",
+      "category": "preview",
+      "trigger": "Commit increments own control version",
+      "forbidden_effect": "No erroneous permanent stale state",
+      "expected_outcome": "Recorded post-commit continuation accepted",
+      "owner_task": "T12",
+      "requirements": [
+        "P2-R021",
+        "P2-R032",
+        "P2-R038",
+        "P2-R039"
+      ],
+      "evidence_status": "executed",
+      "test_id": "preview_pause_commit_resume_fences_the_old_plan_and_reuses_receipts",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust control regression passed; commit advanced the plan and accepted the recorded continuation"
+    },
+    {
+      "id": "P2-F039",
+      "category": "preview",
+      "trigger": "Resume with null preview after committed edit",
+      "forbidden_effect": "No preview bypass",
+      "expected_outcome": "Awaiting approved preview rejection",
+      "owner_task": "T12",
+      "requirements": [
+        "P2-R021",
+        "P2-R032",
+        "P2-R038",
+        "P2-R039"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f039_resume_cannot_bypass_the_approved_preview_identity",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust regression passed; resume stayed paused and retained prepared input"
+    },
+    {
+      "id": "P2-F040",
+      "category": "pause",
+      "trigger": "Pause races a provider start",
+      "forbidden_effect": "No post-barrier new start",
+      "expected_outcome": "One defined admission order",
+      "owner_task": "T10",
+      "requirements": [
+        "P2-R027",
+        "P2-R028",
+        "P2-R029",
+        "P2-R030"
+      ],
+      "evidence_status": "executed",
+      "test_id": "pause_admission_race_has_one_order_and_drains_provider_before_ready",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "Harness ControlAuthority admitted before pause or rejected after the pause barrier; no post-barrier operation entered the unresolved ledger"
+    },
+    {
+      "id": "P2-F041",
+      "category": "pause",
+      "trigger": "Pause while provider is running",
+      "forbidden_effect": "No returned old decision dispatch",
+      "expected_outcome": "Drain/quarantine then readiness",
+      "owner_task": "T10",
+      "requirements": [
+        "P2-R027",
+        "P2-R028",
+        "P2-R029",
+        "P2-R030"
+      ],
+      "evidence_status": "executed",
+      "test_id": "pause_admission_race_has_one_order_and_drains_provider_before_ready",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "Pause remained PauseRequested while the provider attempt was unresolved and became PausedReady only after that same attempt settled"
+    },
+    {
+      "id": "P2-F042",
+      "category": "pause",
+      "trigger": "Pause while a game action is unsettled",
+      "forbidden_effect": "No next action or ledger clear",
+      "expected_outcome": "Reconcile same operation",
+      "owner_task": "T10",
+      "requirements": [
+        "P2-R027",
+        "P2-R028",
+        "P2-R029",
+        "P2-R030"
+      ],
+      "evidence_status": "executed",
+      "test_id": "unsettled_game_operation_and_unknown_mutation_block_readiness",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "The game operation stayed in unresolved_operations until explicit settlement; pause did not report ready early"
+    },
+    {
+      "id": "P2-F043",
+      "category": "pause",
+      "trigger": "Unknown mutation times out",
+      "forbidden_effect": "No fabricated settlement",
+      "expected_outcome": "Blocked recovery",
+      "owner_task": "T10",
+      "requirements": [
+        "P2-R027",
+        "P2-R028",
+        "P2-R029",
+        "P2-R030"
+      ],
+      "evidence_status": "executed",
+      "test_id": "unsettled_game_operation_and_unknown_mutation_block_readiness",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "An unknown operation was retained and resume was rejected until the original operation was explicitly reconciled"
+    },
+    {
+      "id": "P2-F044",
+      "category": "pause",
+      "trigger": "Disconnected multi-participant runner",
+      "forbidden_effect": "No false run-wide readiness",
+      "expected_outcome": "Fence/prove quiescence or block",
+      "owner_task": "T10",
+      "requirements": [
+        "P2-R027",
+        "P2-R028",
+        "P2-R029",
+        "P2-R030"
+      ],
+      "evidence_status": "executed",
+      "test_id": "multiple_participant_operations_cannot_report_run_wide_readiness_early",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "Two participant operation identities kept run-wide status PauseRequested until both operations settled"
+    },
+    {
+      "id": "P2-F045",
+      "category": "pause",
+      "trigger": "Host evolves while scheduler is held",
+      "forbidden_effect": "No frozen-world claim",
+      "expected_outcome": "Paused stale; re-observe",
+      "owner_task": "T10",
+      "requirements": [
+        "P2-R027",
+        "P2-R028",
+        "P2-R029",
+        "P2-R030"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f045_host_evolution_while_held_marks_the_boundary_stale",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust host-boundary advancement while paused changed the status to paused_stale and blocked an applicable preview until re-observation"
+    },
+    {
+      "id": "P2-F046",
+      "category": "pause",
+      "trigger": "Duplicate old pause after later resume",
+      "forbidden_effect": "No second pause from stale duplicate",
+      "expected_outcome": "Original receipt or stale/window rejection",
+      "owner_task": "T05",
+      "requirements": [
+        "P2-R040",
+        "P2-R041",
+        "P2-R043",
+        "P2-R047",
+        "P2-R048"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f046_old_pause_replay_returns_original_receipt",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust old-pause replay returned the original receipt"
+    },
+    {
+      "id": "P2-F047",
+      "category": "commit",
+      "trigger": "Commit transaction disk full",
+      "forbidden_effect": "No active revision/plan partial update",
+      "expected_outcome": "Old revision retained; write failure",
+      "owner_task": "T11",
+      "requirements": [
+        "P2-R033",
+        "P2-R034",
+        "P2-R035",
+        "P2-R036"
+      ],
+      "evidence_status": "executed",
+      "test_id": "commit_transaction_disk_full_failpoint_preserves_old_revision",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust deterministic disk-full failpoint rejected the candidate transaction and preserved the active revision, plan epoch, and outbox set"
+    },
+    {
+      "id": "P2-F048",
+      "category": "commit",
+      "trigger": "Commit durable but HTTP reply lost",
+      "forbidden_effect": "No duplicate revision",
+      "expected_outcome": "Receipt lookup/idempotent result",
+      "owner_task": "T11",
+      "requirements": [
+        "P2-R033",
+        "P2-R034",
+        "P2-R035",
+        "P2-R036"
+      ],
+      "evidence_status": "executed",
+      "test_id": "durable_commit_replay_after_lost_reply_returns_original_receipt",
+      "evidence_artifact": "tests/phase2_durable.rs",
+      "observed": "Rust reopened the committed encrypted journal and replayed the exact command to return the original receipt without creating a second revision"
+    },
+    {
+      "id": "P2-F049",
+      "category": "commit",
+      "trigger": "Audit append fails",
+      "forbidden_effect": "No new committed authority",
+      "expected_outcome": "Transaction rejected",
+      "owner_task": "T11",
+      "requirements": [
+        "P2-R033",
+        "P2-R034",
+        "P2-R035",
+        "P2-R036"
+      ],
+      "evidence_status": "executed",
+      "test_id": "audit_append_failure_rolls_back_journal_and_outbox",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust audit/outbox append failpoint rejected before commit and left the previous encrypted journal projection and outbox unchanged"
+    },
+    {
+      "id": "P2-F050",
+      "category": "commit",
+      "trigger": "UI emits commit then auto-resume",
+      "forbidden_effect": "No implicit inference",
+      "expected_outcome": "Separate resume required",
+      "owner_task": "T17",
+      "requirements": [
+        "P2-R050"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser asserted commit remains paused and resume is an explicit follow-up action"
+    },
+    {
+      "id": "P2-F051",
+      "category": "commit",
+      "trigger": "Obsolete plan contains still-legal action ID",
+      "forbidden_effect": "No old plan dispatch",
+      "expected_outcome": "Plan epoch rejection",
+      "owner_task": "T13",
+      "requirements": [
+        "P2-R031",
+        "P2-R037"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f051_old_plan_epoch_is_rejected_after_commit",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust plan-epoch fencing regression passed"
+    },
+    {
+      "id": "P2-F052",
+      "category": "resume",
+      "trigger": "Resume is duplicated concurrently",
+      "forbidden_effect": "No duplicate release/attempt",
+      "expected_outcome": "One logical claim",
+      "owner_task": "T12",
+      "requirements": [
+        "P2-R021",
+        "P2-R032",
+        "P2-R038",
+        "P2-R039"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f052_concurrent_resume_claims_have_one_winner",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust accepted one resume claim, rejected the second stale concurrent claim, and recorded one input submission"
+    },
+    {
+      "id": "P2-F053",
+      "category": "resume",
+      "trigger": "Same idempotency key different payload",
+      "forbidden_effect": "No second interpretation",
+      "expected_outcome": "Idempotency conflict",
+      "owner_task": "T05",
+      "requirements": [
+        "P2-R040",
+        "P2-R041",
+        "P2-R043",
+        "P2-R047",
+        "P2-R048"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f053_changed_body_reuse_is_an_idempotency_conflict",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust idempotency conflict regression passed"
+    },
+    {
+      "id": "P2-F054",
+      "category": "resume",
+      "trigger": "Host/content changed after commit before resume",
+      "forbidden_effect": "No silently rebased input",
+      "expected_outcome": "Stay paused/stale; new approval",
+      "owner_task": "T12",
+      "requirements": [
+        "P2-R021",
+        "P2-R032",
+        "P2-R038",
+        "P2-R039"
+      ],
+      "evidence_status": "executed",
+      "test_id": "boundary_change_rejects_a_committed_continuation",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust boundary-change regression kept the committed run fenced and rejected resume with preview_stale"
+    },
+    {
+      "id": "P2-F055",
+      "category": "resume",
+      "trigger": "Stop latched before resume",
+      "forbidden_effect": "No gate release",
+      "expected_outcome": "Stopped status",
+      "owner_task": "T12",
+      "requirements": [
+        "P2-R021",
+        "P2-R032",
+        "P2-R038",
+        "P2-R039"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f055_stop_dominates_resume",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust stop-dominance regression passed"
+    },
+    {
+      "id": "P2-F056",
+      "category": "resume",
+      "trigger": "Old provider completion after new gate/controller",
+      "forbidden_effect": "No authority recovery",
+      "expected_outcome": "Discarded result",
+      "owner_task": "T13",
+      "requirements": [
+        "P2-R031",
+        "P2-R037"
+      ],
+      "evidence_status": "executed",
+      "test_id": "old_provider_completion_is_discarded_after_commit_advances_the_plan_epoch",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "A late provider completion with the old plan epoch returned obsolete_plan and left the new revision authoritative"
+    },
+    {
+      "id": "P2-F057",
+      "category": "resume",
+      "trigger": "Game changes after final local check",
+      "forbidden_effect": "No stale action accepted",
+      "expected_outcome": "Existing host/gateway generation fencing",
+      "owner_task": "T12",
+      "requirements": [
+        "P2-R021",
+        "P2-R032",
+        "P2-R038",
+        "P2-R039"
+      ],
+      "evidence_status": "executed",
+      "test_id": "game_boundary_change_invalidates_the_final_resume_check",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_races.rs",
+      "observed": "A game-boundary generation change made the final resume check return preview_stale"
+    },
+    {
+      "id": "P2-F058",
+      "category": "resume",
+      "trigger": "No-edit resume after provider drain",
+      "forbidden_effect": "No resurrection of old plan",
+      "expected_outcome": "Fresh decision with unchanged revision",
+      "owner_task": "T12",
+      "requirements": [
+        "P2-R021",
+        "P2-R032",
+        "P2-R038",
+        "P2-R039"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f058_no_edit_resume_after_drain_releases_without_new_input",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust no-change commit followed by resume kept the revision unchanged and emitted no input.submitted event"
+    },
+    {
+      "id": "P2-F059",
+      "category": "recovery",
+      "trigger": "Crash before commit persistence",
+      "forbidden_effect": "No partial new revision",
+      "expected_outcome": "Old state or explicit transaction failure",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "failed_commit_rolls_back_the_previous_projection",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite before-commit failpoint preserved the old projection and returned an explicit transaction failure"
+    },
+    {
+      "id": "P2-F060",
+      "category": "recovery",
+      "trigger": "Crash after commit before outbox publication",
+      "forbidden_effect": "No lost active revision",
+      "expected_outcome": "Reload and deduplicate outbox",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "crash_after_commit_before_outbox_publication_retains_revision_and_deduplicates",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust post-commit acknowledgement-loss failpoint retained the new revision after reopen and deduplicated the outbox on exact replay"
+    },
+    {
+      "id": "P2-F061",
+      "category": "recovery",
+      "trigger": "Crash after resume claim before input write",
+      "forbidden_effect": "No blind duplicate submission",
+      "expected_outcome": "Classify proven not-started versus unknown",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f061_crash_after_resume_claim_keeps_unknown_and_denies_new_input",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/phase2_recovery.rs",
+      "observed": "An interrupted resume reopened as InterruptedUnknown and the decision admission rejected a new input"
+    },
+    {
+      "id": "P2-F062",
+      "category": "recovery",
+      "trigger": "Crash or timeout during provider write",
+      "forbidden_effect": "No automatic retransmit as if unsent",
+      "expected_outcome": "Ambiguous attempt retained",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f062_provider_write_timeout_retains_ambiguous_attempt_without_retransmit",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/phase2_recovery.rs",
+      "observed": "An unknown provider outcome stayed pending and a second dispatch of the same operation was rejected"
+    },
+    {
+      "id": "P2-F063",
+      "category": "recovery",
+      "trigger": "Crash during game dispatch/reconcile",
+      "forbidden_effect": "No fresh operation-ID retry",
+      "expected_outcome": "Existing operation recovery",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f063_game_dispatch_reconciles_the_same_operation_without_a_new_id",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/phase2_recovery.rs",
+      "observed": "Game dispatch uncertainty reconciled under the original operation ID and left no pending operation"
+    },
+    {
+      "id": "P2-F064",
+      "category": "recovery",
+      "trigger": "Old controller remains alive during restart",
+      "forbidden_effect": "No two active owners",
+      "expected_outcome": "Exclusive ownership/fencing or block",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "replacement_owner_fences_the_old_live_handle",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/tests/context_control_migration.rs",
+      "observed": "companion migration test fences old reads and writes after replacement ownership is claimed"
+    },
+    {
+      "id": "P2-F065",
+      "category": "recovery",
+      "trigger": "Watchdog sees paused healthy process",
+      "forbidden_effect": "No forced semantic resume",
+      "expected_outcome": "Pause intent survives supervision",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "watchdog_restart_preserves_a_healthy_pause_without_auto_resume",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust restart recovery preserved paused_ready and emitted no input.submitted event or semantic resume"
+    },
+    {
+      "id": "P2-F066",
+      "category": "recovery",
+      "trigger": "Feature disabled with active revised run",
+      "forbidden_effect": "No silent legacy fallback",
+      "expected_outcome": "Safe deactivation procedure",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "p2_f066_deactivation_preserves_pause_and_revision",
+      "evidence_artifact": "tests/phase2_failure_matrix.rs",
+      "observed": "Rust safe-deactivation regression passed"
+    },
+    {
+      "id": "P2-F067",
+      "category": "storage",
+      "trigger": "Encrypted content published but transaction aborted",
+      "forbidden_effect": "No partial approved reference",
+      "expected_outcome": "Bounded orphan cleanup",
+      "owner_task": "T05",
+      "requirements": [
+        "P2-R040",
+        "P2-R041",
+        "P2-R043",
+        "P2-R047",
+        "P2-R048"
+      ],
+      "evidence_status": "executed",
+      "test_id": "failed_commit_rolls_back_the_previous_projection",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite rollback left the prior journal and outbox count unchanged after the aborted encrypted write"
+    },
+    {
+      "id": "P2-F068",
+      "category": "storage",
+      "trigger": "Wrong key/ACL or missing content blob",
+      "forbidden_effect": "No plaintext downgrade",
+      "expected_outcome": "Writes unavailable; read limits explicit",
+      "owner_task": "T05",
+      "requirements": [
+        "P2-R040",
+        "P2-R041",
+        "P2-R043",
+        "P2-R047",
+        "P2-R048"
+      ],
+      "evidence_status": "executed",
+      "test_id": "wrong_key_and_tampering_fail_closed",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite rejected an invalid key, wrong key, and tampered envelope without plaintext fallback"
+    },
+    {
+      "id": "P2-F069",
+      "category": "storage",
+      "trigger": "Memory-only source selected for durable edit without approval",
+      "forbidden_effect": "No hidden disk/WAL copy",
+      "expected_outcome": "Explicit capability denial",
+      "owner_task": "T05",
+      "requirements": [
+        "P2-R040",
+        "P2-R041",
+        "P2-R043",
+        "P2-R047",
+        "P2-R048"
+      ],
+      "evidence_status": "executed",
+      "test_id": "compiled_cli_denies_content_edit_without_a_durable_store",
+      "evidence_artifact": "tests/phase2_cli.rs",
+      "observed": "compiled CLI returned the durable-store denial and left the requested memory-only edit path absent, with no SQLite/WAL file created"
+    },
+    {
+      "id": "P2-F070",
+      "category": "storage",
+      "trigger": "Active selected artifact expires",
+      "forbidden_effect": "No silent omission from next request",
+      "expected_outcome": "Block and require new configuration",
+      "owner_task": "T08",
+      "requirements": [
+        "P2-R010",
+        "P2-R013",
+        "P2-R016"
+      ],
+      "evidence_status": "executed",
+      "test_id": "expired_items_and_previews_cannot_be_approved_or_committed",
+      "evidence_artifact": "tests/phase2_control.rs",
+      "observed": "Rust expiry regression made an expired selected item non-applicable and rejected a later commit with preview_stale"
+    },
+    {
+      "id": "P2-F071",
+      "category": "storage",
+      "trigger": "Queue/diff/page/draft/journal flood",
+      "forbidden_effect": "No unlimited resource growth",
+      "expected_outcome": "Quotas/backpressure with pause priority",
+      "owner_task": "T05",
+      "requirements": [
+        "P2-R040",
+        "P2-R041",
+        "P2-R043",
+        "P2-R047",
+        "P2-R048"
+      ],
+      "evidence_status": "executed",
+      "test_id": "journal_event_flood_is_rejected_before_recovery",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust recovery rejected a 4097-event journal with journal_invalid before materializing an over-bound event list"
+    },
+    {
+      "id": "P2-F072",
+      "category": "observability",
+      "trigger": "Capture/outbox events delayed or dropped",
+      "forbidden_effect": "No command replay from UI guess",
+      "expected_outcome": "Authoritative status reconciliation",
+      "owner_task": "T18",
+      "requirements": [
+        "P2-R052",
+        "P2-R053",
+        "P2-R064"
+      ],
+      "evidence_status": "executed",
+      "test_id": "dropped_outbox_event_is_rebuilt_from_authoritative_journal",
+      "evidence_artifact": "tests/phase2_durable.rs; docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "Rust reconciliation rebuilt a deleted outbox row from the authoritative journal without a UI-guess command replay"
+    },
+    {
+      "id": "P2-F073",
+      "category": "observability",
+      "trigger": "Private note embedded in error or metric label",
+      "forbidden_effect": "No secret/content export",
+      "expected_outcome": "Categorical redacted diagnostics",
+      "owner_task": "T18",
+      "requirements": [
+        "P2-R052",
+        "P2-R053",
+        "P2-R064"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser metrics excluded the private note text and HTML marker"
+    },
+    {
+      "id": "P2-F074",
+      "category": "browser",
+      "trigger": "HTML/script/external-image note rendered",
+      "forbidden_effect": "No script or outbound fetch",
+      "expected_outcome": "Safe text/no external loads",
+      "owner_task": "T21",
+      "requirements": [
+        "P2-R059"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser rendered the adversarial note as text with no script execution or external request"
+    },
+    {
+      "id": "P2-F075",
+      "category": "browser",
+      "trigger": "Browser reload/close/reconnect",
+      "forbidden_effect": "No auto-resume or private persistent cache",
+      "expected_outcome": "Authoritative state before writes",
+      "owner_task": "T21",
+      "requirements": [
+        "P2-R059"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "second browser page reconnected while paused_ready and did not auto-resume"
+    },
+    {
+      "id": "P2-F076",
+      "category": "browser",
+      "trigger": "Keyboard/narrow-screen/conflict error flow",
+      "forbidden_effect": "No inaccessible critical control",
+      "expected_outcome": "Focus/status/keyboard assertions",
+      "owner_task": "T21",
+      "requirements": [
+        "P2-R059"
+      ],
+      "evidence_status": "executed",
+      "test_id": "tools/phase2_browser_audit.cjs",
+      "evidence_artifact": "docs/evidence/phase2-browser-ui-20260910.json",
+      "observed": "browser asserted keyboard activation, narrow layout without overflow, and a visible stale-draft conflict error"
+    },
+    {
+      "id": "P2-F077",
+      "category": "migration",
+      "trigger": "Interrupted forward migration",
+      "forbidden_effect": "No destroyed Phase 1 snapshots",
+      "expected_outcome": "Recoverable additive migration",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "partial_additive_schema_is_repaired_and_newer_schema_is_rejected",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target SQLite repaired the additive schema while retaining seeded Phase 1 bytes and refused a newer marker"
+    },
+    {
+      "id": "P2-F078",
+      "category": "migration",
+      "trigger": "Old binary opens management-active database",
+      "forbidden_effect": "No ignoring pause/revision",
+      "expected_outcome": "Incompatible startup refusal",
+      "owner_task": "T19",
+      "requirements": [
+        "P2-R042",
+        "P2-R054",
+        "P2-R055"
+      ],
+      "evidence_status": "executed",
+      "test_id": "legacy_open_refuses_management_active_and_allows_disabled_state",
+      "evidence_artifact": "docs/evidence/phase2-durable-store-20260910.json",
+      "observed": "target legacy opener refused active management and accepted only the explicitly disabled state"
+    },
+    {
+      "id": "P2-F079",
+      "category": "delivery",
+      "trigger": "Fixture UI passes but bridge mapping is mocked",
+      "forbidden_effect": "No end-to-end completion claim",
+      "expected_outcome": "Actual compiled fake-peer test required",
+      "owner_task": "T20",
+      "requirements": [
+        "P2-R056",
+        "P2-R057",
+        "P2-R058"
+      ],
+      "evidence_status": "executed",
+      "test_id": "actual_fake_codex_receives_the_same_prepared_components_as_capture; enabled_management_context_reaches_the_compiled_http_body",
+      "evidence_artifact": "https://github.com/AI-Ascension/sts2-harness/blob/8674874feccfbf995ed0aa5a8ec8390d9dac137b/crates/harness/src/bin/support/sts2_astra_bridge_tests.rs",
+      "observed": "compiled Astra and Ollama bridge paths delivered management-enabled content to isolated fake peers and compared boundary bytes"
+    },
+    {
+      "id": "P2-F080",
+      "category": "delivery",
+      "trigger": "Live provider/host checks unavailable",
+      "forbidden_effect": "No fabricated native proof",
+      "expected_outcome": "Optional evidence explicitly unverified",
+      "owner_task": "T23",
+      "requirements": [
+        "P2-R060",
+        "P2-R062"
+      ],
+      "evidence_status": "required_not_executed",
+      "test_id": null,
+      "evidence_artifact": null,
+      "observed": "no dedicated product fixture executed"
+    }
+  ]
+}
