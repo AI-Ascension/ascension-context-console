@@ -1758,21 +1758,33 @@ fn published_facade_openapi_is_local_and_matches_transport_shapes() {
         "facadeReceiptRecovery"
     );
     for path in paths.as_object().expect("OpenAPI paths object").values() {
-        for operation in path
-            .as_object()
-            .into_iter()
-            .flat_map(|value| value.values())
-        {
+        for operation in path.as_object().expect("OpenAPI path item object").values() {
             assert_eq!(
                 operation["responses"]["410"]["$ref"],
                 "#/components/responses/Expired"
             );
-            assert_eq!(
-                operation["responses"]["413"]["$ref"],
-                "#/components/responses/TooLarge"
-            );
+            if operation.get("requestBody").is_some() {
+                assert_eq!(
+                    operation["responses"]["413"]["$ref"],
+                    "#/components/responses/TooLarge"
+                );
+            } else {
+                assert!(
+                    operation["responses"].get("413").is_none(),
+                    "413 is only valid for operations with a request body"
+                );
+            }
         }
     }
+    assert_eq!(
+        document["components"]["responses"]["TooLarge"]["description"],
+        "The request body exceeds the 16 KiB facade bound"
+    );
+    assert!(
+        document["components"]["responses"]["Unavailable"]["description"]
+            .as_str()
+            .is_some_and(|description| description.contains("response_too_large"))
+    );
     let mut references = Vec::new();
     collect_refs(&document, &mut references);
     assert!(
