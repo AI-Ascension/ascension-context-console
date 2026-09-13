@@ -47,8 +47,9 @@ pub use harness_facade::{
     FacadePermission, FacadeRequest, FacadeResult, GrantError, GrantRegistry,
     HarnessBackedContextService, HarnessFacadeConfig, HarnessOwnerClient, HarnessOwnerPort,
     MAX_FACADE_BODY_BYTES, MAX_FACADE_HOST_BYTES, MAX_FACADE_ID_BYTES, MAX_FACADE_ORIGIN_BYTES,
-    MAX_FACADE_PRINCIPAL_BYTES, MAX_FACADE_TOKEN_BYTES, OwnerAuthorization, OwnerError,
-    PreviewRequest, ProtectedAuthReference, RetentionMode, RetentionPolicy, SecretDigest,
+    MAX_FACADE_PRINCIPAL_BYTES, MAX_FACADE_RESPONSE_BYTES, MAX_FACADE_TOKEN_BYTES,
+    OwnerAuthorization, OwnerError, PreviewRequest, ProtectedAuthReference, RetentionMode,
+    RetentionPolicy, SecretDigest,
 };
 pub use memory::{
     MAX_MEMORY_BODY_BYTES, MAX_MEMORY_QUERY_BYTES, MemoryCapabilities, MemoryQueryRequest,

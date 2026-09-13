@@ -126,7 +126,7 @@
       ]
     },
     "capture_default_off": {
-      "const": true
+      "type": "boolean"
     },
     "exact_application_preview": {
       "enum": [

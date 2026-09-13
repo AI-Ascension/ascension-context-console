@@ -1268,6 +1268,12 @@ impl ControlPlane {
                         )
                     })?
                     .clone();
+                if draft.objective_item != revision.objective_item && !objective_authorized {
+                    return Err(ControlError::forbidden(
+                        "objective_authorization_required",
+                        "restoring an objective requires the objective scope",
+                    ));
+                }
                 draft.selected_items = revision.selected_items;
                 draft.pinned_item_ids = revision.pinned_item_ids;
                 draft.note_items = revision.note_items;

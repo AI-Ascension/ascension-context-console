@@ -14,8 +14,8 @@
 //! arbitrary upstream URLs, prepared bytes, or scheduler methods appear in this API.
 
 use crate::control::{
-    Capabilities as ControlCapabilities, Command, ControlError, Draft, EligibleItem, ItemRef,
-    Patch, Preview, Receipt, Revision, Scope, State,
+    Boundary, Capabilities as ControlCapabilities, Command, ControlError, Draft, EligibleItem,
+    ItemRef, Patch, Preview, Receipt, Revision, Scope, State,
 };
 use crate::http::{HttpRequest, HttpResponse, MAX_HTTP_BODY_BYTES, split_target};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -32,6 +32,67 @@ pub const MAX_FACADE_ORIGIN_BYTES: usize = 512;
 pub const MAX_FACADE_PRINCIPAL_BYTES: usize = 128;
 pub const MAX_FACADE_TOKEN_BYTES: usize = 2048;
 pub const MAX_FACADE_BODY_BYTES: usize = 16 * 1024;
+/// Maximum serialized JSON response emitted by the facade.
+///
+/// This is deliberately the same bound as the request body so an owner cannot turn a bounded
+/// typed collection into an unbounded transport response.
+pub const MAX_FACADE_RESPONSE_BYTES: usize = MAX_FACADE_BODY_BYTES;
+
+const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+const MAX_FACADE_LOCKED_REASON_BYTES: usize = 256;
+const MAX_FACADE_BLOCKERS: usize = 32;
+const MAX_FACADE_COMPONENTS: usize = 128;
+
+const ELIGIBLE_ITEM_KINDS: &[&str] = &[
+    "history",
+    "note",
+    "objective",
+    "protected_state",
+    // These are the names accepted by the versioned Phase 2 control contract.  The synthetic
+    // owner uses the shorter fixture names above.
+    "operator_note",
+    "historical_artifact",
+    "map_artifact",
+    "operating_constraint",
+];
+const LOCKED_REASON_ALLOWLIST: &[&str] = &[
+    "host-owned",
+    "host-owned state and legal catalog cannot be edited",
+    "protected",
+    "expired",
+    "unavailable",
+];
+const STATE_STATUSES: &[&str] = &[
+    "running",
+    "pause_requested",
+    "draining_provider",
+    "reconciling_action",
+    "paused_ready",
+    "paused_stale",
+    "paused_committed",
+    "blocked_recovery",
+    "stopped",
+];
+const RECEIPT_KINDS: &[&str] = &["pause", "commit", "resume"];
+const RECEIPT_STATUSES: &[&str] = &[
+    "accepted",
+    "pending",
+    "completed",
+    "rejected",
+    "blocked",
+    "unknown",
+];
+const RECEIPT_EFFECTS: &[&str] = &[
+    "none",
+    "pause_latched",
+    "pause_requested",
+    "paused_ready",
+    "revision_committed",
+    "no_change",
+    "resume_accepted",
+    "resume_claimed",
+    "scheduler_released",
+];
 
 const OWNER_READ_CAPABILITIES: &[&str] = &[
     "capabilities",
@@ -338,6 +399,16 @@ pub enum FacadePermission {
 }
 
 impl FacadePermission {
+    const ALL: &'static [&'static str] = &[
+        "context.metadata.read",
+        "context.content.read",
+        "context.edit",
+        "context.objective.edit",
+        "context.commit",
+        "context.pause",
+        "context.resume",
+    ];
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::MetadataRead => "context.metadata.read",
@@ -774,8 +845,16 @@ impl FacadeError {
         Self::new(code, FacadeErrorClass::Denied, false)
     }
 
+    fn stale(code: &'static str) -> Self {
+        Self::new(code, FacadeErrorClass::Stale, true)
+    }
+
     fn expired(code: &'static str) -> Self {
         Self::new(code, FacadeErrorClass::Expired, false)
+    }
+
+    fn response_too_large() -> Self {
+        Self::new("response_too_large", FacadeErrorClass::Unavailable, false)
     }
 
     fn owner(error: OwnerError) -> Self {
@@ -840,6 +919,7 @@ pub struct FacadeCapabilities {
 struct ReferenceIndex {
     item_refs: BTreeMap<(String, u64), ItemRef>,
     revision_ids: BTreeSet<String>,
+    revisions: BTreeMap<String, Revision>,
     draft_ids: BTreeSet<String>,
     drafts: BTreeMap<String, Draft>,
     preview_ids: BTreeSet<String>,
@@ -933,10 +1013,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             || duplicate_security_header(request, "x-csrf-token")
             || duplicate_security_header(request, "x-principal")
         {
-            return HttpResponse::json(
-                400,
-                serde_json::json!({"error":{"code":"duplicate_security_header","retryable":false}}),
-            );
+            return facade_http_error(400, "duplicate_security_header");
         }
         if request.target.len() > 4096
             || request.target.contains("://")
@@ -944,40 +1021,22 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             || request.target.contains('\\')
             || request.target.contains('\0')
         {
-            return HttpResponse::json(
-                400,
-                serde_json::json!({"error":{"code":"invalid_target","retryable":false}}),
-            );
+            return facade_http_error(400, "invalid_target");
         }
         if request.body.len() > MAX_FACADE_BODY_BYTES {
-            return HttpResponse::json(
-                413,
-                serde_json::json!({"error":{"code":"body_too_large","retryable":false}}),
-            );
+            return facade_http_error(413, "body_too_large");
         }
         if request.method == "GET" && !request.body.is_empty() {
-            return HttpResponse::json(
-                400,
-                serde_json::json!({"error":{"code":"get_body_not_allowed","retryable":false}}),
-            );
+            return facade_http_error(400, "get_body_not_allowed");
         }
         if request.method != "GET" && request.method != "POST" {
-            return HttpResponse::json(
-                405,
-                serde_json::json!({"error":{"code":"method_not_allowed","retryable":false}}),
-            );
+            return facade_http_error(405, "method_not_allowed");
         }
         if request.header("host") != Some(self.config.expected_host.as_str()) {
-            return HttpResponse::json(
-                403,
-                serde_json::json!({"error":{"code":"host_not_allowed","retryable":false}}),
-            );
+            return facade_http_error(403, "host_not_allowed");
         }
         if self.config.expected_origin.as_deref() != request.header("origin") {
-            return HttpResponse::json(
-                403,
-                serde_json::json!({"error":{"code":"origin_not_allowed","retryable":false}}),
-            );
+            return facade_http_error(403, "origin_not_allowed");
         }
         if request.method != "GET" {
             let csrf_ok = self
@@ -986,10 +1045,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                 .zip(request.header("x-csrf-token"))
                 .is_some_and(|(digest, token)| digest.matches(token.as_bytes()));
             if !csrf_ok {
-                return HttpResponse::json(
-                    403,
-                    serde_json::json!({"error":{"code":"csrf_rejected","retryable":false}}),
-                );
+                return facade_http_error(403, "csrf_rejected");
             }
         }
         let (path, query) = split_target(&request.target);
@@ -1002,10 +1058,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                 .skip(1)
                 .any(|segment| segment.is_empty() || segment == "." || segment == "..")
         {
-            return HttpResponse::json(
-                400,
-                serde_json::json!({"error":{"code":"invalid_target","retryable":false}}),
-            );
+            return facade_http_error(400, "invalid_target");
         }
         if query.len() > 8
             || query.iter().any(|(key, value)| {
@@ -1021,20 +1074,14 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                 .enumerate()
                 .any(|(index, (key, _))| query[index + 1..].iter().any(|(other, _)| other == key))
         {
-            return HttpResponse::json(
-                400,
-                serde_json::json!({"error":{"code":"invalid_query","retryable":false}}),
-            );
+            return facade_http_error(400, "invalid_query");
         }
         if query.iter().any(|(key, _)| {
             key.eq_ignore_ascii_case("token")
                 || key.eq_ignore_ascii_case("authorization")
                 || key.eq_ignore_ascii_case("csrf")
         }) {
-            return HttpResponse::json(
-                400,
-                serde_json::json!({"error":{"code":"secret_must_not_be_in_url","retryable":false}}),
-            );
+            return facade_http_error(400, "secret_must_not_be_in_url");
         }
         let segments = path.split('/').skip(1).collect::<Vec<_>>();
         if segments.len() < 4
@@ -1042,16 +1089,10 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             || segments[1] != "runs"
             || segments[3] != "context-control"
         {
-            return HttpResponse::json(
-                404,
-                serde_json::json!({"error":{"code":"route_not_found","retryable":false}}),
-            );
+            return facade_http_error(404, "route_not_found");
         }
         if segments[2] != self.config.scope.run_id {
-            return HttpResponse::json(
-                403,
-                serde_json::json!({"error":{"code":"foreign_reference","retryable":false}}),
-            );
+            return facade_http_error(403, "foreign_reference");
         }
         let token = request
             .header("authorization")
@@ -1198,7 +1239,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         };
         forwarded.sort();
         forwarded.dedup();
-        Ok(FacadeCapabilities {
+        let result = FacadeCapabilities {
             schema: FACADE_CAPABILITIES_SCHEMA.to_owned(),
             composition: "harness_backed".to_owned(),
             scope: self.config.scope.clone(),
@@ -1227,7 +1268,9 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             direct_game_dispatch: false,
             duplicate_scheduler: false,
             legacy_demo: false,
-        })
+        };
+        validate_facade_capabilities(&result)?;
+        Ok(result)
     }
 
     pub fn state(&mut self, request: &FacadeRequest) -> FacadeResult<State> {
@@ -1255,7 +1298,14 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             .client
             .call(|owner, auth| owner.eligible_items(auth, &scope))
             .map_err(FacadeError::owner)?;
-        let items = self.project_items(items, include_content)?;
+        let items = match self.project_items(items, include_content) {
+            Ok(items) => items,
+            Err(error) => {
+                self.index.item_refs.clear();
+                self.index.items_complete = false;
+                return Err(error);
+            }
+        };
         self.index.item_refs.clear();
         for item in &items {
             self.index.item_refs.insert(
@@ -1275,7 +1325,19 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             .client
             .call(|owner, auth| owner.revisions(auth, &scope))
             .map_err(FacadeError::owner)?;
-        let revisions = self.project_revisions(revisions)?;
+        let revisions = match self.project_revisions(revisions) {
+            Ok(revisions) => revisions,
+            Err(error) => {
+                self.index.revision_ids.clear();
+                self.index.revisions.clear();
+                self.index.revisions_complete = false;
+                return Err(error);
+            }
+        };
+        self.index.revisions = revisions
+            .iter()
+            .map(|revision| (revision.revision_id.clone(), revision.clone()))
+            .collect();
         self.index.revision_ids = revisions
             .iter()
             .map(|revision| revision.revision_id.clone())
@@ -1292,7 +1354,15 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             .client
             .call(|owner, auth| owner.drafts(auth, &scope))
             .map_err(FacadeError::owner)?;
-        let drafts = self.project_drafts(drafts)?;
+        let drafts = match self.project_drafts(drafts) {
+            Ok(drafts) => drafts,
+            Err(error) => {
+                self.index.draft_ids.clear();
+                self.index.drafts.clear();
+                self.index.drafts_complete = false;
+                return Err(error);
+            }
+        };
         self.index.drafts.clear();
         self.index.draft_ids = drafts
             .iter()
@@ -1333,7 +1403,14 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             .client
             .call(|owner, auth| owner.previews(auth, &scope))
             .map_err(FacadeError::owner)?;
-        let previews = self.project_previews(previews)?;
+        let previews = match self.project_previews(previews) {
+            Ok(previews) => previews,
+            Err(error) => {
+                self.index.preview_ids.clear();
+                self.index.previews_complete = false;
+                return Err(error);
+            }
+        };
         self.index.preview_ids = previews
             .iter()
             .map(|preview| preview.preview_id.clone())
@@ -1395,7 +1472,14 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             .client
             .call(|owner, auth| owner.receipts(auth, &self.config.scope.clone()))
             .map_err(FacadeError::owner)
-            .and_then(|receipts| self.project_receipts(receipts))?;
+            .and_then(|receipts| match self.project_receipts(receipts) {
+                Ok(receipts) => Ok(receipts),
+                Err(error) => {
+                    self.index.receipt_ids.clear();
+                    self.index.receipts_complete = false;
+                    Err(error)
+                }
+            })?;
         self.index.receipt_ids = receipts
             .iter()
             .map(|receipt| receipt.command_id.clone())
@@ -1437,10 +1521,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
     pub fn edit_draft(&mut self, request: &FacadeRequest, patch: Patch) -> FacadeResult<Draft> {
         self.authorize(request, FacadePermission::Edit, true)?;
         self.validate_patch(&patch)?;
-        let objective = patch
-            .operations
-            .iter()
-            .any(|operation| matches!(operation, crate::control::Operation::SetObjective { .. }));
+        let objective = self.patch_requires_objective_authority(&patch)?;
         if objective {
             self.authorize(request, FacadePermission::Objective, true)?;
         }
@@ -1480,6 +1561,11 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
     ) -> FacadeResult<Preview> {
         self.authorize(request, FacadePermission::Edit, true)?;
         self.validate_scope(&preview.scope)?;
+        if !valid_positive_safe_integer(preview.expected_draft_version)
+            || !valid_safe_integer(preview.expected_control_version)
+        {
+            return Err(FacadeError::invalid("invalid_preview"));
+        }
         self.ensure_known_id(
             &preview.draft_id,
             &self.index.draft_ids,
@@ -1643,6 +1729,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         if patch.schema != "ascension.context-control.patch.v1"
             || patch.operations.is_empty()
             || patch.operations.len() > crate::control::MAX_OPERATIONS
+            || !valid_positive_safe_integer(patch.expected_draft_version)
         {
             return Err(FacadeError::invalid("invalid_patch"));
         }
@@ -1652,6 +1739,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             &self.index.draft_ids,
             self.index.drafts_complete,
         )?;
+        self.ensure_current_draft_version(&patch.draft_id, patch.expected_draft_version)?;
         self.ensure_known_id(
             &patch.expected_active_revision_id,
             &self.index.revision_ids,
@@ -1668,19 +1756,26 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                     note_id,
                     text,
                     expires_at,
-                    ..
+                    expected_note_version,
                 } => {
                     if !valid_id(note_id)
                         || text.is_empty()
                         || text.len() > crate::control::MAX_NOTE_BYTES
                         || text.contains('\0')
                         || !valid_timestamp(expires_at)
+                        || expected_note_version.is_some_and(|version| !valid_safe_integer(version))
                     {
                         return Err(FacadeError::invalid("invalid_note"));
                     }
                 }
-                Operation::RemoveNote { note_id, .. } => {
+                Operation::RemoveNote {
+                    note_id,
+                    expected_note_version,
+                } => {
                     if !valid_id(note_id) {
+                        return Err(FacadeError::invalid("invalid_note"));
+                    }
+                    if !valid_safe_integer(*expected_note_version) {
                         return Err(FacadeError::invalid("invalid_note"));
                     }
                     let Some(draft) = self.index.drafts.get(&patch.draft_id) else {
@@ -1710,11 +1805,55 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         Ok(())
     }
 
+    fn patch_requires_objective_authority(&self, patch: &Patch) -> FacadeResult<bool> {
+        if patch
+            .operations
+            .iter()
+            .any(|operation| matches!(operation, crate::control::Operation::SetObjective { .. }))
+        {
+            return Ok(true);
+        }
+        let Some(operation) = patch.operations.iter().find(|operation| {
+            matches!(
+                operation,
+                crate::control::Operation::RestoreConfiguration { .. }
+            )
+        }) else {
+            return Ok(false);
+        };
+        let crate::control::Operation::RestoreConfiguration { source_revision_id } = operation
+        else {
+            return Ok(false);
+        };
+        let Some(current_draft) = self.index.drafts.get(&patch.draft_id) else {
+            return Err(FacadeError::owner(OwnerError::Unsupported));
+        };
+        let Some(source_revision) = self.index.revisions.get(source_revision_id) else {
+            return Err(FacadeError::owner(OwnerError::Unsupported));
+        };
+        Ok(current_draft.objective_item != source_revision.objective_item)
+    }
+
+    fn ensure_current_draft_version(
+        &self,
+        draft_id: &str,
+        expected_draft_version: u64,
+    ) -> FacadeResult<()> {
+        let Some(current) = self.index.drafts.get(draft_id) else {
+            return Err(FacadeError::owner(OwnerError::Unsupported));
+        };
+        if current.version != expected_draft_version {
+            return Err(FacadeError::stale("stale_draft"));
+        }
+        Ok(())
+    }
+
     fn validate_command(&self, command: &Command, kind: &str) -> FacadeResult<()> {
         if command.schema != "ascension.context-control.command.v1"
             || command.kind != kind
             || !valid_id(&command.idempotency_key)
             || !valid_id(&command.command_window_id)
+            || !valid_safe_integer(command.expected_control_version)
         {
             return Err(FacadeError::invalid("invalid_command"));
         }
@@ -1800,18 +1939,18 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                 .client
                 .call(|owner, auth| owner.eligible_items(auth, &scope))
             {
-                Ok(items) if items.len() <= crate::control::MAX_ITEMS => {
-                    self.index.item_refs.clear();
-                    for item in items {
-                        if item.scope == self.config.scope && item.item.valid() {
+                Ok(items) => match self.project_items(items, false) {
+                    Ok(items) => {
+                        self.index.item_refs.clear();
+                        for item in items {
                             self.index
                                 .item_refs
                                 .insert((item.item.item_id.clone(), item.item.version), item.item);
                         }
+                        self.index.items_complete = true;
                     }
-                    self.index.items_complete = true;
-                }
-                Ok(_) => self.index.items_complete = false,
+                    Err(_) => self.index.items_complete = false,
+                },
                 Err(_) => self.index.items_complete = false,
             }
         }
@@ -1821,70 +1960,74 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                 .client
                 .call(|owner, auth| owner.revisions(auth, &scope))
             {
-                Ok(revisions) if revisions.len() <= crate::control::MAX_ITEMS => {
-                    self.index.revision_ids = revisions
-                        .into_iter()
-                        .filter(|revision| revision.scope == self.config.scope)
-                        .map(|revision| revision.revision_id)
-                        .filter(|id| valid_id(id))
-                        .collect();
-                    self.index.revisions_complete = true;
-                }
-                Ok(_) => self.index.revisions_complete = false,
+                Ok(revisions) => match self.project_revisions(revisions) {
+                    Ok(revisions) => {
+                        self.index.revision_ids = revisions
+                            .iter()
+                            .map(|revision| revision.revision_id.clone())
+                            .collect();
+                        self.index.revisions = revisions
+                            .into_iter()
+                            .map(|revision| (revision.revision_id.clone(), revision))
+                            .collect();
+                        self.index.revisions_complete = true;
+                    }
+                    Err(_) => self.index.revisions_complete = false,
+                },
                 Err(_) => self.index.revisions_complete = false,
             }
         }
         if owner_supports_list(&capabilities.supported_operations, "drafts") {
             let scope = self.config.scope.clone();
             match self.client.call(|owner, auth| owner.drafts(auth, &scope)) {
-                Ok(drafts) if drafts.len() <= crate::control::MAX_ITEMS => {
-                    self.index.drafts.clear();
-                    self.index.draft_ids = drafts
-                        .into_iter()
-                        .filter(|draft| draft.scope == self.config.scope)
-                        .filter(|draft| valid_id(&draft.draft_id))
-                        .map(|draft| {
-                            self.index
-                                .drafts
-                                .insert(draft.draft_id.clone(), draft.clone());
-                            draft.draft_id
-                        })
-                        .collect();
-                    self.index.drafts_complete = true;
-                }
-                Ok(_) => self.index.drafts_complete = false,
+                Ok(drafts) => match self.project_drafts(drafts) {
+                    Ok(drafts) => {
+                        self.index.drafts.clear();
+                        self.index.draft_ids = drafts
+                            .into_iter()
+                            .map(|draft| {
+                                self.index
+                                    .drafts
+                                    .insert(draft.draft_id.clone(), draft.clone());
+                                draft.draft_id
+                            })
+                            .collect();
+                        self.index.drafts_complete = true;
+                    }
+                    Err(_) => self.index.drafts_complete = false,
+                },
                 Err(_) => self.index.drafts_complete = false,
             }
         }
         if owner_supports_list(&capabilities.supported_operations, "previews") {
             let scope = self.config.scope.clone();
             match self.client.call(|owner, auth| owner.previews(auth, &scope)) {
-                Ok(previews) if previews.len() <= crate::control::MAX_ITEMS => {
-                    self.index.preview_ids = previews
-                        .into_iter()
-                        .filter(|preview| preview.scope == self.config.scope)
-                        .map(|preview| preview.preview_id)
-                        .filter(|id| valid_id(id))
-                        .collect();
-                    self.index.previews_complete = true;
-                }
-                Ok(_) => self.index.previews_complete = false,
+                Ok(previews) => match self.project_previews(previews) {
+                    Ok(previews) => {
+                        self.index.preview_ids = previews
+                            .into_iter()
+                            .map(|preview| preview.preview_id)
+                            .collect();
+                        self.index.previews_complete = true;
+                    }
+                    Err(_) => self.index.previews_complete = false,
+                },
                 Err(_) => self.index.previews_complete = false,
             }
         }
         if owner_supports_list(&capabilities.supported_operations, "receipts") {
             let scope = self.config.scope.clone();
             match self.client.call(|owner, auth| owner.receipts(auth, &scope)) {
-                Ok(receipts) if receipts.len() <= crate::control::MAX_ITEMS => {
-                    self.index.receipt_ids = receipts
-                        .into_iter()
-                        .filter(|receipt| receipt.scope == self.config.scope)
-                        .map(|receipt| receipt.command_id)
-                        .filter(|id| valid_id(id))
-                        .collect();
-                    self.index.receipts_complete = true;
-                }
-                Ok(_) => self.index.receipts_complete = false,
+                Ok(receipts) => match self.project_receipts(receipts) {
+                    Ok(receipts) => {
+                        self.index.receipt_ids = receipts
+                            .into_iter()
+                            .map(|receipt| receipt.command_id)
+                            .collect();
+                        self.index.receipts_complete = true;
+                    }
+                    Err(_) => self.index.receipts_complete = false,
+                },
                 Err(_) => self.index.receipts_complete = false,
             }
         }
@@ -1909,7 +2052,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
     }
 
     fn ensure_item(&self, item: &ItemRef) -> FacadeResult<()> {
-        if !item.valid() {
+        if !valid_item_ref(item) {
             return Err(FacadeError::invalid("invalid_reference"));
         }
         match self
@@ -1926,12 +2069,18 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
 
     fn scoped_state(&self, state: State) -> FacadeResult<State> {
         self.validate_scope(&state.scope)?;
-        if !valid_id(&state.status)
+        if state.schema != crate::control::STATE_SCHEMA
+            || !STATE_STATUSES.contains(&state.status.as_str())
+            || !valid_safe_integer(state.control_version)
+            || !valid_positive_safe_integer(state.controller_epoch)
+            || !valid_safe_integer(state.gate_epoch)
+            || !valid_safe_integer(state.plan_epoch)
             || !valid_id(&state.active_revision_id)
             || !valid_id(&state.command_window_id)
             || !valid_timestamp(&state.command_window_expires_at)
             || state.outstanding_provider_attempts.len() > crate::control::MAX_ITEMS
             || state.unresolved_operations.len() > crate::control::MAX_ITEMS
+            || state.last_sequence > MAX_SAFE_INTEGER
             || state
                 .outstanding_provider_attempts
                 .iter()
@@ -1940,11 +2089,34 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             || state
                 .boundary
                 .as_ref()
-                .is_some_and(|boundary| self.validate_scope(&boundary.scope).is_err())
+                .is_some_and(|boundary| self.validate_boundary(boundary).is_err())
         {
             return Err(FacadeError::invalid("owner_invalid_state"));
         }
         Ok(state)
+    }
+
+    fn validate_boundary(&self, boundary: &Boundary) -> FacadeResult<()> {
+        self.validate_scope(&boundary.scope)?;
+        if !valid_id(&boundary.state_id)
+            || !valid_safe_integer(boundary.generation)
+            || !valid_digest(&boundary.observation_sha256)
+            || !valid_digest(&boundary.catalog_sha256)
+            || !valid_positive_safe_integer(boundary.controller_epoch)
+            || !valid_safe_integer(boundary.gate_epoch)
+            || !valid_safe_integer(boundary.control_version)
+            || !valid_safe_integer(boundary.lease_epoch)
+            || !valid_id(&boundary.adapter_revision)
+            || !valid_digest(&boundary.adapter_sha256)
+            || !valid_id(&boundary.model)
+            || !valid_digest(&boundary.configuration_sha256)
+            || !valid_digest(&boundary.output_schema_sha256)
+            || !valid_digest(&boundary.capabilities_sha256)
+            || !valid_id(&boundary.authorization_policy_version)
+        {
+            return Err(FacadeError::invalid("owner_invalid_boundary"));
+        }
+        Ok(())
     }
 
     fn project_items(
@@ -1959,9 +2131,8 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         let mut content_bytes = 0_usize;
         for mut item in items {
             self.validate_scope(&item.scope)?;
-            if !item.item.valid()
-                || item.kind.is_empty()
-                || !valid_id(&item.kind)
+            if !valid_item_ref(&item.item)
+                || !ELIGIBLE_ITEM_KINDS.contains(&item.kind.as_str())
                 || item.bytes > crate::control::MAX_COMPONENT_BYTES
                 || !valid_timestamp(&item.expires_at)
             {
@@ -1976,6 +2147,11 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             {
                 return Err(FacadeError::invalid("owner_invalid_item"));
             }
+            if item.content.as_deref().is_some_and(|content| {
+                content.contains('\0') || content.len() > crate::control::MAX_COMPONENT_BYTES
+            }) {
+                return Err(FacadeError::invalid("owner_invalid_item"));
+            }
             if include_content {
                 content_bytes =
                     content_bytes.saturating_add(item.content.as_ref().map_or(0, String::len));
@@ -1983,6 +2159,9 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             if include_content && content_bytes > MAX_HTTP_BODY_BYTES {
                 return Err(FacadeError::invalid("owner_items_too_large"));
             }
+            item.locked_reason = item
+                .locked_reason
+                .filter(|reason| valid_locked_reason(reason));
             if !include_content || item.protected || !item.content_available {
                 item.content = None;
             }
@@ -1997,23 +2176,42 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         }
         for revision in &revisions {
             self.validate_scope(&revision.scope)?;
-            if !valid_id(&revision.revision_id)
+            if revision.schema != crate::control::REVISION_SCHEMA
+                || !valid_id(&revision.revision_id)
                 || !valid_id(&revision.parent_revision_id)
+                || revision.sequence == 0
+                || revision.sequence > MAX_SAFE_INTEGER
                 || revision.selected_items.len() > crate::control::MAX_ITEMS
-                || revision.note_items.len() > crate::control::MAX_ITEMS
+                || revision.note_items.len() > crate::control::MAX_NOTES
                 || revision
                     .selected_items
                     .iter()
                     .chain(revision.note_items.iter())
-                    .any(|item| !item.valid())
+                    .any(|item| !valid_item_ref(item))
+                || !unique_item_refs(&revision.selected_items)
+                || !unique_item_refs(&revision.note_items)
                 || revision
                     .pinned_item_ids
                     .iter()
                     .any(|item_id| !valid_id(item_id))
+                || !unique_strings(&revision.pinned_item_ids)
+                || !revision.pinned_item_ids.iter().all(|item_id| {
+                    revision
+                        .selected_items
+                        .iter()
+                        .any(|item| item.item_id == *item_id)
+                })
                 || revision
                     .objective_item
                     .as_ref()
-                    .is_some_and(|item| !item.valid())
+                    .is_some_and(|item| !valid_item_ref(item))
+                || !valid_id(&revision.approved_preview_id)
+                || !valid_digest(&revision.approved_manifest_sha256)
+                || !valid_id(&revision.author_ref)
+                || !valid_id(&revision.intervention_id)
+                || !valid_timestamp(&revision.committed_at)
+                || revision.plan_epoch > MAX_SAFE_INTEGER
+                || revision.state_after_commit != "paused_committed"
             {
                 return Err(FacadeError::invalid("owner_invalid_revision"));
             }
@@ -2039,24 +2237,35 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
     }
 
     fn validate_draft(&self, draft: &Draft) -> FacadeResult<()> {
-        if !valid_id(&draft.draft_id)
+        if draft.schema != crate::control::DRAFT_SCHEMA
+            || !valid_id(&draft.draft_id)
             || !valid_id(&draft.base_revision_id)
             || draft.version == 0
+            || draft.version > MAX_SAFE_INTEGER
             || draft.selected_items.len() > crate::control::MAX_ITEMS
-            || draft.note_items.len() > crate::control::MAX_ITEMS
+            || draft.note_items.len() > crate::control::MAX_NOTES
             || draft
                 .selected_items
                 .iter()
                 .chain(draft.note_items.iter())
-                .any(|item| !item.valid())
+                .any(|item| !valid_item_ref(item))
+            || !unique_item_refs(&draft.selected_items)
+            || !unique_item_refs(&draft.note_items)
             || draft
                 .pinned_item_ids
                 .iter()
                 .any(|item_id| !valid_id(item_id))
+            || !unique_strings(&draft.pinned_item_ids)
+            || !draft.pinned_item_ids.iter().all(|item_id| {
+                draft
+                    .selected_items
+                    .iter()
+                    .any(|item| item.item_id == *item_id)
+            })
             || draft
                 .objective_item
                 .as_ref()
-                .is_some_and(|item| !item.valid())
+                .is_some_and(|item| !valid_item_ref(item))
             || !valid_timestamp(&draft.expires_at)
             || !valid_id(&draft.author_ref)
         {
@@ -2077,16 +2286,23 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
 
     fn project_preview(&self, preview: Preview) -> FacadeResult<Preview> {
         self.validate_scope(&preview.scope)?;
-        self.validate_scope(&preview.boundary.scope)?;
-        if !valid_id(&preview.preview_id)
+        self.validate_boundary(&preview.boundary)?;
+        if preview.schema != crate::control::PREVIEW_SCHEMA
+            || !valid_id(&preview.preview_id)
             || !valid_id(&preview.draft_id)
             || !valid_id(&preview.base_revision_id)
             || preview.draft_version == 0
-            || preview.blockers.len() > crate::control::MAX_OPERATIONS
+            || preview.draft_version > MAX_SAFE_INTEGER
+            || preview.blockers.len() > MAX_FACADE_BLOCKERS
             || preview.blockers.iter().any(|blocker| !valid_id(blocker))
-            || preview.components.len() > 128
+            || !unique_strings(&preview.blockers)
+            || preview.components.len() > MAX_FACADE_COMPONENTS
             || preview.selected_items.len() > crate::control::MAX_ITEMS
-            || preview.selected_items.iter().any(|item| !item.valid())
+            || preview
+                .selected_items
+                .iter()
+                .any(|item| !valid_item_ref(item))
+            || !unique_item_refs(&preview.selected_items)
             || preview
                 .prepared_manifest_sha256
                 .as_deref()
@@ -2106,11 +2322,24 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             )
             || preview.provider_added_context != "not_exposed"
             || preview.effect_class != "local_preparation_only"
+            || (preview.applicable
+                && (!preview.blockers.is_empty()
+                    || preview.prepared_manifest_sha256.is_none()
+                    || preview.components.is_empty()
+                    || preview.model_execution_id.is_none()
+                    || preview.provider_attempt_id.is_none()
+                    || !matches!(
+                        preview.budget_status.as_str(),
+                        "within_known_local_limit" | "bounded_unknown_total"
+                    )
+                    || (preview.budget_status == "bounded_unknown_total"
+                        && !preview.unknown_total_risk_acknowledged)))
         {
             return Err(FacadeError::invalid("owner_invalid_preview"));
         }
         for component in &preview.components {
             if !valid_id(&component.component_id)
+                || component.ordinal > MAX_SAFE_INTEGER
                 || !matches!(
                     component.kind.as_str(),
                     "stdin"
@@ -2125,6 +2354,15 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             {
                 return Err(FacadeError::invalid("owner_invalid_preview"));
             }
+        }
+        if !unique_strings(
+            &preview
+                .components
+                .iter()
+                .map(|component| component.component_id.clone())
+                .collect::<Vec<_>>(),
+        ) {
+            return Err(FacadeError::invalid("owner_invalid_preview"));
         }
         // `Preview` contains only owner-issued manifests and opaque content refs.  The facade
         // never exposes the owner's prepared input bytes or synthesizes a replacement.
@@ -2143,10 +2381,12 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
 
     fn project_receipt(&self, receipt: Receipt) -> FacadeResult<Receipt> {
         self.validate_scope(&receipt.scope)?;
-        if !valid_id(&receipt.command_id)
-            || !valid_id(&receipt.kind)
-            || !valid_id(&receipt.status)
-            || !valid_id(&receipt.effect)
+        if receipt.schema != crate::control::RECEIPT_SCHEMA
+            || !valid_id(&receipt.command_id)
+            || !RECEIPT_KINDS.contains(&receipt.kind.as_str())
+            || !RECEIPT_STATUSES.contains(&receipt.status.as_str())
+            || !RECEIPT_EFFECTS.contains(&receipt.effect.as_str())
+            || receipt.control_version > MAX_SAFE_INTEGER
             || !valid_id(&receipt.active_revision_id)
             || !valid_timestamp(&receipt.observed_at)
             || receipt
@@ -2166,10 +2406,11 @@ fn valid_owner_capabilities(capabilities: &ControlCapabilities, scope: &Scope) -
         && capabilities.scope == *scope
         && valid_id(&capabilities.adapter_revision)
         && capabilities.supported_operations.len() <= 32
+        && unique_strings(&capabilities.supported_operations)
         && capabilities
             .supported_operations
             .iter()
-            .all(|operation| valid_id(operation))
+            .all(|operation| valid_id(operation) && known_capability_operation(operation))
         && matches!(
             capabilities.exact_application_preview.as_str(),
             "supported" | "unsupported" | "unverified"
@@ -2187,6 +2428,53 @@ fn valid_owner_capabilities(capabilities: &ControlCapabilities, scope: &Scope) -
         && !capabilities.persistent_provider_sessions
         && !capabilities.direct_game_dispatch
         && !capabilities.commit_auto_resumes
+}
+
+fn validate_facade_capabilities(capabilities: &FacadeCapabilities) -> FacadeResult<()> {
+    if capabilities.schema != FACADE_CAPABILITIES_SCHEMA
+        || capabilities.composition != "harness_backed"
+        || !scope_valid(&capabilities.scope)
+        || capabilities.owner_supported_operations.len() > 32
+        || !capabilities
+            .owner_supported_operations
+            .iter()
+            .all(|operation| valid_id(operation) && known_owner_operation(operation))
+        || !unique_strings(&capabilities.owner_supported_operations)
+        || capabilities.forwarded_operations.len()
+            > OWNER_READ_CAPABILITIES.len() + OWNER_CONTROL_CAPABILITIES.len()
+        || !capabilities.forwarded_operations.iter().all(|operation| {
+            OWNER_READ_CAPABILITIES
+                .iter()
+                .chain(OWNER_CONTROL_CAPABILITIES)
+                .any(|known| known == operation)
+        })
+        || !unique_strings(&capabilities.forwarded_operations)
+        || capabilities.grant_permissions.len() > 7
+        || !capabilities.grant_permissions.iter().all(|permission| {
+            FacadePermission::ALL
+                .iter()
+                .any(|known| known == permission)
+        })
+        || !unique_strings(&capabilities.grant_permissions)
+        || !matches!(
+            capabilities.retention_mode,
+            RetentionMode::Off
+                | RetentionMode::Metadata
+                | RetentionMode::Memory
+                | RetentionMode::PrivateEncrypted
+        )
+        || !matches!(
+            capabilities.exact_application_preview.as_str(),
+            "owner_conditional" | "unavailable"
+        )
+        || capabilities.provider_added_context != "unknown"
+        || capabilities.direct_game_dispatch
+        || capabilities.duplicate_scheduler
+        || capabilities.legacy_demo
+    {
+        return Err(FacadeError::invalid("facade_capabilities_invalid"));
+    }
+    Ok(())
 }
 
 fn owner_supports_list(supported: &[String], operation: &str) -> bool {
@@ -2230,12 +2518,53 @@ fn known_owner_operation(operation: &str) -> bool {
         )
 }
 
+fn known_capability_operation(operation: &str) -> bool {
+    known_owner_operation(operation)
+        || matches!(
+            operation,
+            "include_item"
+                | "exclude_item"
+                | "pin_item"
+                | "unpin_item"
+                | "put_note"
+                | "remove_note"
+                | "set_objective"
+                | "restore_configuration"
+        )
+}
+
 fn valid_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= MAX_FACADE_ID_BYTES
         && value.bytes().enumerate().all(|(index, byte)| {
             byte.is_ascii_alphanumeric() || (index > 0 && b"._:-".contains(&byte))
         })
+}
+
+fn valid_safe_integer(value: u64) -> bool {
+    value <= MAX_SAFE_INTEGER
+}
+
+fn valid_item_ref(item: &ItemRef) -> bool {
+    item.valid() && valid_safe_integer(item.version)
+}
+
+fn valid_positive_safe_integer(value: u64) -> bool {
+    value > 0 && valid_safe_integer(value)
+}
+
+fn unique_strings(values: &[String]) -> bool {
+    let mut seen = BTreeSet::new();
+    values.iter().all(|value| seen.insert(value))
+}
+
+fn unique_item_refs(values: &[ItemRef]) -> bool {
+    let mut seen = BTreeSet::new();
+    values.iter().all(|value| seen.insert(value))
+}
+
+fn valid_locked_reason(value: &str) -> bool {
+    value.len() <= MAX_FACADE_LOCKED_REASON_BYTES && LOCKED_REASON_ALLOWLIST.contains(&value)
 }
 
 fn valid_digest(value: &str) -> bool {
@@ -2313,6 +2642,26 @@ fn valid_timestamp(value: &str) -> bool {
     {
         return false;
     }
+    let Ok(year) = date_parts[0].parse::<u16>() else {
+        return false;
+    };
+    let Ok(month) = date_parts[1].parse::<u8>() else {
+        return false;
+    };
+    let Ok(day) = date_parts[2].parse::<u8>() else {
+        return false;
+    };
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => 0,
+    };
+    if day == 0 || day > days_in_month {
+        return false;
+    }
     let clock_parts = clock.split(':').collect::<Vec<_>>();
     if clock_parts.len() != 3
         || clock_parts[0].len() != 2
@@ -2366,42 +2715,64 @@ fn parse_facade_json<T: DeserializeOwned>(body: &[u8]) -> FacadeResult<T> {
 }
 
 fn to_value<T: Serialize>(value: T) -> FacadeResult<serde_json::Value> {
-    serde_json::to_value(value).map_err(|_| FacadeError::invalid("encoding"))
+    let bytes = serde_json::to_vec(&value).map_err(|_| FacadeError::invalid("encoding"))?;
+    if bytes.len() > MAX_FACADE_RESPONSE_BYTES {
+        return Err(FacadeError::response_too_large());
+    }
+    serde_json::from_slice(&bytes).map_err(|_| FacadeError::invalid("encoding"))
 }
 
 fn facade_http_result<T: Serialize>(result: FacadeResult<T>) -> HttpResponse {
     match result {
         Ok(value) => {
-            let body =
-                serde_json::to_value(value).unwrap_or_else(|_| serde_json::json!({"error":{}}));
-            HttpResponse::json(200, body)
-        }
-        Err(error) => {
-            let status = if error.code == "route_not_found" {
-                404
-            } else {
-                match error.class {
-                    FacadeErrorClass::Invalid => 400,
-                    FacadeErrorClass::Unauthorized => 401,
-                    FacadeErrorClass::Denied => 403,
-                    FacadeErrorClass::NotFound => 404,
-                    FacadeErrorClass::Stale => 409,
-                    FacadeErrorClass::Expired => 410,
-                    FacadeErrorClass::Unavailable | FacadeErrorClass::Unknown => 503,
-                }
+            let body = match serde_json::to_vec(&value) {
+                Ok(body) if body.len() <= MAX_FACADE_RESPONSE_BYTES => body,
+                Ok(_) => return facade_error_http_response(FacadeError::response_too_large()),
+                Err(_) => return facade_error_http_response(FacadeError::invalid("encoding")),
             };
-            HttpResponse::json(
-                status,
-                serde_json::json!({
-                    "schema": FACADE_ERROR_SCHEMA,
-                    "error": {
-                        "code": error.code,
-                        "retryable": error.retryable
-                    }
-                }),
-            )
+            HttpResponse::raw_json(200, body)
         }
+        Err(error) => facade_error_http_response(error),
     }
+}
+
+fn facade_http_error(status: u16, code: &'static str) -> HttpResponse {
+    HttpResponse::json(
+        status,
+        serde_json::json!({
+            "schema": FACADE_ERROR_SCHEMA,
+            "error": {
+                "code": code,
+                "retryable": false
+            }
+        }),
+    )
+}
+
+fn facade_error_http_response(error: FacadeError) -> HttpResponse {
+    let status = if error.code == "route_not_found" {
+        404
+    } else {
+        match error.class {
+            FacadeErrorClass::Invalid => 400,
+            FacadeErrorClass::Unauthorized => 401,
+            FacadeErrorClass::Denied => 403,
+            FacadeErrorClass::NotFound => 404,
+            FacadeErrorClass::Stale => 409,
+            FacadeErrorClass::Expired => 410,
+            FacadeErrorClass::Unavailable | FacadeErrorClass::Unknown => 503,
+        }
+    };
+    HttpResponse::json(
+        status,
+        serde_json::json!({
+            "schema": FACADE_ERROR_SCHEMA,
+            "error": {
+                "code": error.code,
+                "retryable": error.retryable
+            }
+        }),
+    )
 }
 
 fn duplicate_security_header(request: &HttpRequest, name: &str) -> bool {

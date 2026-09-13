@@ -26,6 +26,12 @@ struct RecordingOwner {
     inner: ControlPlane,
     calls: Vec<String>,
     commit_effects: BTreeSet<String>,
+    commit_effect_count: usize,
+    drop_next_commit_reply: bool,
+    hostile_locked_reason: Option<String>,
+    hostile_state_model: Option<String>,
+    hostile_preview_base: Option<String>,
+    oversized_items: bool,
 }
 
 impl RecordingOwner {
@@ -34,7 +40,30 @@ impl RecordingOwner {
             inner,
             calls: Vec::new(),
             commit_effects: BTreeSet::new(),
+            commit_effect_count: 0,
+            drop_next_commit_reply: false,
+            hostile_locked_reason: None,
+            hostile_state_model: None,
+            hostile_preview_base: None,
+            oversized_items: false,
         }
+    }
+
+    fn with_lost_commit_reply(mut self) -> Self {
+        self.drop_next_commit_reply = true;
+        self
+    }
+
+    fn with_hostile_projections(mut self) -> Self {
+        self.hostile_locked_reason = Some("/srv/private/owner-secret".to_owned());
+        self.hostile_state_model = Some("/srv/private/model".to_owned());
+        self.hostile_preview_base = Some("/srv/private/base".to_owned());
+        self
+    }
+
+    fn with_oversized_items(mut self) -> Self {
+        self.oversized_items = true;
+        self
     }
 
     fn record(&mut self, operation: &str) {
@@ -62,7 +91,11 @@ impl HarnessOwnerPort for RecordingOwner {
         scope: &ControlScope,
     ) -> Result<ControlState, OwnerError> {
         self.record("state");
-        HarnessOwnerPort::state(&mut self.inner, auth, scope)
+        let mut state = HarnessOwnerPort::state(&mut self.inner, auth, scope)?;
+        if let Some(model) = self.hostile_state_model.clone() {
+            state.boundary.as_mut().expect("fixture boundary").model = model;
+        }
+        Ok(state)
     }
 
     fn eligible_items(
@@ -71,7 +104,17 @@ impl HarnessOwnerPort for RecordingOwner {
         scope: &ControlScope,
     ) -> Result<Vec<EligibleItem>, OwnerError> {
         self.record("eligible_items");
-        HarnessOwnerPort::eligible_items(&mut self.inner, auth, scope)
+        let mut items = HarnessOwnerPort::eligible_items(&mut self.inner, auth, scope)?;
+        if let Some(reason) = self.hostile_locked_reason.clone()
+            && let Some(item) = items.first_mut()
+        {
+            item.locked_reason = Some(reason);
+        }
+        if self.oversized_items {
+            let first = items.first().cloned().expect("fixture item");
+            items.resize(64, first);
+        }
+        Ok(items)
     }
 
     fn revisions(
@@ -180,7 +223,7 @@ impl HarnessOwnerPort for RecordingOwner {
         risk_ack: bool,
     ) -> Result<Preview, OwnerError> {
         self.record("create_preview");
-        HarnessOwnerPort::create_preview(
+        let mut preview = HarnessOwnerPort::create_preview(
             &mut self.inner,
             auth,
             scope,
@@ -189,7 +232,11 @@ impl HarnessOwnerPort for RecordingOwner {
             applicable_requested,
             expected_control_version,
             risk_ack,
-        )
+        )?;
+        if let Some(base_revision) = self.hostile_preview_base.clone() {
+            preview.base_revision_id = base_revision;
+        }
+        Ok(preview)
     }
 
     fn pause(
@@ -207,8 +254,17 @@ impl HarnessOwnerPort for RecordingOwner {
         command: ControlCommand,
     ) -> Result<Receipt, OwnerError> {
         self.record("commit");
-        let receipt = HarnessOwnerPort::commit(&mut self.inner, auth, command)?;
+        let events_before = self.inner.events().len();
+        let result = HarnessOwnerPort::commit(&mut self.inner, auth, command);
+        if self.inner.events().len() > events_before {
+            self.commit_effect_count += 1;
+        }
+        let receipt = result?;
         self.commit_effects.insert(receipt.command_id.clone());
+        if self.drop_next_commit_reply {
+            self.drop_next_commit_reply = false;
+            return Err(OwnerError::Unavailable);
+        }
         Ok(receipt)
     }
 
@@ -304,6 +360,80 @@ fn history(plane: &ControlPlane) -> ControlItemRef {
         .find(|item| item.item.item_id == "history-1")
         .expect("history")
         .item
+}
+
+fn objective_revision() -> (RecordingOwner, ControlScope, String) {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("objective-editor", FULL_TOKEN, 100);
+    let active = service.state(&full).expect("state").active_revision_id;
+    let draft = service.create_draft(&full, &active).expect("draft");
+    let objective = service
+        .edit_draft(
+            &full,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: scope.clone(),
+                draft_id: draft.draft_id.clone(),
+                expected_draft_version: draft.version,
+                expected_active_revision_id: active.clone(),
+                operations: vec![ControlOperation::SetObjective {
+                    text: "objective for restore authorization".to_owned(),
+                }],
+            },
+        )
+        .expect("objective");
+    let pause = command(
+        &service.owner().inner,
+        "pause",
+        "objective-pause",
+        service.owner().inner.state().control_version,
+    );
+    service.pause(&full, pause).expect("pause");
+    let preview = service
+        .preview(
+            &full,
+            PreviewRequest {
+                scope: scope.clone(),
+                draft_id: objective.draft_id.clone(),
+                expected_draft_version: objective.version,
+                applicable_requested: true,
+                expected_control_version: service.owner().inner.state().control_version,
+                unknown_total_risk_acknowledged: true,
+            },
+        )
+        .expect("preview");
+    let mut commit = command(
+        &service.owner().inner,
+        "commit",
+        "objective-commit",
+        service.owner().inner.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(active);
+    commit.preview_id = Some(preview.preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    let committed = service.held_commit(&full, commit).expect("commit");
+    let mut resume = command(
+        &service.owner().inner,
+        "resume",
+        "objective-resume",
+        service.owner().inner.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(committed.active_revision_id.clone());
+    resume.expected_preview_id = Some(preview.preview_id);
+    service.resume(&full, resume).expect("resume");
+    let source_revision = committed.active_revision_id;
+    let owner = service.into_owner();
+    (owner, scope, source_revision)
 }
 
 #[test]
@@ -416,6 +546,7 @@ fn harness_owner_composition_delegates_scoped_held_flow_and_redacts_metadata() {
     assert!(service.owner().calls.contains(&"commit".to_owned()));
     assert!(service.owner().calls.contains(&"resume".to_owned()));
     assert_eq!(service.owner().commit_effects.len(), 1);
+    assert_eq!(service.owner().commit_effect_count, 1);
 
     let journal = service
         .owner()
@@ -446,6 +577,7 @@ fn harness_owner_composition_delegates_scoped_held_flow_and_redacts_metadata() {
         .expect("idempotent commit replay");
     assert_eq!(replayed, committed);
     assert_eq!(recovered.owner().commit_effects.len(), 1);
+    assert_eq!(recovered.owner().commit_effect_count, 0);
 }
 
 #[test]
@@ -635,6 +767,612 @@ fn expiry_foreign_references_and_restart_receipts_are_bounded() {
     assert_eq!(capabilities.composition, "harness_backed");
     assert!(!capabilities.legacy_demo);
     assert!(!capabilities.duplicate_scheduler);
+}
+
+#[test]
+fn restore_objective_requires_a_grant_before_owner_forwarding() {
+    let (owner, scope, source_revision) = objective_revision();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        edit_grant(&scope, EDIT_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("ordinary edit service");
+    let ordinary = request("ordinary-editor", EDIT_TOKEN, 100);
+    let draft = service
+        .create_draft(&ordinary, &source_revision)
+        .expect("draft");
+    let before = service.owner().calls.len();
+    let error = service
+        .edit_draft(
+            &ordinary,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope,
+                draft_id: draft.draft_id,
+                expected_draft_version: draft.version,
+                expected_active_revision_id: source_revision.clone(),
+                operations: vec![ControlOperation::RestoreConfiguration {
+                    source_revision_id: source_revision,
+                }],
+            },
+        )
+        .expect_err("restore objective requires the separate grant");
+    assert_eq!(error.code, "objective_grant_required");
+    assert_eq!(
+        service.owner().calls[before..]
+            .iter()
+            .filter(|operation| operation.as_str() == "apply_patch")
+            .count(),
+        0
+    );
+}
+
+#[test]
+fn cached_draft_version_rejects_stale_patch_before_owner_mutation() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("editor", FULL_TOKEN, 100);
+    let active = service.state(&full).expect("state").active_revision_id;
+    let draft = service.create_draft(&full, &active).expect("draft");
+    let item = history(&service.owner().inner);
+    let patch = ControlPatch {
+        schema: "ascension.context-control.patch.v1".to_owned(),
+        scope: scope.clone(),
+        draft_id: draft.draft_id.clone(),
+        expected_draft_version: draft.version,
+        expected_active_revision_id: active.clone(),
+        operations: vec![ControlOperation::IncludeItem { item }],
+    };
+    service
+        .edit_draft(&full, patch.clone())
+        .expect("first edit");
+    let before = service.owner().calls.len();
+    let error = service
+        .edit_draft(&full, patch)
+        .expect_err("cached version is stale");
+    assert_eq!(error.code, "stale_draft");
+    assert_eq!(
+        service.owner().calls[before..]
+            .iter()
+            .filter(|operation| operation.as_str() == "apply_patch")
+            .count(),
+        0
+    );
+}
+
+#[test]
+fn hostile_owner_projections_are_redacted_or_rejected_and_responses_are_capped() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic()).with_hostile_projections();
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("reader", FULL_TOKEN, 100);
+    let items = service.eligible_items(&full, false).expect("items");
+    assert!(items[0].locked_reason.is_none());
+    assert!(
+        !serde_json::to_string(&items)
+            .expect("items JSON")
+            .contains("owner-secret")
+    );
+    let state = service.state(&full).expect_err("host path is not metadata");
+    assert_eq!(state.code, "owner_invalid_state");
+    assert!(!state.to_string().contains("/srv/private"));
+
+    let draft = service
+        .create_draft(&full, "revision-1")
+        .expect("draft for preview");
+    let preview = service
+        .preview(
+            &full,
+            PreviewRequest {
+                scope: scope.clone(),
+                draft_id: draft.draft_id,
+                expected_draft_version: draft.version,
+                applicable_requested: false,
+                expected_control_version: 0,
+                unknown_total_risk_acknowledged: false,
+            },
+        )
+        .expect_err("host path is not a preview reference");
+    assert_eq!(preview.code, "owner_invalid_preview");
+    assert!(!preview.to_string().contains("/srv/private"));
+
+    let oversized_owner = RecordingOwner::new(ControlPlane::synthetic()).with_oversized_items();
+    let oversized_scope = oversized_owner.scope();
+    let mut oversized = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            oversized_owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&oversized_scope, FULL_TOKEN, 10_000),
+        config(oversized_scope.clone()),
+    )
+    .expect("oversized service");
+    let response = oversized.handle_http_at(
+        &context_service::HttpRequest {
+            method: "GET".to_owned(),
+            target: format!(
+                "/v2/runs/{}/context-control/eligible-items",
+                oversized_scope.run_id
+            ),
+            headers: vec![
+                ("host".to_owned(), HOST.to_owned()),
+                ("origin".to_owned(), ORIGIN.to_owned()),
+                (
+                    "authorization".to_owned(),
+                    format!("Bearer {}", String::from_utf8_lossy(FULL_TOKEN)),
+                ),
+                ("x-principal".to_owned(), "reader".to_owned()),
+            ],
+            body: Vec::new(),
+        },
+        100,
+    );
+    assert_eq!(response.status, 503);
+    assert!(response.body.len() <= context_service::MAX_FACADE_RESPONSE_BYTES);
+    let body: serde_json::Value = serde_json::from_slice(&response.body).expect("error JSON");
+    assert_eq!(body["error"]["code"], "response_too_large");
+}
+
+#[test]
+fn lost_commit_reply_recovers_receipt_after_process_restart_without_repeating_effect() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic()).with_lost_commit_reply();
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("editor", FULL_TOKEN, 100);
+    let active = service.state(&full).expect("state").active_revision_id;
+    let draft = service.create_draft(&full, &active).expect("draft");
+    let item = history(&service.owner().inner);
+    let edited = service
+        .edit_draft(
+            &full,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: scope.clone(),
+                draft_id: draft.draft_id,
+                expected_draft_version: draft.version,
+                expected_active_revision_id: active.clone(),
+                operations: vec![ControlOperation::IncludeItem { item }],
+            },
+        )
+        .expect("edit");
+    let pause = command(
+        &service.owner().inner,
+        "pause",
+        "lost-reply-pause",
+        service.owner().inner.state().control_version,
+    );
+    service.pause(&full, pause).expect("pause");
+    let preview = service
+        .preview(
+            &full,
+            PreviewRequest {
+                scope: scope.clone(),
+                draft_id: edited.draft_id,
+                expected_draft_version: edited.version,
+                applicable_requested: true,
+                expected_control_version: service.owner().inner.state().control_version,
+                unknown_total_risk_acknowledged: true,
+            },
+        )
+        .expect("preview");
+    let mut commit = command(
+        &service.owner().inner,
+        "commit",
+        "lost-reply-commit",
+        service.owner().inner.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(active);
+    commit.preview_id = Some(preview.preview_id);
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    let lost = service
+        .held_commit(&full, commit.clone())
+        .expect_err("reply is intentionally lost after apply");
+    assert_eq!(lost.code, "owner_unavailable");
+    assert_eq!(service.owner().commit_effect_count, 1);
+
+    let journal = service
+        .owner()
+        .inner
+        .export_journal()
+        .expect("durable journal");
+    let recovered_owner =
+        RecordingOwner::new(ControlPlane::recover_journal(&journal).expect("restart recovery"));
+    let recovered_scope = recovered_owner.scope();
+    let mut recovered = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            recovered_owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&recovered_scope, FULL_TOKEN, 10_000),
+        config(recovered_scope),
+    )
+    .expect("recovered service");
+    let commit_receipt_id = service
+        .owner()
+        .inner
+        .receipts()
+        .into_iter()
+        .find(|receipt| receipt.kind == "commit")
+        .expect("commit receipt")
+        .command_id;
+    let receipt = recovered
+        .read_receipt(&full, &commit_receipt_id)
+        .expect("receipt recovered after restart");
+    let replayed = recovered
+        .held_commit(&full, commit)
+        .expect("idempotent replay");
+    assert_eq!(replayed, receipt);
+    assert_eq!(recovered.owner().commit_effect_count, 0);
+}
+
+#[test]
+fn published_facade_openapi_is_local_and_matches_transport_shapes() {
+    let document: serde_json::Value = serde_json::from_str(include_str!(
+        "../contracts/context-control/harness-facade.openapi.json"
+    ))
+    .expect("facade OpenAPI JSON");
+    assert_eq!(document["openapi"], "3.1.0");
+    assert_eq!(
+        document["x-response-max-bytes"],
+        context_service::MAX_FACADE_RESPONSE_BYTES
+    );
+    let paths = &document["paths"];
+    let create_request = &paths["/v2/runs/{run_id}/context-control/drafts"]["post"]["requestBody"]
+        ["content"]["application/json"]["schema"];
+    assert_eq!(
+        create_request["$ref"],
+        "#/components/schemas/CreateDraftRequest"
+    );
+    assert!(
+        !create_request
+            .get("required")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|required| required.iter().any(|field| field == "scope"))
+    );
+    assert_eq!(
+        paths["/v2/runs/{run_id}/context-control/capabilities"]["get"]["responses"]["200"]["content"]
+            ["application/json"]["schema"]["$ref"],
+        "#/components/schemas/FacadeCapabilities"
+    );
+    assert_eq!(
+        paths["/v2/runs/{run_id}/context-control/eligible-items"]["get"]["responses"]["200"]["content"]
+            ["application/json"]["schema"]["type"],
+        "array"
+    );
+    let mut references = Vec::new();
+    collect_refs(&document, &mut references);
+    assert!(
+        references
+            .iter()
+            .all(|reference| reference.starts_with("#/components/")),
+        "facade OpenAPI must not import legacy external operation schemas"
+    );
+}
+
+#[test]
+fn transport_requests_and_responses_validate_against_published_facade_schemas() {
+    let document: serde_json::Value = serde_json::from_str(include_str!(
+        "../contracts/context-control/harness-facade.openapi.json"
+    ))
+    .expect("facade OpenAPI JSON");
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+
+    let capabilities_response = service.handle_http_at(
+        &facade_http_request(
+            "GET",
+            format!("/v2/runs/{}/context-control/capabilities", scope.run_id),
+            Vec::new(),
+        ),
+        100,
+    );
+    assert_eq!(capabilities_response.status, 200);
+    let capabilities: serde_json::Value =
+        serde_json::from_slice(&capabilities_response.body).expect("capabilities response");
+    validate_openapi_value(
+        &document,
+        &document["components"]["schemas"]["FacadeCapabilities"],
+        &capabilities,
+    );
+
+    let eligible_response = service.handle_http_at(
+        &facade_http_request(
+            "GET",
+            format!("/v2/runs/{}/context-control/eligible-items", scope.run_id),
+            Vec::new(),
+        ),
+        100,
+    );
+    assert_eq!(eligible_response.status, 200);
+    let eligible: serde_json::Value =
+        serde_json::from_slice(&eligible_response.body).expect("eligible response");
+    validate_openapi_value(
+        &document,
+        &serde_json::json!({
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/EligibleItem"}
+        }),
+        &eligible,
+    );
+
+    let create_body = serde_json::json!({
+        "expected_active_revision_id": "revision-1"
+    });
+    validate_openapi_value(
+        &document,
+        &document["components"]["schemas"]["CreateDraftRequest"],
+        &create_body,
+    );
+    let create_response = service.handle_http_at(
+        &facade_http_request(
+            "POST",
+            format!("/v2/runs/{}/context-control/drafts", scope.run_id),
+            serde_json::to_vec(&create_body).expect("create body"),
+        ),
+        100,
+    );
+    assert_eq!(create_response.status, 200);
+    let draft: serde_json::Value =
+        serde_json::from_slice(&create_response.body).expect("draft response");
+    validate_openapi_value(
+        &document,
+        &document["components"]["schemas"]["Draft"],
+        &draft,
+    );
+}
+
+fn facade_http_request(
+    method: &str,
+    target: String,
+    body: Vec<u8>,
+) -> context_service::HttpRequest {
+    let mut headers = vec![
+        ("host".to_owned(), HOST.to_owned()),
+        ("origin".to_owned(), ORIGIN.to_owned()),
+        (
+            "authorization".to_owned(),
+            format!("Bearer {}", String::from_utf8_lossy(FULL_TOKEN)),
+        ),
+        ("x-principal".to_owned(), "schema-checker".to_owned()),
+    ];
+    if method == "POST" {
+        headers.push((
+            "x-csrf-token".to_owned(),
+            String::from_utf8_lossy(CSRF).into(),
+        ));
+    }
+    context_service::HttpRequest {
+        method: method.to_owned(),
+        target,
+        headers,
+        body,
+    }
+}
+
+fn validate_openapi_value(
+    document: &serde_json::Value,
+    schema: &serde_json::Value,
+    value: &serde_json::Value,
+) {
+    if let Err(error) = validate_openapi_value_inner(document, schema, value) {
+        panic!("value does not satisfy the published facade schema: {error}");
+    }
+}
+
+fn validate_openapi_value_inner(
+    document: &serde_json::Value,
+    schema: &serde_json::Value,
+    value: &serde_json::Value,
+) -> Result<(), String> {
+    let schema = if let Some(reference) = schema.get("$ref").and_then(serde_json::Value::as_str) {
+        resolve_openapi_ref(document, reference)?
+    } else {
+        schema
+    };
+    if let Some(variants) = schema.get("anyOf").and_then(serde_json::Value::as_array) {
+        if variants
+            .iter()
+            .any(|variant| validate_openapi_value_inner(document, variant, value).is_ok())
+        {
+            return Ok(());
+        }
+        return Err("no anyOf branch matched".to_owned());
+    }
+    if let Some(variants) = schema.get("oneOf").and_then(serde_json::Value::as_array) {
+        let matches = variants
+            .iter()
+            .filter(|variant| validate_openapi_value_inner(document, variant, value).is_ok())
+            .count();
+        if matches == 1 {
+            return Ok(());
+        }
+        return Err(format!("oneOf matched {matches} branches"));
+    }
+    if let Some(schemas) = schema.get("allOf").and_then(serde_json::Value::as_array) {
+        for branch in schemas {
+            validate_openapi_value_inner(document, branch, value)?;
+        }
+    }
+    if let Some(expected) = schema.get("const")
+        && expected != value
+    {
+        return Err(format!("expected const {expected}, got {value}"));
+    }
+    if let Some(values) = schema.get("enum").and_then(serde_json::Value::as_array)
+        && !values.iter().any(|expected| expected == value)
+    {
+        return Err(format!("value {value} is outside enum"));
+    }
+    if let Some(types) = schema.get("type") {
+        let matches = match types {
+            serde_json::Value::String(kind) => value_matches_openapi_type(value, kind),
+            serde_json::Value::Array(kinds) => kinds.iter().any(|kind| {
+                kind.as_str()
+                    .is_some_and(|kind| value_matches_openapi_type(value, kind))
+            }),
+            _ => false,
+        };
+        if !matches {
+            return Err(format!("value {value} has the wrong JSON type"));
+        }
+    }
+    if let Some(required) = schema.get("required").and_then(serde_json::Value::as_array) {
+        let object = value
+            .as_object()
+            .ok_or_else(|| "required properties need an object".to_owned())?;
+        for field in required.iter().filter_map(serde_json::Value::as_str) {
+            if !object.contains_key(field) {
+                return Err(format!("required property {field} is missing"));
+            }
+        }
+    }
+    if let Some(properties) = schema
+        .get("properties")
+        .and_then(serde_json::Value::as_object)
+    {
+        let object = value
+            .as_object()
+            .ok_or_else(|| "properties need an object".to_owned())?;
+        if schema
+            .get("additionalProperties")
+            .and_then(serde_json::Value::as_bool)
+            == Some(false)
+            && object.keys().any(|key| !properties.contains_key(key))
+        {
+            return Err("object contains an additional property".to_owned());
+        }
+        for (key, property_schema) in properties {
+            if let Some(property) = object.get(key) {
+                validate_openapi_value_inner(document, property_schema, property)?;
+            }
+        }
+    }
+    if let Some(items) = schema.get("items") {
+        let array = value
+            .as_array()
+            .ok_or_else(|| "items need an array".to_owned())?;
+        for item in array {
+            validate_openapi_value_inner(document, items, item)?;
+        }
+    }
+    if let Some(length) = schema.get("minLength").and_then(serde_json::Value::as_u64)
+        && value
+            .as_str()
+            .is_some_and(|text| text.chars().count() < length as usize)
+    {
+        return Err("string is shorter than minLength".to_owned());
+    }
+    if let Some(length) = schema.get("maxLength").and_then(serde_json::Value::as_u64)
+        && value
+            .as_str()
+            .is_some_and(|text| text.chars().count() > length as usize)
+    {
+        return Err("string is longer than maxLength".to_owned());
+    }
+    if let Some(length) = schema.get("minItems").and_then(serde_json::Value::as_u64)
+        && value
+            .as_array()
+            .is_some_and(|items| items.len() < length as usize)
+    {
+        return Err("array is shorter than minItems".to_owned());
+    }
+    if let Some(length) = schema.get("maxItems").and_then(serde_json::Value::as_u64)
+        && value
+            .as_array()
+            .is_some_and(|items| items.len() > length as usize)
+    {
+        return Err("array is longer than maxItems".to_owned());
+    }
+    Ok(())
+}
+
+fn resolve_openapi_ref<'a>(
+    document: &'a serde_json::Value,
+    reference: &str,
+) -> Result<&'a serde_json::Value, String> {
+    let path = reference
+        .strip_prefix("#/")
+        .ok_or_else(|| format!("external reference {reference}"))?;
+    let mut value = document;
+    for part in path.split('/') {
+        value = value
+            .get(part)
+            .ok_or_else(|| format!("unresolved reference {reference}"))?;
+    }
+    Ok(value)
+}
+
+fn value_matches_openapi_type(value: &serde_json::Value, kind: &str) -> bool {
+    match kind {
+        "array" => value.is_array(),
+        "boolean" => value.is_boolean(),
+        "integer" => value.as_u64().is_some() || value.as_i64().is_some(),
+        "null" => value.is_null(),
+        "number" => value.is_number(),
+        "object" => value.is_object(),
+        "string" => value.is_string(),
+        _ => false,
+    }
+}
+
+fn collect_refs(value: &serde_json::Value, references: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(object) => {
+            if let Some(reference) = object.get("$ref").and_then(serde_json::Value::as_str) {
+                references.push(reference.to_owned());
+            }
+            for child in object.values() {
+                collect_refs(child, references);
+            }
+        }
+        serde_json::Value::Array(array) => {
+            for child in array {
+                collect_refs(child, references);
+            }
+        }
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
+    }
 }
 
 #[test]

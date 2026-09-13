@@ -80,7 +80,8 @@ The typed HTTP adapter uses the existing versioned paths under
 exact `Host`/`Origin`, and `X-CSRF-Token` on writes. Secret query fields (`token`,
 `authorization`, or `csrf`), duplicate security headers, traversal, absolute targets, duplicate
 query keys, and bodies over the 16 KiB facade JSON bound are rejected. Responses are
-`Cache-Control: no-store` JSON; error bodies carry only a stable code and retryability flag.
+`Cache-Control: no-store` JSON and are capped at the same 16 KiB serialized bound; error bodies
+carry only a stable code and retryability flag.
 
 The machine-readable consumer artifacts are:
 
@@ -89,8 +90,9 @@ The machine-readable consumer artifacts are:
 - [`harness-facade-auth.schema.json`](../contracts/context-control/harness-facade-auth.schema.json)
 - [`harness-facade.openapi.json`](../contracts/context-control/harness-facade.openapi.json)
 
-The OpenAPI document references the existing Phase 2 command/draft/preview/receipt schemas. The
-auth schema deliberately names opaque references rather than embedding a secret.
+The OpenAPI document publishes facade-specific request and response schemas (including direct
+array projections and the scope-free create-draft body) rather than importing the legacy control
+operations. The auth schema deliberately names opaque references rather than embedding a secret.
 
 ## Deployment and rollback notes
 
