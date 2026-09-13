@@ -1015,6 +1015,20 @@ impl ControlPlane {
             .ok_or_else(|| ControlError::invalid("command_not_found", "command is unavailable"))
     }
 
+    /// Look up a durable receipt by the caller-provided idempotency key.
+    ///
+    /// The owner-generated command ID is not necessarily known to a caller when a mutation was
+    /// applied but its response was lost, so recovery must be keyed by the value the caller kept.
+    pub fn receipt_for_idempotency_key(
+        &self,
+        idempotency_key: &str,
+    ) -> Result<Receipt, ControlError> {
+        self.commands
+            .get(idempotency_key)
+            .map(|(_, receipt)| receipt.clone())
+            .ok_or_else(|| ControlError::invalid("command_not_found", "command is unavailable"))
+    }
+
     pub fn advance_boundary(&mut self) {
         self.boundary.generation = self.boundary.generation.saturating_add(1);
         self.boundary.observation_sha256 =
