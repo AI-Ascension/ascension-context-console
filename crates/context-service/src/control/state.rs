@@ -243,6 +243,22 @@ impl ControlPlane {
         self.revisions.values().cloned().collect()
     }
 
+    /// Returns immutable preview projections without exposing their prepared input material.
+    pub fn previews(&self) -> Vec<Preview> {
+        self.previews
+            .values()
+            .map(|record| record.preview.clone())
+            .collect()
+    }
+
+    /// Returns immutable command receipts for reconnect/read-after-restart consumers.
+    pub fn receipts(&self) -> Vec<Receipt> {
+        self.commands
+            .values()
+            .map(|(_, receipt)| receipt.clone())
+            .collect()
+    }
+
     pub fn events(&self) -> Vec<Event> {
         self.events.clone()
     }

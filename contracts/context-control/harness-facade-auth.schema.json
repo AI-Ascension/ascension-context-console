@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ascension:context-control:harness-facade-auth:v1",
+  "title": "Non-demo harness facade auth and retention configuration",
+  "description": "Configuration contains opaque references and digests only. Secret values are injected by protected middleware and are never serialized.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "ascension.context-control.harness-facade-config.v1"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id",
+        "episode_id",
+        "agent_id"
+      ]
+    },
+    "owner_auth_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "expected_host": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "expected_origin": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "csrf_digest_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "off",
+            "metadata",
+            "memory",
+            "private_encrypted"
+          ]
+        },
+        "policy_accepted": {
+          "type": "boolean"
+        },
+        "authenticated_encryption": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "policy_accepted",
+        "authenticated_encryption"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "scope",
+    "owner_auth_ref",
+    "expected_host",
+    "expected_origin",
+    "csrf_digest_ref",
+    "retention"
+  ]
+}

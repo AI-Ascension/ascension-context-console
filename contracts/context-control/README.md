@@ -24,3 +24,20 @@ The copied files are immutable artifacts. Their SHA-256 values are:
     relation.schema.json       00166fd3f7aac5568a7749f203e8d57a759b75dfbcdfd9ecac1e156024bfe73d
     revision.schema.json       13f3ba52ba152ce7c5d0a0dcfa3ccb5d2b1a4947d475a55b585cbb4e14646ff1
     state.schema.json          e52f0d342f638bcab28f8aa665af45ccf046a031826e2dae21b0fad85d3ad463
+
+## Harness-backed facade additions
+
+The non-demo `HarnessBackedContextService` uses the existing control records while adding a
+consumer/auth boundary. These artifacts are target-owned and proposed for the external
+`sts2-harness#100` owner integration:
+
+- `harness-facade-capabilities` (JSON Schema) — filtered owner capabilities and explicit
+  `unknown`/`owner_conditional` disclosure;
+- `harness-facade-error` (JSON Schema) — stable code/retryability envelope with no upstream body;
+- `harness-facade-auth` (JSON Schema) — deployment scope, exact Host/Origin, opaque owner-auth/CSRF
+  references, and retention policy shape (never secret values; resolved before Rust construction);
+- `harness-facade.openapi.json` — the same `/v2/runs/{run_id}/context-control/` paths for Studio
+  consumers.
+
+These files do not repin or claim the unsettled harness owner interface. The Rust
+`HarnessOwnerPort` is the compatibility seam until that owner contract is accepted.

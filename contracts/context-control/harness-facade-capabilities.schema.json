@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ascension:context-control:harness-facade-capabilities:v1",
+  "title": "Harness-backed Context Console facade capabilities",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "ascension.context-control.harness-facade-capabilities.v1"
+    },
+    "composition": {
+      "const": "harness_backed"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        }
+      },
+      "required": [
+        "project_id",
+        "run_id",
+        "episode_id",
+        "agent_id"
+      ]
+    },
+    "owner_enabled": {
+      "type": "boolean"
+    },
+    "owner_supported_operations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "capabilities",
+          "state",
+          "eligible_items",
+          "eligible-items",
+          "eligible",
+          "revisions",
+          "drafts",
+          "previews",
+          "receipts",
+          "receipt_read",
+          "create_draft",
+          "draft_create",
+          "apply_patch",
+          "draft_edit",
+          "create_preview",
+          "preview",
+          "pause",
+          "commit",
+          "resume"
+        ]
+      },
+      "uniqueItems": true,
+      "maxItems": 32
+    },
+    "forwarded_operations": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "capabilities",
+          "state",
+          "eligible_items",
+          "revisions",
+          "drafts",
+          "previews",
+          "receipts",
+          "create_draft",
+          "apply_patch",
+          "create_preview",
+          "pause",
+          "commit",
+          "resume"
+        ]
+      },
+      "uniqueItems": true,
+      "maxItems": 13
+    },
+    "grant_permissions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "context.metadata.read",
+          "context.content.read",
+          "context.edit",
+          "context.objective.edit",
+          "context.commit",
+          "context.pause",
+          "context.resume"
+        ]
+      },
+      "uniqueItems": true,
+      "maxItems": 7
+    },
+    "retention_mode": {
+      "enum": [
+        "off",
+        "metadata",
+        "memory",
+        "private_encrypted"
+      ]
+    },
+    "capture_default_off": {
+      "const": true
+    },
+    "exact_application_preview": {
+      "enum": [
+        "owner_conditional",
+        "unavailable"
+      ]
+    },
+    "provider_added_context": {
+      "const": "unknown"
+    },
+    "direct_game_dispatch": {
+      "const": false
+    },
+    "duplicate_scheduler": {
+      "const": false
+    },
+    "legacy_demo": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema",
+    "composition",
+    "scope",
+    "owner_enabled",
+    "owner_supported_operations",
+    "forwarded_operations",
+    "grant_permissions",
+    "retention_mode",
+    "capture_default_off",
+    "exact_application_preview",
+    "provider_added_context",
+    "direct_game_dispatch",
+    "duplicate_scheduler",
+    "legacy_demo"
+  ]
+}

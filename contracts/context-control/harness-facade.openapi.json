@@ -1,0 +1,105 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ascension harness-backed Context Console facade",
+    "version": "1.0.0",
+    "description": "Consumer transport for the non-demo, in-process harness-owner composition. The facade forwards only typed owner operations; it has no upstream URL or scheduler."
+  },
+  "security": [
+    {
+      "bearerCapability": []
+    }
+  ],
+  "paths": {
+    "/v2/runs/{run_id}/context-control/capabilities": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1capabilities"
+    },
+    "/v2/runs/{run_id}/context-control/state": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1state"
+    },
+    "/v2/runs/{run_id}/context-control/eligible-items": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1eligible-items"
+    },
+    "/v2/runs/{run_id}/context-control/revisions": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1revisions"
+    },
+    "/v2/runs/{run_id}/context-control/drafts": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1drafts"
+    },
+    "/v2/runs/{run_id}/context-control/drafts/{draft_id}": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1drafts~1{draft_id}"
+    },
+    "/v2/runs/{run_id}/context-control/drafts/{draft_id}/operations": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1drafts~1{draft_id}~1operations"
+    },
+    "/v2/runs/{run_id}/context-control/previews": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1previews"
+    },
+    "/v2/runs/{run_id}/context-control/previews/{preview_id}": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1previews~1{preview_id}"
+    },
+    "/v2/runs/{run_id}/context-control/commands/{command_id}": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1commands~1{command_id}"
+    },
+    "/v2/runs/{run_id}/context-control/pause": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1pause"
+    },
+    "/v2/runs/{run_id}/context-control/commits": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1commits"
+    },
+    "/v2/runs/{run_id}/context-control/resume": {
+      "$ref": "control-api.openapi.json#/paths/~1v2~1runs~1{run_id}~1context-control~1resume"
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerCapability": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "injected capability",
+        "description": "The bearer is supplied by protected middleware, scoped to one permission and run, and is never put in a URL."
+      },
+      "managementBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "injected capability",
+        "description": "Compatibility alias used by the referenced control path definitions; the facade still resolves it through protected middleware."
+      }
+    },
+    "schemas": {
+      "FacadeCapabilities": {
+        "$ref": "harness-facade-capabilities.schema.json"
+      },
+      "FacadeError": {
+        "$ref": "harness-facade-error.schema.json"
+      }
+    },
+    "parameters": {
+      "Origin": {
+        "name": "Origin",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Principal": {
+        "name": "X-Principal",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        }
+      },
+      "Csrf": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
