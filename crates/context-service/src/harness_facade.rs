@@ -924,6 +924,19 @@ impl FacadeError {
         }
     }
 
+    /// Map an owner error returned by a forwarded mutation.
+    ///
+    /// An unavailable or unknown result may mean that the owner applied the mutation before its
+    /// reply was lost.  Keep the stable error code, but prevent a fresh mutation retry; command
+    /// callers must recover the original receipt with their idempotency key instead.
+    fn owner_mutation(error: OwnerError) -> Self {
+        let mut mapped = Self::owner(error);
+        if matches!(error, OwnerError::Unavailable | OwnerError::Unknown) {
+            mapped.retryable = false;
+        }
+        mapped
+    }
+
     fn grant(permission: FacadePermission, error: GrantError) -> Self {
         match error {
             GrantError::InvalidExpiry => Self::expired("grant_expired"),
@@ -1790,7 +1803,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             .call(|owner, auth| {
                 owner.create_draft(auth, scope, &expected_active_revision_id, &author_ref)
             })
-            .map_err(FacadeError::owner)
+            .map_err(FacadeError::owner_mutation)
             .and_then(|draft| self.project_draft(draft))?;
         self.cache_draft_references(&draft);
         self.cache_draft(draft.clone());
@@ -1821,7 +1834,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                     },
                 )
             })
-            .map_err(FacadeError::owner)
+            .map_err(FacadeError::owner_mutation)
             .and_then(|draft| self.project_draft(draft))?;
         // PutNote can mint a new owner-issued ItemRef (the note version).  Cache every validated
         // reference in the returned draft so a later pin/unpin/exclude operation can use it even
@@ -1867,7 +1880,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                     preview.unknown_total_risk_acknowledged,
                 )
             })
-            .map_err(FacadeError::owner)
+            .map_err(FacadeError::owner_mutation)
             .and_then(|value| self.project_preview(value))?;
         self.cache_preview(&result);
         Ok(result)
@@ -1880,7 +1893,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         let receipt = self
             .client
             .call(|owner, auth| owner.pause(auth, command))
-            .map_err(FacadeError::owner)
+            .map_err(FacadeError::owner_mutation)
             .and_then(|receipt| self.project_receipt(receipt))?;
         self.cache_receipt(&receipt);
         self.cache_revision_id(&receipt.active_revision_id);
@@ -1908,7 +1921,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         let receipt = self
             .client
             .call(|owner, auth| owner.commit(auth, command))
-            .map_err(FacadeError::owner)
+            .map_err(FacadeError::owner_mutation)
             .and_then(|receipt| self.project_receipt(receipt))?;
         self.cache_receipt(&receipt);
         self.cache_revision_id(&receipt.active_revision_id);
@@ -1929,7 +1942,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         let receipt = self
             .client
             .call(|owner, auth| owner.resume(auth, command))
-            .map_err(FacadeError::owner)
+            .map_err(FacadeError::owner_mutation)
             .and_then(|receipt| self.project_receipt(receipt))?;
         self.cache_receipt(&receipt);
         self.cache_revision_id(&receipt.active_revision_id);

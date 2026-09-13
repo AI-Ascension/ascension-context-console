@@ -1566,6 +1566,9 @@ fn http_receipt_recovery_uses_idempotency_key_after_lost_reply_and_write_revocat
         100,
     );
     assert_eq!(lost_response.status, 503);
+    let lost_body: serde_json::Value =
+        serde_json::from_slice(&lost_response.body).expect("lost-reply error JSON");
+    assert_eq!(lost_body["error"]["retryable"], false);
     assert_eq!(service.owner().commit_effect_count, 1);
 
     for grant_id in ["edit", "pause", "commit", "resume"] {
