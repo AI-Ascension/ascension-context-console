@@ -692,6 +692,20 @@ pub trait HarnessOwnerPort {
         auth: &ProtectedAuthReference,
         scope: &Scope,
     ) -> Result<Vec<Revision>, OwnerError>;
+    /// Resolve one revision by its scoped owner-issued identifier.
+    ///
+    /// This lookup is intentionally separate from [`Self::revisions`]. The local facade index is
+    /// bounded, so an evicted historical reference must be recoverable without materializing an
+    /// unbounded owner revision collection. Owners that only expose collection reads can leave
+    /// this at its default; the facade retains a bounded compatibility fallback.
+    fn get_revision(
+        &mut self,
+        _auth: &ProtectedAuthReference,
+        _scope: &Scope,
+        _revision_id: &str,
+    ) -> Result<Revision, OwnerError> {
+        Err(OwnerError::Unsupported)
+    }
     fn drafts(
         &mut self,
         auth: &ProtectedAuthReference,
@@ -1939,6 +1953,12 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         }
     }
 
+    fn cache_revision(&mut self, revision: Revision) {
+        if self.index.cache_revision(revision) {
+            self.index.revisions_complete = false;
+        }
+    }
+
     fn cache_draft(&mut self, draft: Draft) {
         if self.index.cache_draft(draft) {
             self.index.drafts_complete = false;
@@ -2381,21 +2401,41 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                     return Err(FacadeError::owner(OwnerError::Unsupported));
                 }
                 let scope = self.config.scope.clone();
-                let revisions = self
+                let revision_id = id.to_owned();
+                match self
                     .client
-                    .call(|owner, auth| owner.revisions(auth, &scope))
-                    .map_err(FacadeError::owner)
-                    .and_then(|revisions| self.project_revisions(revisions))?;
-                self.index.clear_revisions();
-                let mut evicted = false;
-                for revision in revisions {
-                    evicted |= self.index.cache_revision(revision);
-                }
-                self.index.revisions_complete = !evicted;
-                if self.index.revision_ids.contains(id) {
-                    Ok(())
-                } else {
-                    Err(FacadeError::denied("foreign_reference"))
+                    .call(|owner, auth| owner.get_revision(auth, &scope, &revision_id))
+                {
+                    Ok(revision) => {
+                        let revision = self.project_revision(revision)?;
+                        if revision.revision_id != id {
+                            return Err(FacadeError::denied("foreign_reference"));
+                        }
+                        self.cache_revision(revision);
+                        Ok(())
+                    }
+                    Err(OwnerError::Unsupported) => {
+                        // Preserve compatibility with owners that predate the scoped lookup,
+                        // while keeping the collection path bounded by `project_revisions`.
+                        let revisions = self
+                            .client
+                            .call(|owner, auth| owner.revisions(auth, &scope))
+                            .map_err(FacadeError::owner)
+                            .and_then(|revisions| self.project_revisions(revisions))?;
+                        self.index.clear_revisions();
+                        let mut evicted = false;
+                        for revision in revisions {
+                            evicted |= self.index.cache_revision(revision);
+                        }
+                        self.index.revisions_complete = !evicted;
+                        if self.index.revision_ids.contains(id) {
+                            Ok(())
+                        } else {
+                            Err(FacadeError::denied("foreign_reference"))
+                        }
+                    }
+                    Err(OwnerError::NotFound) => Err(FacadeError::denied("foreign_reference")),
+                    Err(error) => Err(FacadeError::owner(error)),
                 }
             }
             ReferenceKind::Draft => {
@@ -2668,6 +2708,13 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             }
         }
         Ok(revisions)
+    }
+
+    fn project_revision(&self, revision: Revision) -> FacadeResult<Revision> {
+        self.project_revisions(vec![revision])?
+            .into_iter()
+            .next()
+            .ok_or_else(|| FacadeError::invalid("owner_invalid_revision"))
     }
 
     fn project_drafts(&self, drafts: Vec<Draft>) -> FacadeResult<Vec<Draft>> {
@@ -3299,6 +3346,19 @@ impl HarnessOwnerPort for crate::control::ControlPlane {
         (self.scope() == scope)
             .then_some(crate::control::ControlPlane::revisions(self))
             .ok_or(OwnerError::Denied)
+    }
+
+    fn get_revision(
+        &mut self,
+        _auth: &ProtectedAuthReference,
+        scope: &Scope,
+        revision_id: &str,
+    ) -> Result<Revision, OwnerError> {
+        if self.scope() != scope {
+            return Err(OwnerError::Denied);
+        }
+        crate::control::ControlPlane::get_revision(self, revision_id)
+            .map_err(OwnerError::from_control)
     }
 
     fn drafts(

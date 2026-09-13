@@ -243,6 +243,14 @@ impl ControlPlane {
         self.revisions.values().cloned().collect()
     }
 
+    /// Returns one immutable revision without materializing the complete revision history.
+    pub fn get_revision(&self, revision_id: &str) -> Result<Revision, ControlError> {
+        self.revisions
+            .get(revision_id)
+            .cloned()
+            .ok_or_else(|| ControlError::invalid("revision_not_found", "revision is unavailable"))
+    }
+
     /// Returns immutable preview projections without exposing their prepared input material.
     pub fn previews(&self) -> Vec<Preview> {
         self.previews

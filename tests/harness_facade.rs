@@ -135,6 +135,16 @@ impl HarnessOwnerPort for RecordingOwner {
         HarnessOwnerPort::revisions(&mut self.inner, auth, scope)
     }
 
+    fn get_revision(
+        &mut self,
+        auth: &ProtectedAuthReference,
+        scope: &ControlScope,
+        revision_id: &str,
+    ) -> Result<Revision, OwnerError> {
+        self.record("get_revision");
+        HarnessOwnerPort::get_revision(&mut self.inner, auth, scope, revision_id)
+    }
+
     fn drafts(
         &mut self,
         auth: &ProtectedAuthReference,
@@ -1117,6 +1127,129 @@ fn write_driven_reference_caches_evict_and_revalidate_at_fixed_capacity() {
         status.receipts,
         context_service::MAX_FACADE_CACHE_ENTRIES,
         "receipt cache must evict oldest entries"
+    );
+}
+
+#[test]
+fn evicted_revision_is_revalidated_without_fetching_the_full_history() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("revision-editor", FULL_TOKEN, 100);
+    let history_item = history(&service.owner().inner);
+
+    for index in 0..(context_service::MAX_FACADE_CACHE_ENTRIES + 1) {
+        let active = service.owner().inner.state().active_revision_id;
+        let draft = service
+            .create_draft(&full, &active)
+            .expect("draft for revision history");
+        let operation = if index % 2 == 0 {
+            ControlOperation::IncludeItem {
+                item: history_item.clone(),
+            }
+        } else {
+            ControlOperation::ExcludeItem {
+                item: history_item.clone(),
+            }
+        };
+        let edited = service
+            .edit_draft(
+                &full,
+                ControlPatch {
+                    schema: "ascension.context-control.patch.v1".to_owned(),
+                    scope: scope.clone(),
+                    draft_id: draft.draft_id,
+                    expected_draft_version: draft.version,
+                    expected_active_revision_id: active.clone(),
+                    operations: vec![operation],
+                },
+            )
+            .expect("revision edit");
+        let pause = command(
+            &service.owner().inner,
+            "pause",
+            &format!("evicted-revision-pause-{index}"),
+            service.owner().inner.state().control_version,
+        );
+        service.pause(&full, pause).expect("pause");
+        let preview = service
+            .preview(
+                &full,
+                PreviewRequest {
+                    scope: scope.clone(),
+                    draft_id: edited.draft_id.clone(),
+                    expected_draft_version: edited.version,
+                    applicable_requested: true,
+                    expected_control_version: service.owner().inner.state().control_version,
+                    unknown_total_risk_acknowledged: true,
+                },
+            )
+            .expect("applicable preview");
+        let mut commit = command(
+            &service.owner().inner,
+            "commit",
+            &format!("evicted-revision-commit-{index}"),
+            service.owner().inner.state().control_version,
+        );
+        commit.expected_active_revision_id = Some(active);
+        commit.preview_id = Some(preview.preview_id.clone());
+        commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+        let committed = service.held_commit(&full, commit).expect("commit");
+        let mut resume = command(
+            &service.owner().inner,
+            "resume",
+            &format!("evicted-revision-resume-{index}"),
+            service.owner().inner.state().control_version,
+        );
+        resume.expected_active_revision_id = Some(committed.active_revision_id.clone());
+        resume.expected_preview_id = Some(preview.preview_id);
+        service.resume(&full, resume).expect("resume");
+    }
+
+    assert!(
+        service.owner().inner.revisions().len() > context_service::MAX_FACADE_CACHE_ENTRIES,
+        "owner retains more revisions than the facade cache"
+    );
+    let active = service.owner().inner.state().active_revision_id;
+    let draft = service
+        .create_draft(&full, &active)
+        .expect("draft for historical restore");
+    let before_restore = service.owner().calls.len();
+    let restored = service
+        .edit_draft(
+            &full,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope,
+                draft_id: draft.draft_id,
+                expected_draft_version: draft.version,
+                expected_active_revision_id: active,
+                operations: vec![ControlOperation::RestoreConfiguration {
+                    source_revision_id: "revision-1".to_owned(),
+                }],
+            },
+        )
+        .expect("evicted revision is restored");
+    assert!(restored.selected_items.is_empty());
+    assert!(
+        service.owner().calls[before_restore..]
+            .iter()
+            .any(|operation| operation == "get_revision"),
+        "historical restore must use the scoped lookup"
+    );
+    assert!(
+        !service.owner().calls[before_restore..]
+            .iter()
+            .any(|operation| operation == "revisions"),
+        "historical restore must not refresh the full revision collection"
     );
 }
 
