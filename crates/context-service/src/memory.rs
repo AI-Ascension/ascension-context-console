@@ -11,6 +11,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
+use crate::owner::{
+    HarnessOwnerComposition, OwnerError, OwnerGrantBook, OwnerOperation, OwnerRequestContext,
+    owner_call, owner_scope, validate_public_value,
+};
+
 pub const MEMORY_CAPABILITIES_SCHEMA: &str = "ascension.context-memory.capabilities.v1";
 pub const MEMORY_QUERY_SCHEMA: &str = "ascension.context-memory.query.v1";
 pub const MAX_MEMORY_QUERY_BYTES: usize = 4 * 1024;
@@ -62,6 +67,35 @@ pub struct MemoryQueryRequest {
     pub effect_class: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemoryGenerationCommand {
+    idempotency_key: String,
+    proposal_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum MemoryReviewDecision {
+    Admit,
+    Reject,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemoryReviewCommand {
+    idempotency_key: String,
+    proposal_id: String,
+    decision: MemoryReviewDecision,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemorySelectionCommand {
+    idempotency_key: String,
+    selection_id: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MemoryRouteError {
     MethodNotAllowed,
@@ -69,6 +103,7 @@ pub enum MemoryRouteError {
     InvalidRequest,
     PermissionDenied,
     Unsupported,
+    Unavailable,
 }
 
 impl std::fmt::Display for MemoryRouteError {
@@ -79,19 +114,33 @@ impl std::fmt::Display for MemoryRouteError {
             Self::InvalidRequest => "memory route request is invalid",
             Self::PermissionDenied => "memory route permission is denied",
             Self::Unsupported => "memory route operation is unsupported",
+            Self::Unavailable => "memory route owner is unavailable",
         })
     }
 }
 
 impl std::error::Error for MemoryRouteError {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct MemoryRoute {
     scope: MemoryScope,
     enabled: bool,
     search_principals: Vec<String>,
     review_principals: Vec<String>,
+    owner: Option<HarnessOwnerComposition>,
 }
+
+impl PartialEq for MemoryRoute {
+    fn eq(&self, other: &Self) -> bool {
+        self.scope == other.scope
+            && self.enabled == other.enabled
+            && self.search_principals == other.search_principals
+            && self.review_principals == other.review_principals
+            && self.owner.is_some() == other.owner.is_some()
+    }
+}
+
+impl Eq for MemoryRoute {}
 
 impl MemoryRoute {
     pub fn new(scope: MemoryScope, enabled: bool) -> Self {
@@ -100,7 +149,44 @@ impl MemoryRoute {
             enabled,
             search_principals: Vec::new(),
             review_principals: Vec::new(),
+            owner: None,
         }
+    }
+
+    /// Builds the explicitly attached composition. No local corpus or generation state is
+    /// created; every supported operation is forwarded to `owner`.
+    #[must_use]
+    pub fn attached(scope: MemoryScope, composition: HarnessOwnerComposition) -> Self {
+        Self {
+            scope,
+            enabled: true,
+            search_principals: Vec::new(),
+            review_principals: Vec::new(),
+            owner: Some(composition),
+        }
+    }
+
+    /// Convenience constructor for integrations that do not need to retain the composition.
+    #[must_use]
+    pub fn with_owner(
+        scope: MemoryScope,
+        owner: std::sync::Arc<dyn crate::owner::HarnessOwner>,
+        grants: OwnerGrantBook,
+    ) -> Self {
+        Self::attached(scope, HarnessOwnerComposition::new(owner, grants))
+    }
+
+    #[must_use]
+    pub fn is_attached(&self) -> bool {
+        self.owner.is_some()
+    }
+
+    /// Revokes a configured attached grant for all routes sharing its composition.
+    pub fn revoke_grant(&self, grant_id: &str) -> Result<(), crate::owner::OwnerAuthError> {
+        self.owner
+            .as_ref()
+            .ok_or(crate::owner::OwnerAuthError::GrantBookUnavailable)?
+            .revoke(grant_id)
     }
 
     pub fn grant_search(&mut self, principal: impl Into<String>) {
@@ -147,6 +233,37 @@ impl MemoryRoute {
     }
 
     pub fn handle(
+        &self,
+        method: &str,
+        path: &str,
+        principal: &str,
+        body: &[u8],
+    ) -> Result<Value, MemoryRouteError> {
+        if self.owner.is_some() {
+            // An attached route needs the caller's complete proof. The compatibility signature
+            // has no Host, Origin or CSRF fields and must never reconstruct them from a grant.
+            return Err(MemoryRouteError::PermissionDenied);
+        }
+        self.handle_local(method, path, principal, body)
+    }
+
+    /// Handles an attached request with the complete security context. Host/origin/CSRF and grant
+    /// checks happen before constructing an owner call.
+    pub fn handle_with_context(
+        &self,
+        method: &str,
+        path: &str,
+        context: &OwnerRequestContext,
+        body: &[u8],
+    ) -> Result<Value, MemoryRouteError> {
+        if self.owner.is_some() {
+            self.handle_attached(method, path, context, body)
+        } else {
+            self.handle_local(method, path, &context.principal, body)
+        }
+    }
+
+    fn handle_local(
         &self,
         method: &str,
         path: &str,
@@ -259,6 +376,265 @@ impl MemoryRoute {
             _ => Err(MemoryRouteError::MethodNotAllowed),
         }
     }
+
+    fn handle_attached(
+        &self,
+        method: &str,
+        path: &str,
+        context: &OwnerRequestContext,
+        body: &[u8],
+    ) -> Result<Value, MemoryRouteError> {
+        if body.len() > MAX_MEMORY_BODY_BYTES {
+            return Err(MemoryRouteError::BodyTooLarge);
+        }
+        let operation = memory_operation(method, path, &self.scope.run_id)?;
+        let write = !operation.read_only();
+        let scope = owner_scope(
+            &self.scope.project_id,
+            &self.scope.run_id,
+            &self.scope.episode_id,
+            &self.scope.agent_id,
+        );
+        let composition = self.owner.as_ref().ok_or(MemoryRouteError::Unsupported)?;
+        let grant = composition
+            .authorize(context, operation.grant_class(), &scope, write)
+            .map_err(|_| MemoryRouteError::PermissionDenied)?;
+        let revocation_epoch = grant.revocation_epoch;
+        let payload = match operation {
+            OwnerOperation::MemoryCapabilities | OwnerOperation::MemoryStatus => {
+                if !body.is_empty() {
+                    return Err(MemoryRouteError::InvalidRequest);
+                }
+                json!({})
+            }
+            OwnerOperation::MemoryQuery => {
+                let request: MemoryQueryRequest = crate::parse_control_json(body)
+                    .map_err(|_| MemoryRouteError::InvalidRequest)?;
+                validate_query(&request, &self.scope)?;
+                serde_json::to_value(request).map_err(|_| MemoryRouteError::InvalidRequest)?
+            }
+            OwnerOperation::MemoryGeneration
+            | OwnerOperation::MemoryReview
+            | OwnerOperation::MemorySelection => parse_owner_command(operation, body)?,
+            _ => return Err(MemoryRouteError::Unsupported),
+        };
+        let call = owner_call(operation, scope.clone(), None, payload, grant)
+            .map_err(|_| MemoryRouteError::InvalidRequest)?;
+        let owner = composition.owner();
+        let reply = match owner.call(call) {
+            Ok(reply) => reply,
+            Err(OwnerError::LostReply { receipt_id }) => {
+                if !valid_id(&receipt_id) {
+                    return Err(MemoryRouteError::Unavailable);
+                }
+                let lookup = crate::owner::OwnerReceiptLookup {
+                    operation,
+                    scope,
+                    reference: None,
+                    receipt_id: receipt_id.clone(),
+                };
+                match owner.lookup_receipt(lookup) {
+                    Ok(reply) => {
+                        if reply.receipt.receipt_id != receipt_id {
+                            return Err(MemoryRouteError::Unsupported);
+                        }
+                        reply
+                    }
+                    Err(OwnerError::UnknownReceipt | OwnerError::Unavailable) => {
+                        crate::owner::OwnerReply::unknown(
+                            receipt_id,
+                            format!("unknown-{}", operation.as_str().replace('.', "-")),
+                            operation,
+                            "harness",
+                            0,
+                            "receipt_lookup_unavailable",
+                        )
+                        .map_err(|_| MemoryRouteError::Unsupported)?
+                    }
+                    Err(OwnerError::Unsupported) => crate::owner::OwnerReply::unsupported(
+                        receipt_id.clone(),
+                        "unsupported",
+                        operation,
+                        "harness",
+                        0,
+                        "owner_unsupported",
+                    )
+                    .map_err(|_| MemoryRouteError::Unsupported)?,
+                    Err(OwnerError::LostReply { .. } | OwnerError::MalformedResponse) => {
+                        return Err(MemoryRouteError::Unsupported);
+                    }
+                }
+            }
+            Err(OwnerError::Unsupported) => crate::owner::OwnerReply::unsupported(
+                "unsupported-receipt",
+                "unsupported",
+                operation,
+                "harness",
+                0,
+                "owner_unsupported",
+            )
+            .map_err(|_| MemoryRouteError::Unsupported)?,
+            Err(OwnerError::Unavailable | OwnerError::UnknownReceipt) => {
+                return Err(MemoryRouteError::Unavailable);
+            }
+            Err(OwnerError::MalformedResponse) => return Err(MemoryRouteError::Unsupported),
+        };
+        reply
+            .validate_for(operation)
+            .map_err(|_| MemoryRouteError::Unsupported)?;
+        owner_result(operation, revocation_epoch, reply)
+    }
+}
+
+fn validate_query(
+    request: &MemoryQueryRequest,
+    scope: &MemoryScope,
+) -> Result<(), MemoryRouteError> {
+    if request.schema != MEMORY_QUERY_SCHEMA
+        || request.scope != *scope
+        || !valid_id(&request.branch_id)
+        || request.query.is_empty()
+        || request.query.len() > MAX_MEMORY_QUERY_BYTES
+        || request.cutoff > MAX_SAFE_INTEGER
+        || request.corpus_generation == 0
+        || request.corpus_generation > MAX_SAFE_INTEGER
+        || !valid_id(&request.ranker_version)
+        || request.limit == 0
+        || request.limit > 16
+        || request.max_candidates == 0
+        || request.max_candidates > 64
+        || request.effect_class != "local_read_no_inference"
+    {
+        return Err(MemoryRouteError::InvalidRequest);
+    }
+    Ok(())
+}
+
+fn memory_operation(
+    method: &str,
+    path: &str,
+    expected_run_id: &str,
+) -> Result<OwnerOperation, MemoryRouteError> {
+    let operation = match (method, path) {
+        ("GET", "/v3/memory/capabilities") => Some(OwnerOperation::MemoryCapabilities),
+        ("GET", "/v3/memory/status") => Some(OwnerOperation::MemoryStatus),
+        ("POST", "/v3/memory/search") => Some(OwnerOperation::MemoryQuery),
+        ("POST", "/v3/memory/generate") => Some(OwnerOperation::MemoryGeneration),
+        ("POST", "/v3/memory/review") => Some(OwnerOperation::MemoryReview),
+        ("POST", "/v3/memory/select" | "/v3/memory/selection") => {
+            Some(OwnerOperation::MemorySelection)
+        }
+        _ => None,
+    };
+    if let Some(operation) = operation {
+        return Ok(operation);
+    }
+    let segments = path
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    if segments.len() == 5
+        && segments[0] == "v3"
+        && segments[1] == "runs"
+        && segments[3] == "context-memory"
+        && segments[2] != expected_run_id
+    {
+        return Err(MemoryRouteError::PermissionDenied);
+    }
+    if segments.len() != 5
+        || segments[0] != "v3"
+        || segments[1] != "runs"
+        || segments[2] != expected_run_id
+        || segments[3] != "context-memory"
+    {
+        return Err(if method == "GET" {
+            MemoryRouteError::Unsupported
+        } else {
+            MemoryRouteError::MethodNotAllowed
+        });
+    }
+    match (method, segments[4]) {
+        ("GET", "capabilities" | "status") => Ok(if segments[4] == "capabilities" {
+            OwnerOperation::MemoryCapabilities
+        } else {
+            OwnerOperation::MemoryStatus
+        }),
+        ("POST", "search") => Ok(OwnerOperation::MemoryQuery),
+        ("POST", "summary-jobs") => Ok(OwnerOperation::MemoryGeneration),
+        ("POST", "reviews") => Ok(OwnerOperation::MemoryReview),
+        ("POST", "selections") => Ok(OwnerOperation::MemorySelection),
+        ("GET", _) => Err(MemoryRouteError::Unsupported),
+        _ => Err(MemoryRouteError::MethodNotAllowed),
+    }
+}
+
+fn parse_owner_command(operation: OwnerOperation, body: &[u8]) -> Result<Value, MemoryRouteError> {
+    if body.is_empty() {
+        return Err(MemoryRouteError::InvalidRequest);
+    }
+    match operation {
+        OwnerOperation::MemoryGeneration => {
+            parse_typed_owner_command(body, |command: &MemoryGenerationCommand| {
+                valid_id(&command.idempotency_key) && valid_id(&command.proposal_id)
+            })
+        }
+        OwnerOperation::MemoryReview => {
+            parse_typed_owner_command(body, |command: &MemoryReviewCommand| {
+                valid_id(&command.idempotency_key) && valid_id(&command.proposal_id)
+            })
+        }
+        OwnerOperation::MemorySelection => {
+            parse_typed_owner_command(body, |command: &MemorySelectionCommand| {
+                valid_id(&command.idempotency_key) && valid_id(&command.selection_id)
+            })
+        }
+        _ => Err(MemoryRouteError::Unsupported),
+    }
+}
+
+fn parse_typed_owner_command<T, F>(body: &[u8], validate: F) -> Result<Value, MemoryRouteError>
+where
+    T: serde::de::DeserializeOwned + Serialize,
+    F: FnOnce(&T) -> bool,
+{
+    let command: T =
+        crate::parse_control_json(body).map_err(|_| MemoryRouteError::InvalidRequest)?;
+    if !validate(&command) {
+        return Err(MemoryRouteError::InvalidRequest);
+    }
+    let value = serde_json::to_value(command).map_err(|_| MemoryRouteError::InvalidRequest)?;
+    validate_public_value(&value).map_err(|_| MemoryRouteError::InvalidRequest)?;
+    Ok(value)
+}
+
+fn owner_result(
+    operation: OwnerOperation,
+    revocation_epoch: u64,
+    reply: crate::owner::OwnerReply,
+) -> Result<Value, MemoryRouteError> {
+    let receipt =
+        serde_json::to_value(&reply.receipt).map_err(|_| MemoryRouteError::Unsupported)?;
+    let outcome = reply.receipt.outcome;
+    let value = match reply.value {
+        Some(value) => value,
+        None => Value::Null,
+    };
+    Ok(json!({
+        "schema": "ascension.context-memory.owner-result.v1",
+        "operation": operation.as_str(),
+        "source": reply.receipt.source,
+        "owner_epoch": reply.receipt.owner_epoch,
+        "revocation_epoch": revocation_epoch,
+        "evidence": reply.receipt.evidence,
+        "outcome": outcome.as_str(),
+        "effect_class": if operation.read_only() {
+            "local_read_no_inference"
+        } else {
+            "owner_delegated"
+        },
+        "receipt": receipt,
+        "value": value,
+    }))
 }
 
 fn digest(bytes: &[u8]) -> String {

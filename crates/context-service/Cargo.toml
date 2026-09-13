@@ -54,5 +54,9 @@ name = "phase4_session"
 path = "../../tests/phase4_session.rs"
 
 [[test]]
+name = "owner_delegation"
+path = "../../tests/owner_delegation.rs"
+
+[[test]]
 name = "harness_facade"
 path = "../../tests/harness_facade.rs"

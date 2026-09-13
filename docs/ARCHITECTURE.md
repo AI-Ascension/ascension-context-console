@@ -37,6 +37,14 @@ pause, commit while held, and require an explicit resume; it never dispatches a 
 game action. The companion harness supplies the provider-facing exact-byte dispatch seam and the
 controller owner epoch used during recovery.
 
+The additive `owner` port keeps that handoff explicit for Phase 3/4 consumers. `HarnessOwner` is
+injected only through `HarnessOwnerComposition`; attached memory/session routes forward bounded
+operation metadata and owner receipts, while the default fixture routes remain unattached.
+Scope-bound read/search, generation/review and control grants are checked for expiry, revocation,
+Host, Origin and CSRF before forwarding. A lost reply performs a receipt lookup rather than
+retrying a possibly effective operation. The port has no provider credential, native RPC, process,
+URL or private-capture field.
+
 `harness_facade.rs` adds the non-demo `HarnessBackedContextService` composition. It accepts a
 typed `HarnessOwnerPort` and an injected opaque owner-auth reference, performs the console's
 independent metadata/content/edit/objective/commit/pause/resume grant checks, and delegates only

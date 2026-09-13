@@ -15,6 +15,7 @@ mod demo;
 mod harness_facade;
 mod http;
 mod memory;
+mod owner;
 mod private_store;
 pub mod provider_session;
 mod read_api;
@@ -54,6 +55,13 @@ pub use harness_facade::{
 pub use memory::{
     MAX_MEMORY_BODY_BYTES, MAX_MEMORY_QUERY_BYTES, MemoryCapabilities, MemoryQueryRequest,
     MemoryRoute, MemoryRouteError, MemoryScope,
+};
+pub use owner::{
+    HarnessOwner, HarnessOwnerComposition, OWNER_MAX_BODY_BYTES, OWNER_MAX_RESPONSE_BYTES,
+    OWNER_MAX_RESPONSE_DEPTH, OWNER_RECEIPT_SCHEMA, OwnerAuthError, OwnerCall, OwnerConfigError,
+    OwnerError as OwnerPortError, OwnerGrant, OwnerGrantBook, OwnerGrantClass, OwnerGrantReceipt,
+    OwnerOperation, OwnerOutcome, OwnerReceipt, OwnerReceiptLookup, OwnerReply,
+    OwnerRequestContext, OwnerResponseError, OwnerScope,
 };
 pub use private_store::{
     EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,
