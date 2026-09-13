@@ -200,6 +200,80 @@ fn objective_authorization_and_restore_alone_are_enforced() {
 }
 
 #[test]
+fn restore_objective_requires_owner_authorization_at_the_control_boundary() {
+    let mut plane = ControlPlane::synthetic();
+    let created = draft(&mut plane);
+    let objective = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &created.draft_id,
+                created.version,
+                vec![ControlOperation::SetObjective {
+                    text: "objective source".to_owned(),
+                }],
+            ),
+            "objective-owner",
+            true,
+        )
+        .expect("objective source");
+    let pause = command(
+        &plane,
+        "pause",
+        "objective-source-pause",
+        plane.state().control_version,
+    );
+    plane.pause(pause).expect("pause");
+    let preview = plane
+        .create_preview(
+            scope(&plane),
+            &objective.draft_id,
+            objective.version,
+            true,
+            plane.state().control_version,
+            true,
+        )
+        .expect("preview");
+    let preview_id = preview.preview_id.clone();
+    let mut commit = command(
+        &plane,
+        "commit",
+        "objective-source-commit",
+        plane.state().control_version,
+    );
+    commit.expected_active_revision_id = Some("revision-1".to_owned());
+    commit.preview_id = Some(preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    let committed = plane.commit(commit).expect("commit");
+    let mut resume = command(
+        &plane,
+        "resume",
+        "objective-source-resume",
+        plane.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(committed.active_revision_id.clone());
+    resume.expected_preview_id = Some(preview_id);
+    plane.resume(resume).expect("resume");
+
+    let fresh = draft(&mut plane);
+    let error = plane
+        .apply_patch(
+            patch(
+                &plane,
+                &fresh.draft_id,
+                fresh.version,
+                vec![ControlOperation::RestoreConfiguration {
+                    source_revision_id: committed.active_revision_id,
+                }],
+            ),
+            "ordinary-owner",
+            false,
+        )
+        .expect_err("restoring an objective requires owner authorization");
+    assert_eq!(error.code, "objective_authorization_required");
+}
+
+#[test]
 fn pinning_requires_selection_and_restore_is_a_new_configuration_draft() {
     let mut plane = ControlPlane::synthetic();
     let created = draft(&mut plane);

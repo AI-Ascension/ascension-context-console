@@ -243,6 +243,22 @@ impl ControlPlane {
         self.revisions.values().cloned().collect()
     }
 
+    /// Returns immutable preview projections without exposing their prepared input material.
+    pub fn previews(&self) -> Vec<Preview> {
+        self.previews
+            .values()
+            .map(|record| record.preview.clone())
+            .collect()
+    }
+
+    /// Returns immutable command receipts for reconnect/read-after-restart consumers.
+    pub fn receipts(&self) -> Vec<Receipt> {
+        self.commands
+            .values()
+            .map(|(_, receipt)| receipt.clone())
+            .collect()
+    }
+
     pub fn events(&self) -> Vec<Event> {
         self.events.clone()
     }
@@ -1252,6 +1268,12 @@ impl ControlPlane {
                         )
                     })?
                     .clone();
+                if draft.objective_item != revision.objective_item && !objective_authorized {
+                    return Err(ControlError::forbidden(
+                        "objective_authorization_required",
+                        "restoring an objective requires the objective scope",
+                    ));
+                }
                 draft.selected_items = revision.selected_items;
                 draft.pinned_item_ids = revision.pinned_item_ids;
                 draft.note_items = revision.note_items;
