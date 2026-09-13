@@ -1752,6 +1752,10 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             .map_err(FacadeError::owner)
             .and_then(|receipt| self.project_receipt(receipt))?;
         self.cache_receipt(&receipt);
+        // A recovered commit receipt can name the newly active revision even though the
+        // original write response was lost. Keep that owner-issued identity available for the
+        // subsequent resume command without requiring a full revision refresh.
+        self.cache_revision_id(&receipt.active_revision_id);
         Ok(receipt)
     }
 

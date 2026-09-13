@@ -53,6 +53,12 @@
           "403": {
             "$ref": "#/components/responses/Denied"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -99,6 +105,12 @@
           },
           "403": {
             "$ref": "#/components/responses/Denied"
+          },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -154,6 +166,12 @@
           "403": {
             "$ref": "#/components/responses/Denied"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -205,6 +223,12 @@
           "403": {
             "$ref": "#/components/responses/Denied"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -255,6 +279,12 @@
           },
           "403": {
             "$ref": "#/components/responses/Denied"
+          },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -317,6 +347,12 @@
           "409": {
             "$ref": "#/components/responses/Stale"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -369,6 +405,12 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -436,6 +478,12 @@
           "409": {
             "$ref": "#/components/responses/Stale"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -486,6 +534,12 @@
           },
           "403": {
             "$ref": "#/components/responses/Denied"
+          },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -548,6 +602,12 @@
           "409": {
             "$ref": "#/components/responses/Stale"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -601,6 +661,12 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -610,7 +676,8 @@
     "/v2/runs/{run_id}/context-control/commands": {
       "get": {
         "operationId": "facadeReceipts",
-        "summary": "Enumerate bounded owner command receipts",
+        "summary": "Enumerate or recover bounded owner command receipts",
+        "description": "Without a recovery query, returns a bounded receipt array. With exactly one idempotency_key, reference_key, or reference query parameter, returns one recovered Receipt.",
         "parameters": [
           {
             "$ref": "#/components/parameters/RunId"
@@ -620,6 +687,15 @@
           },
           {
             "$ref": "#/components/parameters/Principal"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKeyQuery"
+          },
+          {
+            "$ref": "#/components/parameters/ReferenceKeyQuery"
+          },
+          {
+            "$ref": "#/components/parameters/ReferenceQuery"
           }
         ],
         "security": [
@@ -630,15 +706,22 @@
         "x-required-permission": "context.metadata.read",
         "responses": {
           "200": {
-            "description": "Bounded receipt array",
+            "description": "Bounded receipt array without a recovery query, or one recovered receipt when exactly one recovery query is supplied",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "maxItems": 64,
-                  "items": {
-                    "$ref": "#/components/schemas/Receipt"
-                  }
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "items": {
+                        "$ref": "#/components/schemas/Receipt"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  ]
                 }
               }
             }
@@ -651,6 +734,12 @@
           },
           "403": {
             "$ref": "#/components/responses/Denied"
+          },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -705,6 +794,12 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -758,6 +853,12 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -816,6 +917,12 @@
           "409": {
             "$ref": "#/components/responses/Stale"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -872,6 +979,12 @@
           },
           "409": {
             "$ref": "#/components/responses/Stale"
+          },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
           },
           "503": {
             "$ref": "#/components/responses/Unavailable"
@@ -930,6 +1043,12 @@
           "409": {
             "$ref": "#/components/responses/Stale"
           },
+          "410": {
+            "$ref": "#/components/responses/Expired"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
           "503": {
             "$ref": "#/components/responses/Unavailable"
           }
@@ -987,6 +1106,33 @@
           "$ref": "#/components/schemas/Id"
         },
         "description": "Caller-known command identity retained for receipt recovery."
+      },
+      "IdempotencyKeyQuery": {
+        "name": "idempotency_key",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        },
+        "description": "Recover one receipt by the caller-known idempotency key. Mutually exclusive with reference_key and reference."
+      },
+      "ReferenceKeyQuery": {
+        "name": "reference_key",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        },
+        "description": "Compatibility alias for idempotency_key receipt recovery. Mutually exclusive with the other recovery query parameters."
+      },
+      "ReferenceQuery": {
+        "name": "reference",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        },
+        "description": "Compatibility alias for idempotency_key receipt recovery. Mutually exclusive with the other recovery query parameters."
       },
       "Origin": {
         "name": "Origin",
@@ -1070,6 +1216,26 @@
       },
       "NotFound": {
         "description": "Reference is not available in the configured scope",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/FacadeError"
+            }
+          }
+        }
+      },
+      "Expired": {
+        "description": "The caller capability or owner-issued reference has expired",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/FacadeError"
+            }
+          }
+        }
+      },
+      "TooLarge": {
+        "description": "The request body or response exceeds the facade bound",
         "content": {
           "application/json": {
             "schema": {
