@@ -93,7 +93,12 @@ the scoped metadata-read grant, so a caller can recover an applied command after
 revoked. The owner is queried directly by the caller-known key; the local owner-generated command
 ID cache is not a prerequisite. The collection route
 `/v2/runs/{run_id}/context-control/commands` provides a bounded owner receipt refresh for reconnect
-clients.
+clients when called without a query. Supplying exactly one `idempotency_key`, `reference_key`, or
+`reference` query parameter on that route instead returns one recovered `Receipt`; the aliases are
+mutually exclusive. Every facade route may also return `410` for an expired capability/reference.
+Routes with a request body return `413` when that body exceeds the 16 KiB facade bound. A serialized
+response that exceeds the same bound is reported as `503` with `response_too_large` under the
+unavailable error class.
 
 The machine-readable consumer artifacts are:
 

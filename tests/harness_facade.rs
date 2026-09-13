@@ -1435,6 +1435,92 @@ fn lost_commit_reply_recovers_receipt_after_process_restart_without_repeating_ef
 }
 
 #[test]
+fn lost_commit_recovery_keeps_active_revision_for_resume() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic()).with_lost_commit_reply();
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("continuation-editor", FULL_TOKEN, 100);
+    let active = service.state(&full).expect("state").active_revision_id;
+    let draft = service.create_draft(&full, &active).expect("draft");
+    let item = history(&service.owner().inner);
+    let edited = service
+        .edit_draft(
+            &full,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: scope.clone(),
+                draft_id: draft.draft_id,
+                expected_draft_version: draft.version,
+                expected_active_revision_id: active.clone(),
+                operations: vec![ControlOperation::IncludeItem { item }],
+            },
+        )
+        .expect("edit");
+    let pause = command(
+        &service.owner().inner,
+        "pause",
+        "lost-recovery-pause",
+        service.owner().inner.state().control_version,
+    );
+    service.pause(&full, pause).expect("pause");
+    let preview = service
+        .preview(
+            &full,
+            PreviewRequest {
+                scope: scope.clone(),
+                draft_id: edited.draft_id,
+                expected_draft_version: edited.version,
+                applicable_requested: true,
+                expected_control_version: service.owner().inner.state().control_version,
+                unknown_total_risk_acknowledged: true,
+            },
+        )
+        .expect("preview");
+    let preview_id = preview.preview_id.clone();
+    let mut commit = command(
+        &service.owner().inner,
+        "commit",
+        "lost-recovery-commit",
+        service.owner().inner.state().control_version,
+    );
+    commit.expected_active_revision_id = Some(active);
+    commit.preview_id = Some(preview_id.clone());
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    let lost = service
+        .held_commit(&full, commit)
+        .expect_err("reply is intentionally lost after apply");
+    assert_eq!(lost.code, "owner_unavailable");
+
+    let recovered = service
+        .recover_receipt(&full, "lost-recovery-commit")
+        .expect("receipt recovery");
+    assert_eq!(recovered.kind, "commit");
+    assert_ne!(recovered.active_revision_id, "revision-1");
+
+    let mut resume = command(
+        &service.owner().inner,
+        "resume",
+        "lost-recovery-resume",
+        service.owner().inner.state().control_version,
+    );
+    resume.expected_active_revision_id = Some(recovered.active_revision_id.clone());
+    resume.expected_preview_id = Some(preview_id);
+    let resumed = service
+        .resume(&full, resume)
+        .expect("resume after recovery");
+    assert_eq!(resumed.kind, "resume");
+    assert_eq!(service.owner().inner.state().status, "running");
+}
+
+#[test]
 fn http_receipt_recovery_uses_idempotency_key_after_lost_reply_and_write_revocation() {
     let owner = RecordingOwner::new(ControlPlane::synthetic()).with_lost_commit_reply();
     let scope = owner.scope();
@@ -1647,13 +1733,57 @@ fn published_facade_openapi_is_local_and_matches_transport_shapes() {
     );
     assert_eq!(
         paths["/v2/runs/{run_id}/context-control/commands"]["get"]["responses"]["200"]["content"]["application/json"]
-            ["schema"]["type"],
-        "array"
+            ["schema"]["oneOf"]
+            .as_array()
+            .map_or(0, Vec::len),
+        2
     );
+    let command_parameters =
+        paths["/v2/runs/{run_id}/context-control/commands"]["get"]["parameters"]
+            .as_array()
+            .expect("receipt recovery query parameters");
+    for parameter in ["IdempotencyKeyQuery", "ReferenceKeyQuery", "ReferenceQuery"] {
+        assert!(
+            command_parameters.iter().any(|value| {
+                value["$ref"].as_str().is_some_and(|reference| {
+                    reference == format!("#/components/parameters/{parameter}")
+                })
+            }),
+            "missing receipt recovery query parameter: {parameter}"
+        );
+    }
     assert_eq!(
         paths["/v2/runs/{run_id}/context-control/commands/by-idempotency-key/{idempotency_key}"]["get"]
             ["operationId"],
         "facadeReceiptRecovery"
+    );
+    for path in paths.as_object().expect("OpenAPI paths object").values() {
+        for operation in path.as_object().expect("OpenAPI path item object").values() {
+            assert_eq!(
+                operation["responses"]["410"]["$ref"],
+                "#/components/responses/Expired"
+            );
+            if operation.get("requestBody").is_some() {
+                assert_eq!(
+                    operation["responses"]["413"]["$ref"],
+                    "#/components/responses/TooLarge"
+                );
+            } else {
+                assert!(
+                    operation["responses"].get("413").is_none(),
+                    "413 is only valid for operations with a request body"
+                );
+            }
+        }
+    }
+    assert_eq!(
+        document["components"]["responses"]["TooLarge"]["description"],
+        "The request body exceeds the 16 KiB facade bound"
+    );
+    assert!(
+        document["components"]["responses"]["Unavailable"]["description"]
+            .as_str()
+            .is_some_and(|description| description.contains("response_too_large"))
     );
     let mut references = Vec::new();
     collect_refs(&document, &mut references);
