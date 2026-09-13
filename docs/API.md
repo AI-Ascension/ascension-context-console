@@ -53,6 +53,25 @@ key and command-window identity. The journal envelope preserves drafts, revision
 events, pause state, and selected bytes across a controller recovery; old boundary/plan epochs are
 fenced. The copied schemas are in `contracts/context-control`.
 
+## Non-demo harness-backed composition
+
+Issue #18 adds `HarnessBackedContextService`, a separate composition for an owner supplied through
+the typed `HarnessOwnerPort`. It uses the same `/v2/runs/{run_id}/context-control/` resource names,
+but does not use fixture tokens, fixture keys, or the integrated-demo state. The owner-auth value is
+an injected opaque reference resolved by the owning harness; no upstream URL, provider/game
+credential, or scheduler is accepted by this target.
+
+The facade grants metadata, content, ordinary edit, objective, pause, commit, and resume
+independently. Exact Host and configured Origin are checked on every request; writes also require
+the injected CSRF proof. Expiry, revocation, scope, foreign-reference, and owner
+unavailable/denied/stale/unknown outcomes are preserved as stable typed errors. Metadata projections
+redact raw content, and the facade never invents prepared bytes or claims a fixture preview is
+universal provider context. Capture is off by default; private retention requires the accepted
+authenticated-encryption policy.
+
+Consumer schemas, the auth configuration shape, deployment/rollback notes, and the external
+integration gate are in [`HARNESS_FACADE.md`](HARNESS_FACADE.md).
+
 ## Phase 3 memory facade
 
 The additive memory surface is served by the integrated fixture under `/v3/memory`. It is

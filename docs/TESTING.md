@@ -24,6 +24,13 @@ stop dominance, deactivation, and journal tamper recovery. The companion harness
 legacy byte parity, enabled managed context, exact prepared bytes through Exo, enabled Ollama
 projection, controller recovery, and fail-closed invalid UTF-8/expiry/pin validation.
 
+`harness_facade` is the non-demo process/composition gate. Its recording owner proves scoped draft
+and CAS edits, pin/preview/held-commit/resume forwarding with exact receipts, metadata redaction,
+independent objective and resume grants, same-origin Host/CSRF checks, expiry/revocation, foreign
+reference fencing, secret-query rejection, and receipt recovery/idempotent replay after restart.
+The owner is synthetic; the test does not claim the external harness lifecycle or provider/native
+gate.
+
 The target `phase2_durable` tests cover encrypted journal reopen, wrong-key/tamper rejection,
 transaction rollback with outbox atomicity, additive schema repair with retained Phase 1 bytes,
 legacy active-state refusal, and immutable snapshot backup.

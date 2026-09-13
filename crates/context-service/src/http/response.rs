@@ -62,7 +62,12 @@ impl HttpResponse {
             403 => "Forbidden",
             404 => "Not Found",
             405 => "Method Not Allowed",
+            409 => "Conflict",
+            410 => "Gone",
+            413 => "Payload Too Large",
+            422 => "Unprocessable Content",
             429 => "Too Many Requests",
+            503 => "Service Unavailable",
             _ => "Internal Server Error",
         };
         write!(stream, "HTTP/1.1 {} {}\r\n", self.status, reason).map_err(|_| ApiError::Io)?;

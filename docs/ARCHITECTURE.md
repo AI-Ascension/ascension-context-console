@@ -45,6 +45,15 @@ Host, Origin and CSRF before forwarding. A lost reply performs a receipt lookup 
 retrying a possibly effective operation. The port has no provider credential, native RPC, process,
 URL or private-capture field.
 
+`harness_facade.rs` adds the non-demo `HarnessBackedContextService` composition. It accepts a
+typed `HarnessOwnerPort` and an injected opaque owner-auth reference, performs the console's
+independent metadata/content/edit/objective/commit/pause/resume grant checks, and delegates only
+owner-advertised operations. Exact Host/Origin/CSRF proof, expiry/revocation, scope and foreign
+reference fencing happen before mutation forwarding. Metadata redacts content, previews carry only
+owner-issued manifests/references, and provider-added context remains unknown. The facade has no
+upstream URL, provider/game credential, scheduler, or automatic resume; the legacy demo remains
+separately labelled and fixture-only.
+
 The checked-in fixtures and `context-console demo` exercise producer → store → read API evidence
 without launching a provider or game. `context-console integrated-demo` extends that synthetic
 path through `MemoryCapture`, an authenticated `ReadApi` projection, the temporary durable control store, and the browser's same-origin

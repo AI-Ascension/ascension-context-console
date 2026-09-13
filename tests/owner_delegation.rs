@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use context_service::{
-    HarnessOwner, HarnessOwnerComposition, MemoryRoute, MemoryRouteError, MemoryScope, OwnerError,
-    OwnerGrant, OwnerGrantBook, OwnerGrantClass, OwnerOperation, OwnerOutcome, OwnerReceipt,
+    HarnessOwner, HarnessOwnerComposition, MemoryRoute, MemoryRouteError, MemoryScope, OwnerGrant,
+    OwnerGrantBook, OwnerGrantClass, OwnerOperation, OwnerOutcome, OwnerPortError, OwnerReceipt,
     OwnerReceiptLookup, OwnerReply, OwnerRequestContext, OwnerScope, ProviderSessionRoute,
     SessionApiError, SessionScopeView,
 };
@@ -28,7 +28,7 @@ struct RecordingOwner {
     unsupported: Mutex<bool>,
     unknown: Mutex<bool>,
     forbidden_response: Mutex<bool>,
-    lookup_error: Mutex<Option<OwnerError>>,
+    lookup_error: Mutex<Option<OwnerPortError>>,
     lookup_mismatch: Mutex<bool>,
 }
 
@@ -38,7 +38,7 @@ impl RecordingOwner {
         operation: OwnerOperation,
         scope: &OwnerScope,
         payload: &Value,
-    ) -> Result<OwnerReply, OwnerError> {
+    ) -> Result<OwnerReply, OwnerPortError> {
         self.accepted_with_receipt(operation, scope, payload, None)
     }
 
@@ -48,7 +48,7 @@ impl RecordingOwner {
         scope: &OwnerScope,
         payload: &Value,
         receipt_id_override: Option<&str>,
-    ) -> Result<OwnerReply, OwnerError> {
+    ) -> Result<OwnerReply, OwnerPortError> {
         let receipt_id = receipt_id_override
             .map(ToOwned::to_owned)
             .or_else(|| {
@@ -85,11 +85,11 @@ impl RecordingOwner {
             OwnerOutcome::Accepted,
             false,
         )
-        .map_err(|_| OwnerError::MalformedResponse)?;
+        .map_err(|_| OwnerPortError::MalformedResponse)?;
         let reply = if *self
             .forbidden_response
             .lock()
-            .map_err(|_| OwnerError::MalformedResponse)?
+            .map_err(|_| OwnerPortError::MalformedResponse)?
         {
             // Deliberately bypass the helper's validation so the route's consumer-side response
             // fence is exercised.
@@ -98,7 +98,7 @@ impl RecordingOwner {
                 value: Some(value),
             }
         } else {
-            OwnerReply::new(receipt, Some(value)).map_err(|_| OwnerError::MalformedResponse)?
+            OwnerReply::new(receipt, Some(value)).map_err(|_| OwnerPortError::MalformedResponse)?
         };
         lock(&self.receipts).insert(receipt_id, reply.clone());
         let _ = scope;
@@ -115,7 +115,7 @@ impl RecordingOwner {
 }
 
 impl HarnessOwner for RecordingOwner {
-    fn call(&self, request: context_service::OwnerCall) -> Result<OwnerReply, OwnerError> {
+    fn call(&self, request: context_service::OwnerCall) -> Result<OwnerReply, OwnerPortError> {
         lock(&self.calls).push(SeenCall {
             operation: request.operation,
             scope: request.scope.clone(),
@@ -130,7 +130,7 @@ impl HarnessOwner for RecordingOwner {
                 Some(&receipt_id),
             )?;
             lock(&self.receipts).insert(receipt_id.clone(), reply);
-            return Err(OwnerError::LostReply { receipt_id });
+            return Err(OwnerPortError::LostReply { receipt_id });
         }
         if *lock(&self.unsupported) {
             return OwnerReply::unsupported(
@@ -141,7 +141,7 @@ impl HarnessOwner for RecordingOwner {
                 7,
                 "owner_unsupported",
             )
-            .map_err(|_| OwnerError::MalformedResponse);
+            .map_err(|_| OwnerPortError::MalformedResponse);
         }
         if *lock(&self.unknown) {
             return OwnerReply::unknown(
@@ -152,12 +152,12 @@ impl HarnessOwner for RecordingOwner {
                 7,
                 "owner_unknown",
             )
-            .map_err(|_| OwnerError::MalformedResponse);
+            .map_err(|_| OwnerPortError::MalformedResponse);
         }
         self.accepted(request.operation, &request.scope, &request.payload)
     }
 
-    fn lookup_receipt(&self, request: OwnerReceiptLookup) -> Result<OwnerReply, OwnerError> {
+    fn lookup_receipt(&self, request: OwnerReceiptLookup) -> Result<OwnerReply, OwnerPortError> {
         lock(&self.lookups).push(request.clone());
         if let Some(error) = lock(&self.lookup_error).take() {
             return Err(error);
@@ -171,12 +171,12 @@ impl HarnessOwner for RecordingOwner {
                 7,
                 "mismatched_receipt",
             )
-            .map_err(|_| OwnerError::MalformedResponse);
+            .map_err(|_| OwnerPortError::MalformedResponse);
         }
         lock(&self.receipts)
             .get(&request.receipt_id)
             .cloned()
-            .ok_or(OwnerError::UnknownReceipt)
+            .ok_or(OwnerPortError::UnknownReceipt)
     }
 }
 
@@ -628,7 +628,7 @@ fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<
 
     *lock(&owner.lookup_mismatch) = false;
     *lock(&owner.lose_next) = Some("lost-unknown".to_owned());
-    *lock(&owner.lookup_error) = Some(OwnerError::UnknownReceipt);
+    *lock(&owner.lookup_error) = Some(OwnerPortError::UnknownReceipt);
     let unknown = route
         .handle_with_context(
             "POST",
@@ -640,7 +640,7 @@ fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<
     assert_eq!(unknown["outcome"], "unknown");
 
     *lock(&owner.lose_next) = Some("lost-unsupported".to_owned());
-    *lock(&owner.lookup_error) = Some(OwnerError::Unsupported);
+    *lock(&owner.lookup_error) = Some(OwnerPortError::Unsupported);
     let unsupported = route
         .handle_with_context(
             "POST",
@@ -680,7 +680,7 @@ fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<
     );
     *lock(&session_owner.lookup_mismatch) = false;
     *lock(&session_owner.lose_next) = Some("session-unknown".to_owned());
-    *lock(&session_owner.lookup_error) = Some(OwnerError::UnknownReceipt);
+    *lock(&session_owner.lookup_error) = Some(OwnerPortError::UnknownReceipt);
     let unknown = sessions
         .handle_with_context(
             "GET",
@@ -692,7 +692,7 @@ fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<
     assert_eq!(unknown["outcome"], "unknown");
 
     *lock(&session_owner.lose_next) = Some("session-unsupported".to_owned());
-    *lock(&session_owner.lookup_error) = Some(OwnerError::Unsupported);
+    *lock(&session_owner.lookup_error) = Some(OwnerPortError::Unsupported);
     let unsupported = sessions
         .handle_with_context(
             "GET",

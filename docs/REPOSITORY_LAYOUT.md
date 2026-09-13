@@ -14,6 +14,8 @@ private vault and the CLI/API/demo boundary:
 - `capture/` - the off/metadata/memory/private capture sink contract.
 - `private_store/` - the approved, authenticated encrypted vault.
 - `telemetry/` - bounded capture accounting.
+- `harness_facade.rs` - non-demo typed harness-owner port/client, scoped grants, same-origin
+  transport adapter, redacted projections, and stable owner outcomes.
 - `demo/` - the provider-free offline demonstration server.
 - `src/bin/context-console/` - the `health|demo|integrated-demo|inspect` CLI.
 - `src/bin/integrated-demo/` - the additive integrated demonstration binary.

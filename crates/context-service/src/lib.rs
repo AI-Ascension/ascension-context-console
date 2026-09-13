@@ -12,6 +12,7 @@ mod capture;
 mod cli;
 mod control;
 mod demo;
+mod harness_facade;
 mod http;
 mod memory;
 mod owner;
@@ -41,6 +42,16 @@ pub use control::{
     State as ControlState,
 };
 pub use demo::{demo, run as run_integrated_demo};
+pub use harness_facade::{
+    CapabilityGrant, FACADE_CAPABILITIES_SCHEMA, FACADE_CONFIG_SCHEMA, FACADE_ERROR_SCHEMA,
+    FacadeCapabilities, FacadeCaptureMode, FacadeConfigError, FacadeError, FacadeErrorClass,
+    FacadePermission, FacadeRequest, FacadeResult, GrantError, GrantRegistry,
+    HarnessBackedContextService, HarnessFacadeConfig, HarnessOwnerClient, HarnessOwnerPort,
+    MAX_FACADE_BODY_BYTES, MAX_FACADE_HOST_BYTES, MAX_FACADE_ID_BYTES, MAX_FACADE_ORIGIN_BYTES,
+    MAX_FACADE_PRINCIPAL_BYTES, MAX_FACADE_RESPONSE_BYTES, MAX_FACADE_TOKEN_BYTES,
+    OwnerAuthorization, OwnerError, PreviewRequest, ProtectedAuthReference, RetentionMode,
+    RetentionPolicy, SecretDigest,
+};
 pub use memory::{
     MAX_MEMORY_BODY_BYTES, MAX_MEMORY_QUERY_BYTES, MemoryCapabilities, MemoryQueryRequest,
     MemoryRoute, MemoryRouteError, MemoryScope,
@@ -48,9 +59,9 @@ pub use memory::{
 pub use owner::{
     HarnessOwner, HarnessOwnerComposition, OWNER_MAX_BODY_BYTES, OWNER_MAX_RESPONSE_BYTES,
     OWNER_MAX_RESPONSE_DEPTH, OWNER_RECEIPT_SCHEMA, OwnerAuthError, OwnerCall, OwnerConfigError,
-    OwnerError, OwnerGrant, OwnerGrantBook, OwnerGrantClass, OwnerGrantReceipt, OwnerOperation,
-    OwnerOutcome, OwnerReceipt, OwnerReceiptLookup, OwnerReply, OwnerRequestContext,
-    OwnerResponseError, OwnerScope,
+    OwnerError as OwnerPortError, OwnerGrant, OwnerGrantBook, OwnerGrantClass, OwnerGrantReceipt,
+    OwnerOperation, OwnerOutcome, OwnerReceipt, OwnerReceiptLookup, OwnerReply,
+    OwnerRequestContext, OwnerResponseError, OwnerScope,
 };
 pub use private_store::{
     EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,

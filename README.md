@@ -47,6 +47,18 @@ JSON, draft CAS versions, immutable previews, and idempotent command receipts. p
 exercises the same control plane without a provider call, game launch, or external request.
 Contract schemas and their source pin are in contracts/context-control.
 
+The non-demo `HarnessBackedContextService` is a separate typed composition for Studio consumers.
+It accepts an injected `HarnessOwnerPort` and opaque owner-auth reference, intersects advertised
+owner capabilities, and delegates draft/CAS, pin/note/objective, deterministic preview, held
+commit, explicit resume, and receipt reads. Independent scoped grants, exact Host/Origin/CSRF
+proof, expiry/revocation, foreign-reference fencing, metadata redaction, and stable
+unavailable/denied/stale/unknown outcomes are enforced before mutation forwarding. It has no
+provider/game credential, arbitrary upstream URL, or scheduler, and capture remains off by default.
+See [docs/HARNESS_FACADE.md](docs/HARNESS_FACADE.md) and the
+`harness-facade-*.schema.json`/OpenAPI artifacts under `contracts/context-control`. The real owner
+integration remains the external `sts2-harness#100` gate; this target's recording-owner tests are
+synthetic.
+
 The compiled fixture CLI uses that same typed reducer and encrypted journal:
 
 ```text
