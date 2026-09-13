@@ -21,6 +21,7 @@ const MAX_BINDINGS: usize = 128;
 const MAX_OPERATIONS: usize = 512;
 const MAX_CANDIDATES: usize = 4;
 const FIXTURE_EXPIRY_SECONDS: u64 = 900;
+const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SessionApiError {
@@ -180,6 +181,139 @@ struct IdempotencyRecord {
     binding_id: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SessionCandidatePurpose {
+    ExecutableCandidate,
+    Evaluation,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionCandidateCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    approved_policy_ref: String,
+    profile_ref: String,
+    purpose: SessionCandidatePurpose,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionHistoryRefreshCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    expected_session_epoch: u64,
+    expected_history_epoch: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionReconnectCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    expected_session_epoch: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SessionForkOperation {
+    NativeFork,
+    CleanRehydration,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionForkPlanCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    expected_session_epoch: u64,
+    expected_history_epoch: u64,
+    cutoff_turn_ref: String,
+    operation: SessionForkOperation,
+    purpose: SessionForkPurpose,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SessionForkPurpose {
+    Evaluation,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SessionCompactionPolicy {
+    StrictReviewed,
+    ObservedPersistent,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionCompactionPlanCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    expected_session_epoch: u64,
+    expected_history_epoch: u64,
+    requested_policy: SessionCompactionPolicy,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionPreparedBindingCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    expected_session_epoch: u64,
+    expected_history_epoch: u64,
+    phase2_draft_ref: String,
+    phase3_selection_ref: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionForkCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    approved_fork_plan_ref: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionCompactionCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    approved_compaction_plan_ref: String,
+    spend_authorization_ref: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SessionRetireReason {
+    OperatorRequest,
+    SourceRemoved,
+    ContinuityLost,
+    ScopeEnded,
+    CapacityRotation,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionRetireCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    expected_session_epoch: u64,
+    reason: SessionRetireReason,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionCleanupCommand {
+    idempotency_key: String,
+    expected_control_generation: u64,
+    retirement_ref: String,
+    erase_authorization_ref: String,
+    expected_session_epoch: u64,
+}
+
 impl ProviderSessionRoute {
     #[must_use]
     pub fn fixture(principal: impl Into<String>) -> Self {
@@ -307,6 +441,11 @@ impl ProviderSessionRoute {
         if expected_scope != scope {
             return Err(SessionApiError::NotFound);
         }
+        if !self.attached_bindings.contains_key(&binding_id)
+            && self.attached_bindings.len() >= MAX_BINDINGS
+        {
+            return Err(SessionApiError::Capacity);
+        }
         self.attached_bindings.insert(binding_id, scope);
         Ok(())
     }
@@ -328,6 +467,11 @@ impl ProviderSessionRoute {
         };
         if expected_scope != scope {
             return Err(SessionApiError::NotFound);
+        }
+        if !self.attached_operations.contains_key(&operation_id)
+            && self.attached_operations.len() >= MAX_OPERATIONS
+        {
+            return Err(SessionApiError::Capacity);
         }
         self.attached_operations.insert(operation_id, scope);
         Ok(())
@@ -359,12 +503,10 @@ impl ProviderSessionRoute {
         principal: &str,
         body: &[u8],
     ) -> Result<Value, SessionApiError> {
-        if let Some(owner) = &self.owner {
-            let now = unix_seconds();
-            let context = owner
-                .context_for(principal, now)
-                .ok_or(SessionApiError::Unauthorized)?;
-            return self.handle_with_context(method, path, &context, body);
+        if self.owner.is_some() {
+            // The compatibility signature cannot carry Host, Origin or CSRF proofs. Attached
+            // routes therefore require the explicit `handle_with_context` entry point.
+            return Err(SessionApiError::Unauthorized);
         }
         self.handle_local(method, path, principal, body)
     }
@@ -742,6 +884,7 @@ impl ProviderSessionRoute {
         let grant = composition
             .authorize(context, operation.grant_class(), &scope, write)
             .map_err(|_| SessionApiError::Forbidden)?;
+        self.ensure_attached_capacity(operation)?;
         let revocation_epoch = grant.revocation_epoch;
         let call = owner_call(operation, scope.clone(), reference.clone(), payload, grant)
             .map_err(|_| SessionApiError::BadRequest)?;
@@ -759,7 +902,12 @@ impl ProviderSessionRoute {
                     receipt_id: receipt_id.clone(),
                 };
                 match owner.lookup_receipt(lookup) {
-                    Ok(reply) => reply,
+                    Ok(reply) => {
+                        if reply.receipt.receipt_id != receipt_id {
+                            return Err(SessionApiError::MalformedPeer);
+                        }
+                        reply
+                    }
                     Err(OwnerError::UnknownReceipt | OwnerError::Unavailable) => {
                         crate::owner::OwnerReply::unknown(
                             receipt_id,
@@ -772,7 +920,7 @@ impl ProviderSessionRoute {
                         .map_err(|_| SessionApiError::MalformedPeer)?
                     }
                     Err(OwnerError::Unsupported) => crate::owner::OwnerReply::unsupported(
-                        "unsupported-receipt",
+                        receipt_id.clone(),
                         "unsupported",
                         operation,
                         "harness",
@@ -802,23 +950,78 @@ impl ProviderSessionRoute {
         reply
             .validate_for(operation)
             .map_err(|_| SessionApiError::MalformedPeer)?;
-        self.record_attached_references(&scope, reply.value.as_ref());
+        self.record_attached_references(&scope, reply.value.as_ref())?;
         owner_session_result(operation, revocation_epoch, reply)
+    }
+
+    fn ensure_attached_capacity(&self, operation: OwnerOperation) -> Result<(), SessionApiError> {
+        let creates_binding = matches!(
+            operation,
+            OwnerOperation::SessionCandidate | OwnerOperation::SessionPreparedBinding
+        );
+        let creates_operation = matches!(
+            operation,
+            OwnerOperation::SessionCandidate
+                | OwnerOperation::SessionHistoryRefresh
+                | OwnerOperation::SessionReconnect
+                | OwnerOperation::SessionForkPlan
+                | OwnerOperation::SessionCompactionPlan
+                | OwnerOperation::SessionPreparedBinding
+                | OwnerOperation::SessionFork
+                | OwnerOperation::SessionCompaction
+                | OwnerOperation::SessionRetire
+                | OwnerOperation::SessionCleanup
+        );
+        if creates_binding && self.attached_bindings.len() >= MAX_BINDINGS {
+            return Err(SessionApiError::Capacity);
+        }
+        if creates_operation && self.attached_operations.len() >= MAX_OPERATIONS {
+            return Err(SessionApiError::Capacity);
+        }
+        Ok(())
     }
 
     fn record_attached_references(
         &mut self,
         scope: &crate::owner::OwnerScope,
         value: Option<&Value>,
-    ) {
+    ) -> Result<(), SessionApiError> {
         let Some(object) = value.and_then(Value::as_object) else {
-            return;
+            return Ok(());
         };
-        if let Some(binding_id) = object
+        let binding_id = object
             .get("binding_id")
             .and_then(Value::as_str)
-            .filter(|value| valid_id(value))
+            .filter(|value| valid_id(value));
+        if binding_id.is_some_and(|binding_id| {
+            !self.attached_bindings.contains_key(binding_id)
+                && self.attached_bindings.len() >= MAX_BINDINGS
+        }) {
+            return Err(SessionApiError::Capacity);
+        }
+
+        let mut new_operation_ids = Vec::new();
+        for key in ["operation_id", "plan_id"] {
+            if let Some(operation_id) = object
+                .get(key)
+                .and_then(Value::as_str)
+                .filter(|value| valid_id(value))
+                && !self.attached_operations.contains_key(operation_id)
+                && !new_operation_ids.iter().any(|known| known == operation_id)
+            {
+                new_operation_ids.push(operation_id.to_owned());
+            }
+        }
+        if self
+            .attached_operations
+            .len()
+            .saturating_add(new_operation_ids.len())
+            > MAX_OPERATIONS
         {
+            return Err(SessionApiError::Capacity);
+        }
+
+        if let Some(binding_id) = binding_id {
             self.attached_bindings.insert(
                 binding_id.to_owned(),
                 SessionScopeView {
@@ -829,23 +1032,18 @@ impl ProviderSessionRoute {
                 },
             );
         }
-        for key in ["operation_id", "plan_id"] {
-            if let Some(operation_id) = object
-                .get(key)
-                .and_then(Value::as_str)
-                .filter(|value| valid_id(value))
-            {
-                self.attached_operations.insert(
-                    operation_id.to_owned(),
-                    SessionScopeView {
-                        project_id: scope.project_id.clone(),
-                        run_id: scope.run_id.clone(),
-                        episode_id: scope.episode_id.clone(),
-                        agent_id: scope.agent_id.clone(),
-                    },
-                );
-            }
+        for operation_id in new_operation_ids {
+            self.attached_operations.insert(
+                operation_id,
+                SessionScopeView {
+                    project_id: scope.project_id.clone(),
+                    run_id: scope.run_id.clone(),
+                    episode_id: scope.episode_id.clone(),
+                    agent_id: scope.agent_id.clone(),
+                },
+            );
         }
+        Ok(())
     }
 
     fn mutate_candidate(
@@ -1381,6 +1579,10 @@ fn valid_id(value: &str) -> bool {
         })
 }
 
+fn safe_generation(value: u64) -> bool {
+    value <= MAX_SAFE_INTEGER
+}
+
 fn owner_session_payload(
     operation: OwnerOperation,
     method: &str,
@@ -1399,172 +1601,105 @@ fn owner_session_payload(
     if method != "POST" {
         return Err(SessionApiError::MethodNotAllowed);
     }
-    let parsed = match operation {
-        OwnerOperation::SessionCandidate => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "approved_policy_ref",
-                "profile_ref",
-                "purpose",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "approved_policy_ref",
-                "profile_ref",
-                "purpose",
-            ],
-        )?,
-        OwnerOperation::SessionHistoryRefresh => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-            ],
-        )?,
-        OwnerOperation::SessionReconnect => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-            ],
-        )?,
-        OwnerOperation::SessionForkPlan => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-                "cutoff_turn_ref",
-                "operation",
-                "purpose",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-                "cutoff_turn_ref",
-                "operation",
-                "purpose",
-            ],
-        )?,
-        OwnerOperation::SessionCompactionPlan => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-                "requested_policy",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-                "requested_policy",
-            ],
-        )?,
-        OwnerOperation::SessionPreparedBinding => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-                "phase2_draft_ref",
-                "phase3_selection_ref",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "expected_history_epoch",
-                "phase2_draft_ref",
-                "phase3_selection_ref",
-            ],
-        )?,
-        OwnerOperation::SessionFork => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "approved_fork_plan_ref",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "approved_fork_plan_ref",
-            ],
-        )?,
-        OwnerOperation::SessionCompaction => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "approved_compaction_plan_ref",
-                "spend_authorization_ref",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "approved_compaction_plan_ref",
-                "spend_authorization_ref",
-            ],
-        )?,
-        OwnerOperation::SessionRetire => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "reason",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "expected_session_epoch",
-                "reason",
-            ],
-        )?,
-        OwnerOperation::SessionCleanup => parse_command(
-            body,
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "retirement_ref",
-                "erase_authorization_ref",
-                "expected_session_epoch",
-            ],
-            &[
-                "idempotency_key",
-                "expected_control_generation",
-                "retirement_ref",
-                "erase_authorization_ref",
-                "expected_session_epoch",
-            ],
-        )?,
-        _ => return Err(SessionApiError::Unsupported),
-    };
-    let value = parsed.0;
+    match operation {
+        OwnerOperation::SessionCandidate => {
+            parse_typed_session_command(body, |command: &SessionCandidateCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && valid_id(&command.approved_policy_ref)
+                    && valid_id(&command.profile_ref)
+            })
+        }
+        OwnerOperation::SessionHistoryRefresh => {
+            parse_typed_session_command(body, |command: &SessionHistoryRefreshCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && safe_generation(command.expected_session_epoch)
+                    && safe_generation(command.expected_history_epoch)
+            })
+        }
+        OwnerOperation::SessionReconnect => {
+            parse_typed_session_command(body, |command: &SessionReconnectCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && safe_generation(command.expected_session_epoch)
+            })
+        }
+        OwnerOperation::SessionForkPlan => {
+            parse_typed_session_command(body, |command: &SessionForkPlanCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && safe_generation(command.expected_session_epoch)
+                    && safe_generation(command.expected_history_epoch)
+                    && valid_id(&command.cutoff_turn_ref)
+            })
+        }
+        OwnerOperation::SessionCompactionPlan => {
+            parse_typed_session_command(body, |command: &SessionCompactionPlanCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && safe_generation(command.expected_session_epoch)
+                    && safe_generation(command.expected_history_epoch)
+            })
+        }
+        OwnerOperation::SessionPreparedBinding => {
+            parse_typed_session_command(body, |command: &SessionPreparedBindingCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && safe_generation(command.expected_session_epoch)
+                    && safe_generation(command.expected_history_epoch)
+                    && valid_id(&command.phase2_draft_ref)
+                    && valid_id(&command.phase3_selection_ref)
+            })
+        }
+        OwnerOperation::SessionFork => {
+            parse_typed_session_command(body, |command: &SessionForkCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && valid_id(&command.approved_fork_plan_ref)
+            })
+        }
+        OwnerOperation::SessionCompaction => {
+            parse_typed_session_command(body, |command: &SessionCompactionCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && valid_id(&command.approved_compaction_plan_ref)
+                    && valid_id(&command.spend_authorization_ref)
+            })
+        }
+        OwnerOperation::SessionRetire => {
+            parse_typed_session_command(body, |command: &SessionRetireCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && safe_generation(command.expected_session_epoch)
+            })
+        }
+        OwnerOperation::SessionCleanup => {
+            parse_typed_session_command(body, |command: &SessionCleanupCommand| {
+                valid_id(&command.idempotency_key)
+                    && safe_generation(command.expected_control_generation)
+                    && valid_id(&command.retirement_ref)
+                    && valid_id(&command.erase_authorization_ref)
+                    && safe_generation(command.expected_session_epoch)
+            })
+        }
+        _ => Err(SessionApiError::Unsupported),
+    }
+}
+
+fn parse_typed_session_command<T, F>(body: &[u8], validate: F) -> Result<Value, SessionApiError>
+where
+    T: serde::de::DeserializeOwned + Serialize,
+    F: FnOnce(&T) -> bool,
+{
+    if body.is_empty() {
+        return Err(SessionApiError::BadRequest);
+    }
+    let command: T = crate::parse_control_json(body).map_err(|_| SessionApiError::BadRequest)?;
+    if !validate(&command) {
+        return Err(SessionApiError::BadRequest);
+    }
+    let value = serde_json::to_value(command).map_err(|_| SessionApiError::BadRequest)?;
     validate_public_value(&value).map_err(|_| SessionApiError::BadRequest)?;
     Ok(value)
 }
@@ -1598,12 +1733,6 @@ fn owner_session_result(
         "owner_receipt": receipt,
         "value": value,
     }))
-}
-
-fn unix_seconds() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |duration| duration.as_secs())
 }
 
 fn scope_for_run(run_id: &str) -> SessionScopeView {

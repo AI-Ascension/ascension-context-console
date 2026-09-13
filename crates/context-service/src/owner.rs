@@ -330,17 +330,6 @@ impl OwnerGrantBook {
             revocation_epoch: self.revocation_epoch,
         })
     }
-
-    fn context_for(&self, principal: &str, now: u64) -> Option<OwnerRequestContext> {
-        let grant = self.grants.get(principal)?;
-        Some(OwnerRequestContext {
-            principal: principal.to_owned(),
-            host: grant.host.clone(),
-            origin: grant.origin.clone(),
-            csrf_token: grant.csrf_token.clone(),
-            now,
-        })
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -413,13 +402,6 @@ impl HarnessOwnerComposition {
             class: grant.class,
             revocation_epoch: grant.revocation_epoch,
         })
-    }
-
-    pub(crate) fn context_for(&self, principal: &str, now: u64) -> Option<OwnerRequestContext> {
-        self.grants
-            .lock()
-            .ok()
-            .and_then(|book| book.context_for(principal, now))
     }
 }
 

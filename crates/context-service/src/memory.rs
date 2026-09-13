@@ -67,6 +67,35 @@ pub struct MemoryQueryRequest {
     pub effect_class: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemoryGenerationCommand {
+    idempotency_key: String,
+    proposal_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum MemoryReviewDecision {
+    Admit,
+    Reject,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemoryReviewCommand {
+    idempotency_key: String,
+    proposal_id: String,
+    decision: MemoryReviewDecision,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemorySelectionCommand {
+    idempotency_key: String,
+    selection_id: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MemoryRouteError {
     MethodNotAllowed,
@@ -210,12 +239,10 @@ impl MemoryRoute {
         principal: &str,
         body: &[u8],
     ) -> Result<Value, MemoryRouteError> {
-        if let Some(owner) = &self.owner {
-            let now = unix_seconds();
-            let context = owner
-                .context_for(principal, now)
-                .ok_or(MemoryRouteError::PermissionDenied)?;
-            return self.handle_with_context(method, path, &context, body);
+        if self.owner.is_some() {
+            // An attached route needs the caller's complete proof. The compatibility signature
+            // has no Host, Origin or CSRF fields and must never reconstruct them from a grant.
+            return Err(MemoryRouteError::PermissionDenied);
         }
         self.handle_local(method, path, principal, body)
     }
@@ -388,7 +415,7 @@ impl MemoryRoute {
             }
             OwnerOperation::MemoryGeneration
             | OwnerOperation::MemoryReview
-            | OwnerOperation::MemorySelection => parse_owner_command(body)?,
+            | OwnerOperation::MemorySelection => parse_owner_command(operation, body)?,
             _ => return Err(MemoryRouteError::Unsupported),
         };
         let call = owner_call(operation, scope.clone(), None, payload, grant)
@@ -407,7 +434,12 @@ impl MemoryRoute {
                     receipt_id: receipt_id.clone(),
                 };
                 match owner.lookup_receipt(lookup) {
-                    Ok(reply) => reply,
+                    Ok(reply) => {
+                        if reply.receipt.receipt_id != receipt_id {
+                            return Err(MemoryRouteError::Unsupported);
+                        }
+                        reply
+                    }
                     Err(OwnerError::UnknownReceipt | OwnerError::Unavailable) => {
                         crate::owner::OwnerReply::unknown(
                             receipt_id,
@@ -420,7 +452,7 @@ impl MemoryRoute {
                         .map_err(|_| MemoryRouteError::Unsupported)?
                     }
                     Err(OwnerError::Unsupported) => crate::owner::OwnerReply::unsupported(
-                        "unsupported-receipt",
+                        receipt_id.clone(),
                         "unsupported",
                         operation,
                         "harness",
@@ -536,49 +568,41 @@ fn memory_operation(
     }
 }
 
-fn parse_owner_command(body: &[u8]) -> Result<Value, MemoryRouteError> {
+fn parse_owner_command(operation: OwnerOperation, body: &[u8]) -> Result<Value, MemoryRouteError> {
     if body.is_empty() {
         return Err(MemoryRouteError::InvalidRequest);
     }
-    let value: Value =
+    match operation {
+        OwnerOperation::MemoryGeneration => {
+            parse_typed_owner_command(body, |command: &MemoryGenerationCommand| {
+                valid_id(&command.idempotency_key) && valid_id(&command.proposal_id)
+            })
+        }
+        OwnerOperation::MemoryReview => {
+            parse_typed_owner_command(body, |command: &MemoryReviewCommand| {
+                valid_id(&command.idempotency_key) && valid_id(&command.proposal_id)
+            })
+        }
+        OwnerOperation::MemorySelection => {
+            parse_typed_owner_command(body, |command: &MemorySelectionCommand| {
+                valid_id(&command.idempotency_key) && valid_id(&command.selection_id)
+            })
+        }
+        _ => Err(MemoryRouteError::Unsupported),
+    }
+}
+
+fn parse_typed_owner_command<T, F>(body: &[u8], validate: F) -> Result<Value, MemoryRouteError>
+where
+    T: serde::de::DeserializeOwned + Serialize,
+    F: FnOnce(&T) -> bool,
+{
+    let command: T =
         crate::parse_control_json(body).map_err(|_| MemoryRouteError::InvalidRequest)?;
-    let object = value.as_object().ok_or(MemoryRouteError::InvalidRequest)?;
-    if object.is_empty()
-        || object.keys().any(|key| {
-            !valid_id(key)
-                || [
-                    "url",
-                    "path",
-                    "credential",
-                    "token",
-                    "secret",
-                    "rpc",
-                    "native",
-                ]
-                .iter()
-                .any(|forbidden| key.to_ascii_lowercase().contains(forbidden))
-        })
-    {
+    if !validate(&command) {
         return Err(MemoryRouteError::InvalidRequest);
     }
-    for (key, value) in object {
-        if (key.ends_with("_id") || key.ends_with("_ref") || key == "branch_id")
-            && value.as_str().is_some_and(|value| !valid_id(value))
-        {
-            return Err(MemoryRouteError::InvalidRequest);
-        }
-        if value.as_str().is_some_and(|value| {
-            value.contains("://")
-                || value.starts_with('/')
-                || value.contains('\\')
-                || value.contains('%')
-        }) {
-            return Err(MemoryRouteError::InvalidRequest);
-        }
-        if key == "idempotency_key" && !value.as_str().is_some_and(valid_id) {
-            return Err(MemoryRouteError::InvalidRequest);
-        }
-    }
+    let value = serde_json::to_value(command).map_err(|_| MemoryRouteError::InvalidRequest)?;
     validate_public_value(&value).map_err(|_| MemoryRouteError::InvalidRequest)?;
     Ok(value)
 }
@@ -626,12 +650,6 @@ fn valid_id(value: &str) -> bool {
         && value.bytes().enumerate().all(|(index, byte)| {
             byte.is_ascii_alphanumeric() || (index > 0 && b"._:-".contains(&byte))
         })
-}
-
-fn unix_seconds() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |duration| duration.as_secs())
 }
 
 #[cfg(test)]

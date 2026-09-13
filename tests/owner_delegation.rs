@@ -28,6 +28,8 @@ struct RecordingOwner {
     unsupported: Mutex<bool>,
     unknown: Mutex<bool>,
     forbidden_response: Mutex<bool>,
+    lookup_error: Mutex<Option<OwnerError>>,
+    lookup_mismatch: Mutex<bool>,
 }
 
 impl RecordingOwner {
@@ -37,13 +39,25 @@ impl RecordingOwner {
         scope: &OwnerScope,
         payload: &Value,
     ) -> Result<OwnerReply, OwnerError> {
-        let receipt_id = payload
-            .get("idempotency_key")
-            .and_then(Value::as_str)
-            .map_or_else(
-                || format!("receipt-{}", lock(&self.calls).len()),
-                ToOwned::to_owned,
-            );
+        self.accepted_with_receipt(operation, scope, payload, None)
+    }
+
+    fn accepted_with_receipt(
+        &self,
+        operation: OwnerOperation,
+        scope: &OwnerScope,
+        payload: &Value,
+        receipt_id_override: Option<&str>,
+    ) -> Result<OwnerReply, OwnerError> {
+        let receipt_id = receipt_id_override
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                payload
+                    .get("idempotency_key")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .unwrap_or_else(|| format!("receipt-{}", lock(&self.calls).len()));
         let operation_id = format!("operation-{}", lock(&self.calls).len());
         let mut value = json!({
             "schema": "owner.fixture.v1",
@@ -109,7 +123,12 @@ impl HarnessOwner for RecordingOwner {
             payload: request.payload.clone(),
         });
         if let Some(receipt_id) = lock(&self.lose_next).take() {
-            let reply = self.accepted(request.operation, &request.scope, &request.payload)?;
+            let reply = self.accepted_with_receipt(
+                request.operation,
+                &request.scope,
+                &request.payload,
+                Some(&receipt_id),
+            )?;
             lock(&self.receipts).insert(receipt_id.clone(), reply);
             return Err(OwnerError::LostReply { receipt_id });
         }
@@ -140,6 +159,20 @@ impl HarnessOwner for RecordingOwner {
 
     fn lookup_receipt(&self, request: OwnerReceiptLookup) -> Result<OwnerReply, OwnerError> {
         lock(&self.lookups).push(request.clone());
+        if let Some(error) = lock(&self.lookup_error).take() {
+            return Err(error);
+        }
+        if *lock(&self.lookup_mismatch) {
+            return OwnerReply::unknown(
+                "different-receipt",
+                "different-operation",
+                request.operation,
+                "harness",
+                7,
+                "mismatched_receipt",
+            )
+            .map_err(|_| OwnerError::MalformedResponse);
+        }
         lock(&self.receipts)
             .get(&request.receipt_id)
             .cloned()
@@ -342,6 +375,101 @@ fn attached_memory_delegates_status_selection_and_review_lanes() -> Result<(), S
 }
 
 #[test]
+fn attached_compatibility_handlers_require_explicit_security_context() {
+    let owner = Arc::new(RecordingOwner::default());
+    let composition = HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100));
+    let memory = MemoryRoute::attached(memory_scope(), composition.clone());
+    assert_eq!(
+        memory.handle(
+            "POST",
+            "/v3/memory/generate",
+            "review-grant",
+            br#"{"idempotency_key":"generate-1","proposal_id":"proposal-1"}"#,
+        ),
+        Err(MemoryRouteError::PermissionDenied)
+    );
+
+    let mut sessions = ProviderSessionRoute::attached("session-principal", composition);
+    assert_eq!(
+        sessions.handle(
+            "GET",
+            "/v1/runs/run-owner/provider-sessions/capabilities",
+            "read-grant",
+            &[],
+        ),
+        Err(SessionApiError::Unauthorized)
+    );
+    assert_eq!(owner.call_count(), 0);
+}
+
+#[test]
+fn attached_mutation_payloads_are_closed_and_typed_before_forwarding() {
+    let owner = Arc::new(RecordingOwner::default());
+    let composition = HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100));
+    let memory = MemoryRoute::attached(memory_scope(), composition.clone());
+    for body in [
+        br#"{"idempotency_key":"generate-1","proposal_id":7}"#.as_slice(),
+        br#"{"idempotency_key":"generate-2","proposal_id":"proposal-1","nested":{"url":"https://evil.test"}}"#.as_slice(),
+        br#"{"idempotency_key":"review-1","proposal_id":"proposal-1","decision":"unknown"}"#.as_slice(),
+        br#"{"idempotency_key":"selection-1","selection_id":"selection-1","nested":{"path":"/etc/passwd"}}"#.as_slice(),
+    ] {
+        let operation = if body.starts_with(b"{\"idempotency_key\":\"review") {
+            "/v3/memory/review"
+        } else if body.starts_with(b"{\"idempotency_key\":\"selection") {
+            "/v3/memory/selection"
+        } else {
+            "/v3/memory/generate"
+        };
+        let request_context = if operation.ends_with("selection") {
+            context("control-grant", Some("csrf-control"), 10)
+        } else {
+            context("review-grant", Some("csrf-review"), 10)
+        };
+        assert_eq!(
+            memory.handle_with_context(
+                "POST",
+                operation,
+                &request_context,
+                body,
+            ),
+            Err(MemoryRouteError::InvalidRequest)
+        );
+    }
+
+    let session_composition =
+        HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100));
+    let mut sessions = ProviderSessionRoute::attached("session-principal", session_composition);
+    sessions
+        .register_attached_binding(
+            "binding-owner-1",
+            SessionScopeView {
+                project_id: "project-fixture".to_owned(),
+                run_id: "run-owner".to_owned(),
+                episode_id: "episode-fixture".to_owned(),
+                agent_id: "agent-fixture".to_owned(),
+            },
+        )
+        .expect("binding");
+    for body in [
+        br#"{"idempotency_key":"candidate-1","expected_control_generation":"1","approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation"}"#.as_slice(),
+        br#"{"idempotency_key":"candidate-2","expected_control_generation":1,"approved_policy_ref":"/etc/passwd","profile_ref":"profile-1","purpose":"evaluation"}"#.as_slice(),
+        br#"{"idempotency_key":"candidate-3","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"https://evil.test","purpose":"evaluation"}"#.as_slice(),
+        br#"{"idempotency_key":"candidate-4","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation","nested":{"path":"/etc/passwd"}}"#.as_slice(),
+    ] {
+        assert_eq!(
+            sessions.handle_with_context(
+                "POST",
+                "/v1/runs/run-owner/provider-sessions/candidates",
+                &context("control-grant", Some("csrf-control"), 10),
+                body,
+            ),
+            Err(SessionApiError::BadRequest)
+        );
+    }
+    assert_eq!(owner.call_count(), 0);
+}
+
+#[test]
 fn attached_memory_fails_closed_before_forwarding_for_security_and_scope() {
     let owner = Arc::new(RecordingOwner::default());
     let route = MemoryRoute::attached(
@@ -479,6 +607,195 @@ fn lost_reply_looks_up_receipt_without_retrying_and_preserves_outcomes() -> Resu
 }
 
 #[test]
+fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<(), String> {
+    let owner = Arc::new(RecordingOwner::default());
+    let route = MemoryRoute::attached(
+        memory_scope(),
+        HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100)),
+    );
+
+    *lock(&owner.lose_next) = Some("lost-mismatch".to_owned());
+    *lock(&owner.lookup_mismatch) = true;
+    assert_eq!(
+        route.handle_with_context(
+            "POST",
+            "/v3/memory/search",
+            &context("read-grant", None, 10),
+            &query(&memory_scope()),
+        ),
+        Err(MemoryRouteError::Unsupported)
+    );
+
+    *lock(&owner.lookup_mismatch) = false;
+    *lock(&owner.lose_next) = Some("lost-unknown".to_owned());
+    *lock(&owner.lookup_error) = Some(OwnerError::UnknownReceipt);
+    let unknown = route
+        .handle_with_context(
+            "POST",
+            "/v3/memory/search",
+            &context("read-grant", None, 10),
+            &query(&memory_scope()),
+        )
+        .map_err(|error| format!("unknown lookup failed: {error:?}"))?;
+    assert_eq!(unknown["outcome"], "unknown");
+
+    *lock(&owner.lose_next) = Some("lost-unsupported".to_owned());
+    *lock(&owner.lookup_error) = Some(OwnerError::Unsupported);
+    let unsupported = route
+        .handle_with_context(
+            "POST",
+            "/v3/memory/search",
+            &context("read-grant", None, 10),
+            &query(&memory_scope()),
+        )
+        .map_err(|error| format!("unsupported lookup failed: {error:?}"))?;
+    assert_eq!(unsupported["outcome"], "unsupported");
+
+    let session_owner = Arc::new(RecordingOwner::default());
+    let mut sessions = ProviderSessionRoute::attached(
+        "session-principal",
+        HarnessOwnerComposition::new(session_owner.clone(), grant_book(session_scope(), 100)),
+    );
+    sessions
+        .register_attached_binding(
+            "binding-owner-1",
+            SessionScopeView {
+                project_id: "project-fixture".to_owned(),
+                run_id: "run-owner".to_owned(),
+                episode_id: "episode-fixture".to_owned(),
+                agent_id: "agent-fixture".to_owned(),
+            },
+        )
+        .map_err(|error| format!("binding failed: {error:?}"))?;
+    *lock(&session_owner.lose_next) = Some("session-mismatch".to_owned());
+    *lock(&session_owner.lookup_mismatch) = true;
+    assert_eq!(
+        sessions.handle_with_context(
+            "GET",
+            "/v1/runs/run-owner/provider-sessions/binding-owner-1/history",
+            &context("read-grant", None, 10),
+            &[],
+        ),
+        Err(SessionApiError::MalformedPeer)
+    );
+    *lock(&session_owner.lookup_mismatch) = false;
+    *lock(&session_owner.lose_next) = Some("session-unknown".to_owned());
+    *lock(&session_owner.lookup_error) = Some(OwnerError::UnknownReceipt);
+    let unknown = sessions
+        .handle_with_context(
+            "GET",
+            "/v1/runs/run-owner/provider-sessions/binding-owner-1/history",
+            &context("read-grant", None, 10),
+            &[],
+        )
+        .map_err(|error| format!("session unknown lookup failed: {error:?}"))?;
+    assert_eq!(unknown["outcome"], "unknown");
+
+    *lock(&session_owner.lose_next) = Some("session-unsupported".to_owned());
+    *lock(&session_owner.lookup_error) = Some(OwnerError::Unsupported);
+    let unsupported = sessions
+        .handle_with_context(
+            "GET",
+            "/v1/runs/run-owner/provider-sessions/binding-owner-1/history",
+            &context("read-grant", None, 10),
+            &[],
+        )
+        .map_err(|error| format!("session unsupported lookup failed: {error:?}"))?;
+    assert_eq!(unsupported["outcome"], "unsupported");
+    Ok(())
+}
+
+#[test]
+fn attached_reference_indexes_bound_restore_and_owner_registration() {
+    let owner = Arc::new(RecordingOwner::default());
+    let mut route = ProviderSessionRoute::attached(
+        "session-principal",
+        HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100)),
+    );
+    let scope = SessionScopeView {
+        project_id: "project-fixture".to_owned(),
+        run_id: "run-owner".to_owned(),
+        episode_id: "episode-fixture".to_owned(),
+        agent_id: "agent-fixture".to_owned(),
+    };
+    for index in 0..128 {
+        route
+            .register_attached_binding(format!("binding-{index}"), scope.clone())
+            .expect("binding capacity");
+    }
+    assert_eq!(
+        route.register_attached_binding("binding-overflow", scope.clone()),
+        Err(SessionApiError::Capacity)
+    );
+    assert!(
+        route
+            .register_attached_binding("binding-0", scope.clone())
+            .is_ok()
+    );
+
+    for index in 0..512 {
+        route
+            .register_attached_operation(format!("operation-{index}"), scope.clone())
+            .expect("operation capacity");
+    }
+    assert_eq!(
+        route.register_attached_operation("operation-overflow", scope),
+        Err(SessionApiError::Capacity)
+    );
+
+    let owner = Arc::new(RecordingOwner::default());
+    let mut full_bindings = ProviderSessionRoute::attached(
+        "session-principal",
+        HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100)),
+    );
+    let scope = SessionScopeView {
+        project_id: "project-fixture".to_owned(),
+        run_id: "run-owner".to_owned(),
+        episode_id: "episode-fixture".to_owned(),
+        agent_id: "agent-fixture".to_owned(),
+    };
+    for index in 0..128 {
+        full_bindings
+            .register_attached_binding(format!("binding-{index}"), scope.clone())
+            .expect("binding capacity");
+    }
+    assert_eq!(
+        full_bindings.handle_with_context(
+            "POST",
+            "/v1/runs/run-owner/provider-sessions/candidates",
+            &context("control-grant", Some("csrf-control"), 10),
+            br#"{"idempotency_key":"candidate-1","expected_control_generation":1,"approved_policy_ref":"policy-1","profile_ref":"profile-1","purpose":"evaluation"}"#,
+        ),
+        Err(SessionApiError::Capacity)
+    );
+    assert_eq!(owner.call_count(), 0);
+
+    let owner = Arc::new(RecordingOwner::default());
+    let mut full_operations = ProviderSessionRoute::attached(
+        "session-principal",
+        HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100)),
+    );
+    full_operations
+        .register_attached_binding("binding-owner-1", scope.clone())
+        .expect("binding");
+    for index in 0..512 {
+        full_operations
+            .register_attached_operation(format!("operation-{index}"), scope.clone())
+            .expect("operation capacity");
+    }
+    assert_eq!(
+        full_operations.handle_with_context(
+            "POST",
+            "/v1/runs/run-owner/provider-sessions/binding-owner-1/compaction-jobs",
+            &context("control-grant", Some("csrf-control"), 10),
+            br#"{"idempotency_key":"compact-1","expected_control_generation":1,"approved_compaction_plan_ref":"plan-1","spend_authorization_ref":"spend-1"}"#,
+        ),
+        Err(SessionApiError::Capacity)
+    );
+    assert_eq!(owner.call_count(), 0);
+}
+
+#[test]
 fn attached_session_delegates_history_and_compaction_with_separate_control_grant()
 -> Result<(), String> {
     let owner = Arc::new(RecordingOwner::default());
@@ -541,6 +858,20 @@ fn attached_session_delegates_history_and_compaction_with_separate_control_grant
     );
     assert_eq!(owner.call_count(), 3);
     *lock(&owner.lose_next) = Some("receipt-4".to_owned());
+    *lock(&owner.lookup_mismatch) = true;
+    assert_eq!(
+        route.handle_with_context(
+            "POST",
+            "/v1/runs/run-owner/provider-sessions/binding-owner-1/compaction-jobs",
+            &context("control-grant", Some("csrf-control"), 10),
+            br#"{"idempotency_key":"compact-1","expected_control_generation":1,"approved_compaction_plan_ref":"plan-1","spend_authorization_ref":"spend-1"}"#,
+        ),
+        Err(SessionApiError::MalformedPeer)
+    );
+    assert_eq!(owner.call_count(), 4);
+    assert_eq!(owner.lookup_count(), 1);
+    *lock(&owner.lookup_mismatch) = false;
+    *lock(&owner.lose_next) = Some("receipt-5".to_owned());
     let compact = route.handle_with_context(
         "POST",
         "/v1/runs/run-owner/provider-sessions/binding-owner-1/compaction-jobs",
@@ -552,10 +883,10 @@ fn attached_session_delegates_history_and_compaction_with_separate_control_grant
         compact["receipt"]["operation"],
         "provider_session.compaction"
     );
-    assert_eq!(owner.call_count(), 4);
-    assert_eq!(owner.lookup_count(), 1);
+    assert_eq!(owner.call_count(), 5);
+    assert_eq!(owner.lookup_count(), 2);
     assert_eq!(
-        lock(&owner.calls)[3].payload["idempotency_key"],
+        lock(&owner.calls)[4].payload["idempotency_key"],
         "compact-1"
     );
     Ok(())

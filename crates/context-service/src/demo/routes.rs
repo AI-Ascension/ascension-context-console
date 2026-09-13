@@ -235,8 +235,7 @@ impl DemoState {
                 "management capability is invalid",
             ));
         }
-        if !self.memory.is_attached()
-            && request.method != "GET"
+        if request.method != "GET"
             && (request.header("origin") != Some(self.expected_origin.as_str())
                 || request.header("x-csrf-token") != Some(CSRF_TOKEN))
         {
@@ -337,8 +336,7 @@ impl DemoState {
         else {
             return memory_error_response(MemoryRouteError::PermissionDenied);
         };
-        if !self.provider_sessions.is_attached()
-            && request.method != "GET"
+        if request.method != "GET"
             && (request.header("origin") != Some(self.expected_origin.as_str())
                 || request.header("x-csrf-token") != Some(CSRF_TOKEN))
         {

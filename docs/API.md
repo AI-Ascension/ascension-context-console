@@ -88,6 +88,9 @@ There is no URL, process, native-RPC or credential field in this port.
 and provider-session control/compaction use the independent `control` grant. Every grant is
 scope-bound, finite, host/origin-bound and (for writes) CSRF-bound. Revocation advances a shared
 revocation epoch. A failed check is rejected before `HarnessOwner::call`.
+Attached integrations must pass the complete `OwnerRequestContext` through
+`handle_with_context`; the compatibility `handle` entry point does not reconstruct origin or CSRF
+proofs for an attached route.
 
 The owner returns an `OwnerReply` containing a versioned, metadata-only `OwnerReceipt` and an
 optional bounded public value. The console forwards the receipt's source, operation, owner epoch,
