@@ -16,6 +16,7 @@ use super::{
 use crate::control::{Command, ControlError, Patch, Scope};
 use crate::http::{HttpRequest, HttpResponse, split_target};
 use crate::memory::MemoryRouteError;
+use crate::owner::OwnerRequestContext;
 use crate::provider_session::SessionApiError;
 use crate::read_api::ReadApi;
 use serde_json::{Value, json};
@@ -234,7 +235,8 @@ impl DemoState {
                 "management capability is invalid",
             ));
         }
-        if request.method != "GET"
+        if !self.memory.is_attached()
+            && request.method != "GET"
             && (request.header("origin") != Some(self.expected_origin.as_str())
                 || request.header("x-csrf-token") != Some(CSRF_TOKEN))
         {
@@ -335,16 +337,30 @@ impl DemoState {
         else {
             return memory_error_response(MemoryRouteError::PermissionDenied);
         };
-        if request.method != "GET"
+        if !self.provider_sessions.is_attached()
+            && request.method != "GET"
             && (request.header("origin") != Some(self.expected_origin.as_str())
                 || request.header("x-csrf-token") != Some(CSRF_TOKEN))
         {
             return memory_error_response(MemoryRouteError::PermissionDenied);
         }
-        match self
-            .memory
-            .handle(&request.method, path, token, &request.body)
-        {
+        let result = if self.memory.is_attached() {
+            let context = OwnerRequestContext::new(
+                token,
+                request
+                    .header("host")
+                    .map_or_else(String::new, ToOwned::to_owned),
+                request.header("origin").map(ToOwned::to_owned),
+                request.header("x-csrf-token").map(ToOwned::to_owned),
+                unix_seconds(),
+            );
+            self.memory
+                .handle_with_context(&request.method, path, &context, &request.body)
+        } else {
+            self.memory
+                .handle(&request.method, path, token, &request.body)
+        };
+        match result {
             Ok(value) => control_value_response(200, value),
             Err(error) => memory_error_response(error),
         }
@@ -367,10 +383,27 @@ impl DemoState {
         {
             return provider_session_error_response(SessionApiError::Forbidden);
         }
-        match self
-            .provider_sessions
-            .handle(&request.method, path, SESSION_PRINCIPAL, &request.body)
-        {
+        let result = if self.provider_sessions.is_attached() {
+            let context = OwnerRequestContext::new(
+                SESSION_PRINCIPAL,
+                request
+                    .header("host")
+                    .map_or_else(String::new, ToOwned::to_owned),
+                request.header("origin").map(ToOwned::to_owned),
+                request.header("x-csrf-token").map(ToOwned::to_owned),
+                unix_seconds(),
+            );
+            self.provider_sessions.handle_with_context(
+                &request.method,
+                path,
+                &context,
+                &request.body,
+            )
+        } else {
+            self.provider_sessions
+                .handle(&request.method, path, SESSION_PRINCIPAL, &request.body)
+        };
+        match result {
             Ok(value) => control_value_response(200, value),
             Err(error) => provider_session_error_response(error),
         }
@@ -488,6 +521,7 @@ fn memory_error_response(error: MemoryRouteError) -> HttpResponse {
         MemoryRouteError::BodyTooLarge | MemoryRouteError::InvalidRequest => 400,
         MemoryRouteError::MethodNotAllowed => 405,
         MemoryRouteError::Unsupported => 404,
+        MemoryRouteError::Unavailable => 503,
     };
     control_value_response(
         status,
@@ -523,6 +557,12 @@ fn provider_session_error_response(error: SessionApiError) -> HttpResponse {
             "game_effects": 0
         }),
     )
+}
+
+fn unix_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs())
 }
 
 pub(super) fn static_response(status: u16, media_type: &str, body: Vec<u8>) -> HttpResponse {

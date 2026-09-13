@@ -10,6 +10,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
+use crate::owner::{
+    HarnessOwnerComposition, OwnerError, OwnerGrantBook, OwnerOperation, OwnerRequestContext,
+    owner_call, owner_scope, validate_public_value,
+};
+
 pub const SESSION_API_SCHEMA: &str = "ascension.provider-session.api-result.v1";
 const MAX_BODY_BYTES: usize = 16 * 1024;
 const MAX_BINDINGS: usize = 128;
@@ -162,6 +167,10 @@ pub struct ProviderSessionRoute {
     operations: BTreeMap<String, SessionOperationView>,
     idempotency: BTreeMap<String, IdempotencyRecord>,
     next_id: u64,
+    owner: Option<HarnessOwnerComposition>,
+    attached_scope: Option<SessionScopeView>,
+    attached_bindings: BTreeMap<String, SessionScopeView>,
+    attached_operations: BTreeMap<String, SessionScopeView>,
 }
 
 #[derive(Clone, Debug)]
@@ -211,7 +220,117 @@ impl ProviderSessionRoute {
             operations: BTreeMap::new(),
             idempotency: BTreeMap::new(),
             next_id: 1,
+            owner: None,
+            attached_scope: None,
+            attached_bindings: BTreeMap::new(),
+            attached_operations: BTreeMap::new(),
         }
+    }
+
+    /// Builds the explicitly attached composition. The route owns no native session state in this
+    /// mode; all session, history and compaction decisions are delegated to `composition`.
+    #[must_use]
+    pub fn attached(principal: impl Into<String>, composition: HarnessOwnerComposition) -> Self {
+        let mut route = Self::fixture(principal);
+        route.mode = SessionRouteMode::Enabled;
+        route.owner = Some(composition);
+        route.bindings.clear();
+        route.operations.clear();
+        route.idempotency.clear();
+        route
+    }
+
+    /// Attached constructor with an explicit owner scope. This is the production composition
+    /// entry point; the compatibility constructor above uses the historical fixture scope.
+    #[must_use]
+    pub fn attached_with_scope(
+        principal: impl Into<String>,
+        scope: SessionScopeView,
+        composition: HarnessOwnerComposition,
+    ) -> Self {
+        let mut route = Self::attached(principal, composition);
+        route.attached_scope = Some(scope);
+        route
+    }
+
+    #[must_use]
+    pub fn with_owner(
+        principal: impl Into<String>,
+        owner: std::sync::Arc<dyn crate::owner::HarnessOwner>,
+        grants: OwnerGrantBook,
+    ) -> Self {
+        Self::attached(principal, HarnessOwnerComposition::new(owner, grants))
+    }
+
+    #[must_use]
+    pub fn with_owner_scope(
+        principal: impl Into<String>,
+        scope: SessionScopeView,
+        owner: std::sync::Arc<dyn crate::owner::HarnessOwner>,
+        grants: OwnerGrantBook,
+    ) -> Self {
+        Self::attached_with_scope(
+            principal,
+            scope,
+            HarnessOwnerComposition::new(owner, grants),
+        )
+    }
+
+    #[must_use]
+    pub fn is_attached(&self) -> bool {
+        self.owner.is_some()
+    }
+
+    pub fn revoke_grant(&self, grant_id: &str) -> Result<(), crate::owner::OwnerAuthError> {
+        self.owner
+            .as_ref()
+            .ok_or(crate::owner::OwnerAuthError::GrantBookUnavailable)?
+            .revoke(grant_id)
+    }
+
+    /// Registers a binding returned by a harness owner so later path references can be checked
+    /// locally before forwarding. This is useful when a composition is restored from a durable
+    /// owner snapshot.
+    pub fn register_attached_binding(
+        &mut self,
+        binding_id: impl Into<String>,
+        scope: SessionScopeView,
+    ) -> Result<(), SessionApiError> {
+        let binding_id = binding_id.into();
+        if !valid_id(&binding_id) {
+            return Err(SessionApiError::BadRequest);
+        }
+        let expected_scope = match &self.attached_scope {
+            Some(scope) => scope.clone(),
+            None => scope_for_run(&scope.run_id),
+        };
+        if expected_scope != scope {
+            return Err(SessionApiError::NotFound);
+        }
+        self.attached_bindings.insert(binding_id, scope);
+        Ok(())
+    }
+
+    /// Registers an owner operation identity restored from the owner's durable receipt index.
+    /// Foreign identities are rejected before any operation lookup is forwarded.
+    pub fn register_attached_operation(
+        &mut self,
+        operation_id: impl Into<String>,
+        scope: SessionScopeView,
+    ) -> Result<(), SessionApiError> {
+        let operation_id = operation_id.into();
+        if !valid_id(&operation_id) {
+            return Err(SessionApiError::BadRequest);
+        }
+        let expected_scope = match &self.attached_scope {
+            Some(scope) => scope.clone(),
+            None => scope_for_run(&scope.run_id),
+        };
+        if expected_scope != scope {
+            return Err(SessionApiError::NotFound);
+        }
+        self.attached_operations.insert(operation_id, scope);
+        Ok(())
     }
 
     #[must_use]
@@ -234,6 +353,39 @@ impl ProviderSessionRoute {
     }
 
     pub fn handle(
+        &mut self,
+        method: &str,
+        path: &str,
+        principal: &str,
+        body: &[u8],
+    ) -> Result<Value, SessionApiError> {
+        if let Some(owner) = &self.owner {
+            let now = unix_seconds();
+            let context = owner
+                .context_for(principal, now)
+                .ok_or(SessionApiError::Unauthorized)?;
+            return self.handle_with_context(method, path, &context, body);
+        }
+        self.handle_local(method, path, principal, body)
+    }
+
+    /// Handles an attached request after validating the complete origin/Host/CSRF and grant
+    /// context. The old fixture route remains available through [`Self::fixture`].
+    pub fn handle_with_context(
+        &mut self,
+        method: &str,
+        path: &str,
+        context: &OwnerRequestContext,
+        body: &[u8],
+    ) -> Result<Value, SessionApiError> {
+        if self.owner.is_some() {
+            self.handle_attached(method, path, context, body)
+        } else {
+            self.handle_local(method, path, &context.principal, body)
+        }
+    }
+
+    fn handle_local(
         &mut self,
         method: &str,
         path: &str,
@@ -341,7 +493,7 @@ impl ProviderSessionRoute {
             }
             let operation = self
                 .operations
-                .get(segments.get(4).copied().unwrap_or_default())
+                .get(segments.get(4).copied().ok_or(SessionApiError::NotFound)?)
                 .ok_or(SessionApiError::NotFound)?;
             if operation.scope.run_id != run_id {
                 return Err(SessionApiError::NotFound);
@@ -418,6 +570,282 @@ impl ProviderSessionRoute {
             };
         }
         Err(SessionApiError::NotFound)
+    }
+
+    fn handle_attached(
+        &mut self,
+        method: &str,
+        path: &str,
+        context: &OwnerRequestContext,
+        body: &[u8],
+    ) -> Result<Value, SessionApiError> {
+        if body.len() > MAX_BODY_BYTES
+            || path.contains("..")
+            || path.contains('\\')
+            || path.contains('%')
+        {
+            return Err(SessionApiError::BadRequest);
+        }
+        if method == "GET" && !body.is_empty() {
+            return Err(SessionApiError::BadRequest);
+        }
+        let segments: Vec<&str> = path
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect();
+        if segments.len() < 4
+            || segments[0] != "v1"
+            || segments[1] != "runs"
+            || !matches!(
+                segments[3],
+                "provider-sessions" | "provider-session-operations" | "provider-session-events"
+            )
+        {
+            return Err(SessionApiError::NotFound);
+        }
+        let run_id = segments[2];
+        if !valid_id(run_id) {
+            return Err(SessionApiError::BadRequest);
+        }
+        let scope_view = match &self.attached_scope {
+            Some(scope) if scope.run_id != run_id => return Err(SessionApiError::NotFound),
+            Some(scope) => scope.clone(),
+            None => scope_for_run(run_id),
+        };
+        let owner_scope = owner_scope(
+            &scope_view.project_id,
+            &scope_view.run_id,
+            &scope_view.episode_id,
+            &scope_view.agent_id,
+        );
+        let (operation, reference, write) = if segments.len() == 5
+            && segments[3] == "provider-sessions"
+            && segments[4] == "capabilities"
+        {
+            (OwnerOperation::SessionCapabilities, None, false)
+        } else if segments.len() == 5
+            && segments[3] == "provider-sessions"
+            && segments[4] == "status"
+        {
+            (OwnerOperation::SessionStatus, None, false)
+        } else if segments.len() == 4 && segments[3] == "provider-sessions" {
+            (OwnerOperation::SessionList, None, false)
+        } else if segments.len() == 5
+            && segments[3] == "provider-sessions"
+            && segments[4] == "candidates"
+        {
+            (OwnerOperation::SessionCandidate, None, true)
+        } else if (segments.len() == 4 && segments[3] == "provider-session-events")
+            || (segments.len() == 5
+                && segments[3] == "provider-sessions"
+                && segments[4] == "events")
+        {
+            (OwnerOperation::SessionEvents, None, false)
+        } else if segments.len() == 5 && segments[3] == "provider-session-operations" {
+            let operation_id = segments[4];
+            if !valid_id(operation_id)
+                || self
+                    .attached_operations
+                    .get(operation_id)
+                    .is_none_or(|scope| scope.run_id != run_id)
+            {
+                return Err(SessionApiError::NotFound);
+            }
+            (
+                OwnerOperation::SessionOperation,
+                Some(operation_id.to_owned()),
+                false,
+            )
+        } else if segments[3] == "provider-sessions" && segments.len() >= 5 {
+            let binding_id = segments[4];
+            let Some(binding_scope) = self.attached_bindings.get(binding_id) else {
+                return Err(SessionApiError::NotFound);
+            };
+            if binding_scope.run_id != run_id || !valid_id(binding_id) {
+                return Err(SessionApiError::NotFound);
+            }
+            if segments.len() == 5 {
+                if method != "GET" {
+                    return Err(SessionApiError::MethodNotAllowed);
+                }
+                (
+                    OwnerOperation::SessionBinding,
+                    Some(binding_id.to_owned()),
+                    false,
+                )
+            } else if segments.len() == 6 && segments[5] == "history" {
+                if method == "GET" {
+                    (
+                        OwnerOperation::SessionHistory,
+                        Some(binding_id.to_owned()),
+                        false,
+                    )
+                } else if method == "POST" {
+                    (
+                        OwnerOperation::SessionHistoryRefresh,
+                        Some(binding_id.to_owned()),
+                        true,
+                    )
+                } else {
+                    return Err(SessionApiError::MethodNotAllowed);
+                }
+            } else if segments.len() == 6 && segments[5] == "fork-plans" {
+                (
+                    OwnerOperation::SessionForkPlan,
+                    Some(binding_id.to_owned()),
+                    true,
+                )
+            } else if segments.len() == 6 && segments[5] == "compaction-plans" {
+                (
+                    OwnerOperation::SessionCompactionPlan,
+                    Some(binding_id.to_owned()),
+                    true,
+                )
+            } else if segments.len() == 6 && segments[5] == "prepared-bindings" {
+                (
+                    OwnerOperation::SessionPreparedBinding,
+                    Some(binding_id.to_owned()),
+                    true,
+                )
+            } else if segments.len() == 6 {
+                let operation = match segments[5] {
+                    "reconnect" => OwnerOperation::SessionReconnect,
+                    "history-refresh" => OwnerOperation::SessionHistoryRefresh,
+                    "fork-jobs" => OwnerOperation::SessionFork,
+                    "compaction-jobs" => OwnerOperation::SessionCompaction,
+                    "retire" => OwnerOperation::SessionRetire,
+                    "cleanup" => OwnerOperation::SessionCleanup,
+                    _ => return Err(SessionApiError::NotFound),
+                };
+                (operation, Some(binding_id.to_owned()), true)
+            } else {
+                return Err(SessionApiError::NotFound);
+            }
+        } else {
+            return Err(SessionApiError::NotFound);
+        };
+
+        let payload = owner_session_payload(operation, method, body)?;
+        self.delegate_attached(operation, owner_scope, reference, payload, context, write)
+    }
+
+    fn delegate_attached(
+        &mut self,
+        operation: OwnerOperation,
+        scope: crate::owner::OwnerScope,
+        reference: Option<String>,
+        payload: Value,
+        context: &OwnerRequestContext,
+        write: bool,
+    ) -> Result<Value, SessionApiError> {
+        let composition = self.owner.as_ref().ok_or(SessionApiError::Unavailable)?;
+        let grant = composition
+            .authorize(context, operation.grant_class(), &scope, write)
+            .map_err(|_| SessionApiError::Forbidden)?;
+        let revocation_epoch = grant.revocation_epoch;
+        let call = owner_call(operation, scope.clone(), reference.clone(), payload, grant)
+            .map_err(|_| SessionApiError::BadRequest)?;
+        let owner = composition.owner();
+        let reply = match owner.call(call) {
+            Ok(reply) => reply,
+            Err(OwnerError::LostReply { receipt_id }) => {
+                if !valid_id(&receipt_id) {
+                    return Err(SessionApiError::Unavailable);
+                }
+                let lookup = crate::owner::OwnerReceiptLookup {
+                    operation,
+                    scope: scope.clone(),
+                    reference,
+                    receipt_id: receipt_id.clone(),
+                };
+                match owner.lookup_receipt(lookup) {
+                    Ok(reply) => reply,
+                    Err(OwnerError::UnknownReceipt | OwnerError::Unavailable) => {
+                        crate::owner::OwnerReply::unknown(
+                            receipt_id,
+                            format!("unknown-{}", operation.as_str().replace('.', "-")),
+                            operation,
+                            "harness",
+                            0,
+                            "receipt_lookup_unavailable",
+                        )
+                        .map_err(|_| SessionApiError::MalformedPeer)?
+                    }
+                    Err(OwnerError::Unsupported) => crate::owner::OwnerReply::unsupported(
+                        "unsupported-receipt",
+                        "unsupported",
+                        operation,
+                        "harness",
+                        0,
+                        "owner_unsupported",
+                    )
+                    .map_err(|_| SessionApiError::MalformedPeer)?,
+                    Err(OwnerError::LostReply { .. } | OwnerError::MalformedResponse) => {
+                        return Err(SessionApiError::Unavailable);
+                    }
+                }
+            }
+            Err(OwnerError::Unsupported) => crate::owner::OwnerReply::unsupported(
+                "unsupported-receipt",
+                "unsupported",
+                operation,
+                "harness",
+                0,
+                "owner_unsupported",
+            )
+            .map_err(|_| SessionApiError::MalformedPeer)?,
+            Err(OwnerError::Unavailable | OwnerError::UnknownReceipt) => {
+                return Err(SessionApiError::Unavailable);
+            }
+            Err(OwnerError::MalformedResponse) => return Err(SessionApiError::MalformedPeer),
+        };
+        reply
+            .validate_for(operation)
+            .map_err(|_| SessionApiError::MalformedPeer)?;
+        self.record_attached_references(&scope, reply.value.as_ref());
+        owner_session_result(operation, revocation_epoch, reply)
+    }
+
+    fn record_attached_references(
+        &mut self,
+        scope: &crate::owner::OwnerScope,
+        value: Option<&Value>,
+    ) {
+        let Some(object) = value.and_then(Value::as_object) else {
+            return;
+        };
+        if let Some(binding_id) = object
+            .get("binding_id")
+            .and_then(Value::as_str)
+            .filter(|value| valid_id(value))
+        {
+            self.attached_bindings.insert(
+                binding_id.to_owned(),
+                SessionScopeView {
+                    project_id: scope.project_id.clone(),
+                    run_id: scope.run_id.clone(),
+                    episode_id: scope.episode_id.clone(),
+                    agent_id: scope.agent_id.clone(),
+                },
+            );
+        }
+        for key in ["operation_id", "plan_id"] {
+            if let Some(operation_id) = object
+                .get(key)
+                .and_then(Value::as_str)
+                .filter(|value| valid_id(value))
+            {
+                self.attached_operations.insert(
+                    operation_id.to_owned(),
+                    SessionScopeView {
+                        project_id: scope.project_id.clone(),
+                        run_id: scope.run_id.clone(),
+                        episode_id: scope.episode_id.clone(),
+                        agent_id: scope.agent_id.clone(),
+                    },
+                );
+            }
+        }
     }
 
     fn mutate_candidate(
@@ -953,6 +1381,231 @@ fn valid_id(value: &str) -> bool {
         })
 }
 
+fn owner_session_payload(
+    operation: OwnerOperation,
+    method: &str,
+    body: &[u8],
+) -> Result<Value, SessionApiError> {
+    if operation.read_only() {
+        if method != "GET" || !body.is_empty() {
+            return Err(if method == "GET" {
+                SessionApiError::BadRequest
+            } else {
+                SessionApiError::MethodNotAllowed
+            });
+        }
+        return Ok(json!({}));
+    }
+    if method != "POST" {
+        return Err(SessionApiError::MethodNotAllowed);
+    }
+    let parsed = match operation {
+        OwnerOperation::SessionCandidate => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "approved_policy_ref",
+                "profile_ref",
+                "purpose",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "approved_policy_ref",
+                "profile_ref",
+                "purpose",
+            ],
+        )?,
+        OwnerOperation::SessionHistoryRefresh => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+            ],
+        )?,
+        OwnerOperation::SessionReconnect => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+            ],
+        )?,
+        OwnerOperation::SessionForkPlan => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+                "cutoff_turn_ref",
+                "operation",
+                "purpose",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+                "cutoff_turn_ref",
+                "operation",
+                "purpose",
+            ],
+        )?,
+        OwnerOperation::SessionCompactionPlan => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+                "requested_policy",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+                "requested_policy",
+            ],
+        )?,
+        OwnerOperation::SessionPreparedBinding => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+                "phase2_draft_ref",
+                "phase3_selection_ref",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "expected_history_epoch",
+                "phase2_draft_ref",
+                "phase3_selection_ref",
+            ],
+        )?,
+        OwnerOperation::SessionFork => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "approved_fork_plan_ref",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "approved_fork_plan_ref",
+            ],
+        )?,
+        OwnerOperation::SessionCompaction => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "approved_compaction_plan_ref",
+                "spend_authorization_ref",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "approved_compaction_plan_ref",
+                "spend_authorization_ref",
+            ],
+        )?,
+        OwnerOperation::SessionRetire => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "reason",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "expected_session_epoch",
+                "reason",
+            ],
+        )?,
+        OwnerOperation::SessionCleanup => parse_command(
+            body,
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "retirement_ref",
+                "erase_authorization_ref",
+                "expected_session_epoch",
+            ],
+            &[
+                "idempotency_key",
+                "expected_control_generation",
+                "retirement_ref",
+                "erase_authorization_ref",
+                "expected_session_epoch",
+            ],
+        )?,
+        _ => return Err(SessionApiError::Unsupported),
+    };
+    let value = parsed.0;
+    validate_public_value(&value).map_err(|_| SessionApiError::BadRequest)?;
+    Ok(value)
+}
+
+fn owner_session_result(
+    operation: OwnerOperation,
+    revocation_epoch: u64,
+    reply: crate::owner::OwnerReply,
+) -> Result<Value, SessionApiError> {
+    let receipt =
+        serde_json::to_value(&reply.receipt).map_err(|_| SessionApiError::MalformedPeer)?;
+    let outcome = reply.receipt.outcome;
+    let value = match reply.value {
+        Some(value) => value,
+        None => Value::Null,
+    };
+    Ok(json!({
+        "schema": SESSION_API_SCHEMA,
+        "operation": operation.as_str(),
+        "source": reply.receipt.source,
+        "owner_epoch": reply.receipt.owner_epoch,
+        "revocation_epoch": revocation_epoch,
+        "evidence": reply.receipt.evidence,
+        "outcome": outcome.as_str(),
+        "effect_class": if operation.read_only() {
+            "local_read_no_inference"
+        } else {
+            "owner_delegated"
+        },
+        "receipt": receipt,
+        "owner_receipt": receipt,
+        "value": value,
+    }))
+}
+
+fn unix_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs())
+}
+
 fn scope_for_run(run_id: &str) -> SessionScopeView {
     SessionScopeView {
         project_id: "project-fixture".to_owned(),
@@ -1023,9 +1676,13 @@ fn require_u64(
         .ok_or(SessionApiError::BadRequest)
 }
 
+#[allow(clippy::manual_unwrap_or_default)]
 fn canonical_digest(value: &Value) -> String {
     let canonical = canonical_value(value);
-    let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
+    let bytes = match serde_json::to_vec(&canonical) {
+        Ok(bytes) => bytes,
+        Err(_) => Vec::new(),
+    };
     sha256_hex(bytes)
 }
 

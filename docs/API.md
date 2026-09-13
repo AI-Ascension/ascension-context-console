@@ -73,6 +73,30 @@ manifest, independent review, and the existing Phase 2 approval/explicit-resume 
 and OpenAPI contract are pinned in [`contracts/context-memory`](../contracts/context-memory), and
 the harness implementation is documented in its `docs/MEMORY.md`.
 
+### Attached harness-owner composition
+
+The default `MemoryRoute::new(scope, enabled)` and `ProviderSessionRoute::fixture(principal)`
+constructors remain local fixture/unattached modes. They never imply a production corpus, provider
+session, inference, compaction or game authority. Delegation is enabled only by explicitly
+constructing a `HarnessOwnerComposition` with an injected implementation of the public
+`HarnessOwner` trait, then passing it to `MemoryRoute::attached` or
+`ProviderSessionRoute::attached` (use `attached_with_scope` for a non-fixture session scope).
+There is no URL, process, native-RPC or credential field in this port.
+
+`OwnerOperation` is a closed operation vocabulary. Memory capabilities/status/query use the
+`read_search` grant; generation/review use the independent `generation_review` grant; selection
+and provider-session control/compaction use the independent `control` grant. Every grant is
+scope-bound, finite, host/origin-bound and (for writes) CSRF-bound. Revocation advances a shared
+revocation epoch. A failed check is rejected before `HarnessOwner::call`.
+
+The owner returns an `OwnerReply` containing a versioned, metadata-only `OwnerReceipt` and an
+optional bounded public value. The console forwards the receipt's source, operation, owner epoch,
+evidence and `accepted`/`unknown`/`unsupported` outcome without fabricating completion. A
+`LostReply` causes exactly one `lookup_receipt` call; an unknown lookup remains `unknown` and is
+never retried. Read/history operations are fenced if the owner reports inference, native or game
+effects. Responses carrying credentials, raw RPC/native references or private-content fields are
+rejected. The real `sts2-harness` owner implementation remains an external integration gate.
+
 The equivalent bounded operator CLI is exposed by the compiled `context-console` binary:
 
 ```text
