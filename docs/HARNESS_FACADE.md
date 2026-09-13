@@ -30,6 +30,8 @@ fixture composition and continue to advertise fixture-only behavior.
 The facade forwards only operations advertised by the owner capability projection:
 
 - metadata: capabilities, state, eligible items, revisions, drafts, previews, and receipts;
+- recovery: receipt lookup by a caller-known idempotency/reference key, even when the owner-generated
+  command ID never reached the caller;
 - control: draft creation, CAS patching (include/exclude/pin/unpin/note/restore), deterministic
   preview, held commit, pause, explicit resume, and receipt reads.
 
@@ -64,7 +66,9 @@ Every request checks exact Host and configured Origin before owner forwarding. W
 require the injected CSRF proof. Expired, revoked, missing, mismatched-scope, malformed, and
 foreign references fail closed. The local reference index is populated from owner metadata so an
 unknown item, draft, preview, revision, or receipt is rejected before its mutating owner operation
-is attempted.
+is attempted. Write-driven draft, preview, receipt, revision, and item-reference caches are finite
+(`MAX_FACADE_CACHE_ENTRIES`/`MAX_FACADE_ITEM_CACHE_ENTRIES`) and evict oldest entries; an evicted
+reference is revalidated through the scoped owner before it is forwarded again.
 
 ## Retention and capture
 
@@ -82,6 +86,14 @@ exact `Host`/`Origin`, and `X-CSRF-Token` on writes. Secret query fields (`token
 query keys, and bodies over the 16 KiB facade JSON bound are rejected. Responses are
 `Cache-Control: no-store` JSON and are capped at the same 16 KiB serialized bound; error bodies
 carry only a stable code and retryability flag.
+
+Receipt recovery is exposed at
+`/v2/runs/{run_id}/context-control/commands/by-idempotency-key/{idempotency_key}`. It requires only
+the scoped metadata-read grant, so a caller can recover an applied command after its write grant is
+revoked. The owner is queried directly by the caller-known key; the local owner-generated command
+ID cache is not a prerequisite. The collection route
+`/v2/runs/{run_id}/context-control/commands` provides a bounded owner receipt refresh for reconnect
+clients.
 
 The machine-readable consumer artifacts are:
 

@@ -44,13 +44,13 @@ pub use control::{
 pub use demo::{demo, run as run_integrated_demo};
 pub use harness_facade::{
     CapabilityGrant, FACADE_CAPABILITIES_SCHEMA, FACADE_CONFIG_SCHEMA, FACADE_ERROR_SCHEMA,
-    FacadeCapabilities, FacadeCaptureMode, FacadeConfigError, FacadeError, FacadeErrorClass,
-    FacadePermission, FacadeRequest, FacadeResult, GrantError, GrantRegistry,
+    FacadeCacheStatus, FacadeCapabilities, FacadeCaptureMode, FacadeConfigError, FacadeError,
+    FacadeErrorClass, FacadePermission, FacadeRequest, FacadeResult, GrantError, GrantRegistry,
     HarnessBackedContextService, HarnessFacadeConfig, HarnessOwnerClient, HarnessOwnerPort,
-    MAX_FACADE_BODY_BYTES, MAX_FACADE_HOST_BYTES, MAX_FACADE_ID_BYTES, MAX_FACADE_ORIGIN_BYTES,
-    MAX_FACADE_PRINCIPAL_BYTES, MAX_FACADE_RESPONSE_BYTES, MAX_FACADE_TOKEN_BYTES,
-    OwnerAuthorization, OwnerError, PreviewRequest, ProtectedAuthReference, RetentionMode,
-    RetentionPolicy, SecretDigest,
+    MAX_FACADE_BODY_BYTES, MAX_FACADE_CACHE_ENTRIES, MAX_FACADE_HOST_BYTES, MAX_FACADE_ID_BYTES,
+    MAX_FACADE_ITEM_CACHE_ENTRIES, MAX_FACADE_ORIGIN_BYTES, MAX_FACADE_PRINCIPAL_BYTES,
+    MAX_FACADE_RESPONSE_BYTES, MAX_FACADE_TOKEN_BYTES, OwnerAuthorization, OwnerError,
+    PreviewRequest, ProtectedAuthReference, RetentionMode, RetentionPolicy, SecretDigest,
 };
 pub use memory::{
     MAX_MEMORY_BODY_BYTES, MAX_MEMORY_QUERY_BYTES, MemoryCapabilities, MemoryQueryRequest,

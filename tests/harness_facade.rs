@@ -28,6 +28,8 @@ struct RecordingOwner {
     commit_effects: BTreeSet<String>,
     commit_effect_count: usize,
     drop_next_commit_reply: bool,
+    flood_receipts: bool,
+    next_flood_receipt: u64,
     hostile_locked_reason: Option<String>,
     hostile_state_model: Option<String>,
     hostile_preview_base: Option<String>,
@@ -42,6 +44,8 @@ impl RecordingOwner {
             commit_effects: BTreeSet::new(),
             commit_effect_count: 0,
             drop_next_commit_reply: false,
+            flood_receipts: false,
+            next_flood_receipt: 0,
             hostile_locked_reason: None,
             hostile_state_model: None,
             hostile_preview_base: None,
@@ -51,6 +55,11 @@ impl RecordingOwner {
 
     fn with_lost_commit_reply(mut self) -> Self {
         self.drop_next_commit_reply = true;
+        self
+    }
+
+    fn with_receipt_flood(mut self) -> Self {
+        self.flood_receipts = true;
         self
     }
 
@@ -126,6 +135,16 @@ impl HarnessOwnerPort for RecordingOwner {
         HarnessOwnerPort::revisions(&mut self.inner, auth, scope)
     }
 
+    fn get_revision(
+        &mut self,
+        auth: &ProtectedAuthReference,
+        scope: &ControlScope,
+        revision_id: &str,
+    ) -> Result<Revision, OwnerError> {
+        self.record("get_revision");
+        HarnessOwnerPort::get_revision(&mut self.inner, auth, scope, revision_id)
+    }
+
     fn drafts(
         &mut self,
         auth: &ProtectedAuthReference,
@@ -181,6 +200,21 @@ impl HarnessOwnerPort for RecordingOwner {
     ) -> Result<Receipt, OwnerError> {
         self.record("get_receipt");
         HarnessOwnerPort::get_receipt(&mut self.inner, auth, scope, command_id)
+    }
+
+    fn get_receipt_by_idempotency_key(
+        &mut self,
+        auth: &ProtectedAuthReference,
+        scope: &ControlScope,
+        idempotency_key: &str,
+    ) -> Result<Receipt, OwnerError> {
+        self.record("get_receipt_by_idempotency_key");
+        HarnessOwnerPort::get_receipt_by_idempotency_key(
+            &mut self.inner,
+            auth,
+            scope,
+            idempotency_key,
+        )
     }
 
     fn create_draft(
@@ -245,6 +279,22 @@ impl HarnessOwnerPort for RecordingOwner {
         command: ControlCommand,
     ) -> Result<Receipt, OwnerError> {
         self.record("pause");
+        if self.flood_receipts {
+            self.next_flood_receipt = self.next_flood_receipt.saturating_add(1);
+            return Ok(Receipt {
+                schema: "ascension.context-control.receipt.v1".to_owned(),
+                command_id: format!("flood-receipt-{}", self.next_flood_receipt),
+                scope: command.scope,
+                kind: "pause".to_owned(),
+                status: "completed".to_owned(),
+                effect: "pause_requested".to_owned(),
+                control_version: command.expected_control_version,
+                active_revision_id: "revision-1".to_owned(),
+                paused: true,
+                reason_code: None,
+                observed_at: "2030-01-01T00:00:00Z".to_owned(),
+            });
+        }
         HarnessOwnerPort::pause(&mut self.inner, auth, command)
     }
 
@@ -321,6 +371,33 @@ fn request(principal: &str, token: &[u8], now: u64) -> FacadeRequest {
     )
 }
 
+fn http_request(
+    scope: &ControlScope,
+    method: &str,
+    tail: &str,
+    token: &[u8],
+    body: Vec<u8>,
+) -> context_service::HttpRequest {
+    context_service::HttpRequest {
+        method: method.to_owned(),
+        target: format!("/v2/runs/{}/context-control/{tail}", scope.run_id),
+        headers: vec![
+            ("host".to_owned(), HOST.to_owned()),
+            ("origin".to_owned(), ORIGIN.to_owned()),
+            (
+                "authorization".to_owned(),
+                format!("Bearer {}", String::from_utf8_lossy(token)),
+            ),
+            ("x-principal".to_owned(), "studio".to_owned()),
+            (
+                "x-csrf-token".to_owned(),
+                String::from_utf8_lossy(CSRF).into_owned(),
+            ),
+        ],
+        body,
+    }
+}
+
 fn config(scope: ControlScope) -> HarnessFacadeConfig {
     HarnessFacadeConfig::new(
         scope,
@@ -345,6 +422,26 @@ fn command(
         idempotency_key: key.to_owned(),
         command_window_id: state.command_window_id,
         expected_control_version,
+        kind: kind.to_owned(),
+        expected_active_revision_id: None,
+        preview_id: None,
+        approved_manifest_sha256: None,
+        expected_preview_id: None,
+    }
+}
+
+fn command_from_state(
+    state: &ControlState,
+    scope: &ControlScope,
+    kind: &str,
+    key: &str,
+) -> ControlCommand {
+    ControlCommand {
+        schema: "ascension.context-control.command.v1".to_owned(),
+        scope: scope.clone(),
+        idempotency_key: key.to_owned(),
+        command_window_id: state.command_window_id.clone(),
+        expected_control_version: state.control_version,
         kind: kind.to_owned(),
         expected_active_revision_id: None,
         preview_id: None,
@@ -854,6 +951,309 @@ fn cached_draft_version_rejects_stale_patch_before_owner_mutation() {
 }
 
 #[test]
+fn edit_only_note_references_stay_indexed_across_pin_update_and_unpin() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        edit_grant(&scope, EDIT_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("edit-only service");
+    let edit_only = request("editor", EDIT_TOKEN, 100);
+    let draft = service
+        .create_draft(&edit_only, "revision-1")
+        .expect("draft");
+    let first = service
+        .edit_draft(
+            &edit_only,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: scope.clone(),
+                draft_id: draft.draft_id.clone(),
+                expected_draft_version: draft.version,
+                expected_active_revision_id: "revision-1".to_owned(),
+                operations: vec![ControlOperation::PutNote {
+                    note_id: "edit-only-note".to_owned(),
+                    expected_note_version: None,
+                    text: "first note".to_owned(),
+                    expires_at: "2030-01-01T00:00:00Z".to_owned(),
+                }],
+            },
+        )
+        .expect("create note");
+    let first_ref = first.note_items.first().cloned().expect("created note ref");
+
+    let pinned = service
+        .edit_draft(
+            &edit_only,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: scope.clone(),
+                draft_id: first.draft_id.clone(),
+                expected_draft_version: first.version,
+                expected_active_revision_id: "revision-1".to_owned(),
+                operations: vec![ControlOperation::PinItem {
+                    item: first_ref.clone(),
+                }],
+            },
+        )
+        .expect("pin returned note reference");
+    assert_eq!(pinned.pinned_item_ids, vec!["edit-only-note".to_owned()]);
+
+    let updated = service
+        .edit_draft(
+            &edit_only,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope: scope.clone(),
+                draft_id: pinned.draft_id.clone(),
+                expected_draft_version: pinned.version,
+                expected_active_revision_id: "revision-1".to_owned(),
+                operations: vec![ControlOperation::PutNote {
+                    note_id: "edit-only-note".to_owned(),
+                    expected_note_version: Some(first_ref.version),
+                    text: "updated note".to_owned(),
+                    expires_at: "2030-01-01T00:00:00Z".to_owned(),
+                }],
+            },
+        )
+        .expect("update note");
+    let updated_ref = updated
+        .note_items
+        .first()
+        .cloned()
+        .expect("updated note ref");
+    assert_ne!(updated_ref.version, first_ref.version);
+
+    let unpinned = service
+        .edit_draft(
+            &edit_only,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope,
+                draft_id: updated.draft_id,
+                expected_draft_version: updated.version,
+                expected_active_revision_id: "revision-1".to_owned(),
+                operations: vec![ControlOperation::UnpinItem { item: updated_ref }],
+            },
+        )
+        .expect("unpin returned updated note reference");
+    assert!(unpinned.pinned_item_ids.is_empty());
+}
+
+#[test]
+fn write_driven_reference_caches_evict_and_revalidate_at_fixed_capacity() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic()).with_receipt_flood();
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("editor", FULL_TOKEN, 100);
+    let mut first_draft_id = None;
+    for index in 0..(context_service::MAX_FACADE_CACHE_ENTRIES + 4) {
+        let draft = service
+            .create_draft(&full, "revision-1")
+            .expect("draft beyond cache capacity");
+        if index == 0 {
+            first_draft_id = Some(draft.draft_id);
+        }
+    }
+    let status = service.cache_status();
+    assert_eq!(
+        status.drafts,
+        context_service::MAX_FACADE_CACHE_ENTRIES,
+        "draft cache must evict oldest entries"
+    );
+    assert!(status.drafts <= context_service::MAX_FACADE_CACHE_ENTRIES);
+
+    let first_draft_id = first_draft_id.expect("first draft id");
+    let before_revalidation = service.owner().calls.len();
+    service
+        .read_draft(&full, &first_draft_id)
+        .expect("evicted draft is revalidated through owner");
+    assert!(
+        service.owner().calls[before_revalidation..]
+            .iter()
+            .any(|operation| operation == "get_draft")
+    );
+
+    let draft = service
+        .read_draft(&full, &first_draft_id)
+        .expect("draft for preview flood");
+    for _ in 0..(context_service::MAX_FACADE_CACHE_ENTRIES + 4) {
+        service
+            .preview(
+                &full,
+                PreviewRequest {
+                    scope: scope.clone(),
+                    draft_id: draft.draft_id.clone(),
+                    expected_draft_version: draft.version,
+                    applicable_requested: false,
+                    expected_control_version: 0,
+                    unknown_total_risk_acknowledged: false,
+                },
+            )
+            .expect("preview beyond cache capacity");
+    }
+    let status = service.cache_status();
+    assert_eq!(
+        status.previews,
+        context_service::MAX_FACADE_CACHE_ENTRIES,
+        "preview cache must evict oldest entries"
+    );
+
+    let state = service.owner().inner.state();
+    for index in 0..(context_service::MAX_FACADE_CACHE_ENTRIES + 4) {
+        let receipt = service
+            .pause(
+                &full,
+                command_from_state(&state, &scope, "pause", &format!("flood-receipt-{index}")),
+            )
+            .expect("receipt beyond cache capacity");
+        assert_eq!(receipt.kind, "pause");
+    }
+    let status = service.cache_status();
+    assert_eq!(
+        status.receipts,
+        context_service::MAX_FACADE_CACHE_ENTRIES,
+        "receipt cache must evict oldest entries"
+    );
+}
+
+#[test]
+fn evicted_revision_is_revalidated_without_fetching_the_full_history() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants(&scope, FULL_TOKEN, 10_000),
+        config(scope.clone()),
+    )
+    .expect("service");
+    let full = request("revision-editor", FULL_TOKEN, 100);
+    let history_item = history(&service.owner().inner);
+
+    for index in 0..(context_service::MAX_FACADE_CACHE_ENTRIES + 1) {
+        let active = service.owner().inner.state().active_revision_id;
+        let draft = service
+            .create_draft(&full, &active)
+            .expect("draft for revision history");
+        let operation = if index % 2 == 0 {
+            ControlOperation::IncludeItem {
+                item: history_item.clone(),
+            }
+        } else {
+            ControlOperation::ExcludeItem {
+                item: history_item.clone(),
+            }
+        };
+        let edited = service
+            .edit_draft(
+                &full,
+                ControlPatch {
+                    schema: "ascension.context-control.patch.v1".to_owned(),
+                    scope: scope.clone(),
+                    draft_id: draft.draft_id,
+                    expected_draft_version: draft.version,
+                    expected_active_revision_id: active.clone(),
+                    operations: vec![operation],
+                },
+            )
+            .expect("revision edit");
+        let pause = command(
+            &service.owner().inner,
+            "pause",
+            &format!("evicted-revision-pause-{index}"),
+            service.owner().inner.state().control_version,
+        );
+        service.pause(&full, pause).expect("pause");
+        let preview = service
+            .preview(
+                &full,
+                PreviewRequest {
+                    scope: scope.clone(),
+                    draft_id: edited.draft_id.clone(),
+                    expected_draft_version: edited.version,
+                    applicable_requested: true,
+                    expected_control_version: service.owner().inner.state().control_version,
+                    unknown_total_risk_acknowledged: true,
+                },
+            )
+            .expect("applicable preview");
+        let mut commit = command(
+            &service.owner().inner,
+            "commit",
+            &format!("evicted-revision-commit-{index}"),
+            service.owner().inner.state().control_version,
+        );
+        commit.expected_active_revision_id = Some(active);
+        commit.preview_id = Some(preview.preview_id.clone());
+        commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+        let committed = service.held_commit(&full, commit).expect("commit");
+        let mut resume = command(
+            &service.owner().inner,
+            "resume",
+            &format!("evicted-revision-resume-{index}"),
+            service.owner().inner.state().control_version,
+        );
+        resume.expected_active_revision_id = Some(committed.active_revision_id.clone());
+        resume.expected_preview_id = Some(preview.preview_id);
+        service.resume(&full, resume).expect("resume");
+    }
+
+    assert!(
+        service.owner().inner.revisions().len() > context_service::MAX_FACADE_CACHE_ENTRIES,
+        "owner retains more revisions than the facade cache"
+    );
+    let active = service.owner().inner.state().active_revision_id;
+    let draft = service
+        .create_draft(&full, &active)
+        .expect("draft for historical restore");
+    let before_restore = service.owner().calls.len();
+    let restored = service
+        .edit_draft(
+            &full,
+            ControlPatch {
+                schema: "ascension.context-control.patch.v1".to_owned(),
+                scope,
+                draft_id: draft.draft_id,
+                expected_draft_version: draft.version,
+                expected_active_revision_id: active,
+                operations: vec![ControlOperation::RestoreConfiguration {
+                    source_revision_id: "revision-1".to_owned(),
+                }],
+            },
+        )
+        .expect("evicted revision is restored");
+    assert!(restored.selected_items.is_empty());
+    assert!(
+        service.owner().calls[before_restore..]
+            .iter()
+            .any(|operation| operation == "get_revision"),
+        "historical restore must use the scoped lookup"
+    );
+    assert!(
+        !service.owner().calls[before_restore..]
+            .iter()
+            .any(|operation| operation == "revisions"),
+        "historical restore must not refresh the full revision collection"
+    );
+}
+
+#[test]
 fn hostile_owner_projections_are_redacted_or_rejected_and_responses_are_capped() {
     let owner = RecordingOwner::new(ControlPlane::synthetic()).with_hostile_projections();
     let scope = owner.scope();
@@ -1035,6 +1435,183 @@ fn lost_commit_reply_recovers_receipt_after_process_restart_without_repeating_ef
 }
 
 #[test]
+fn http_receipt_recovery_uses_idempotency_key_after_lost_reply_and_write_revocation() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic()).with_lost_commit_reply();
+    let scope = owner.scope();
+    let mut grants = grants(&scope, FULL_TOKEN, 10_000);
+    grants
+        .issue(
+            "metadata-only",
+            FacadePermission::MetadataRead,
+            scope.clone(),
+            METADATA_TOKEN,
+            10_000,
+        )
+        .expect("metadata grant");
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants,
+        config(scope.clone()),
+    )
+    .expect("service");
+
+    let read_state = |service: &mut HarnessBackedContextService<RecordingOwner>| {
+        let response = service.handle_http_at(
+            &http_request(&scope, "GET", "state", FULL_TOKEN, Vec::new()),
+            100,
+        );
+        assert_eq!(response.status, 200);
+        serde_json::from_slice::<ControlState>(&response.body).expect("state response")
+    };
+    let state = read_state(&mut service);
+    let draft_response = service.handle_http_at(
+        &http_request(
+            &scope,
+            "POST",
+            "drafts",
+            FULL_TOKEN,
+            br#"{"expected_active_revision_id":"revision-1"}"#.to_vec(),
+        ),
+        100,
+    );
+    assert_eq!(draft_response.status, 200);
+    let draft: Draft = serde_json::from_slice(&draft_response.body).expect("draft response");
+
+    let items_response = service.handle_http_at(
+        &http_request(&scope, "GET", "eligible-items", FULL_TOKEN, Vec::new()),
+        100,
+    );
+    assert_eq!(items_response.status, 200);
+    let items: Vec<EligibleItem> =
+        serde_json::from_slice(&items_response.body).expect("eligible-item response");
+    let item = items
+        .into_iter()
+        .find(|item| item.item.item_id == "history-1")
+        .expect("history item")
+        .item;
+    let patch = ControlPatch {
+        schema: "ascension.context-control.patch.v1".to_owned(),
+        scope: scope.clone(),
+        draft_id: draft.draft_id.clone(),
+        expected_draft_version: draft.version,
+        expected_active_revision_id: state.active_revision_id.clone(),
+        operations: vec![ControlOperation::IncludeItem { item }],
+    };
+    let edited_response = service.handle_http_at(
+        &http_request(
+            &scope,
+            "POST",
+            &format!("drafts/{}/operations", draft.draft_id),
+            FULL_TOKEN,
+            serde_json::to_vec(&patch).expect("patch JSON"),
+        ),
+        100,
+    );
+    assert_eq!(edited_response.status, 200);
+    let edited: Draft = serde_json::from_slice(&edited_response.body).expect("edited response");
+
+    let pause = command_from_state(&state, &scope, "pause", "http-lost-reply-pause");
+    let pause_response = service.handle_http_at(
+        &http_request(
+            &scope,
+            "POST",
+            "pause",
+            FULL_TOKEN,
+            serde_json::to_vec(&pause).expect("pause JSON"),
+        ),
+        100,
+    );
+    assert_eq!(pause_response.status, 200);
+    let paused: Receipt = serde_json::from_slice(&pause_response.body).expect("pause receipt");
+    let paused_state = read_state(&mut service);
+    assert_eq!(paused.kind, "pause");
+
+    let preview_request = PreviewRequest {
+        scope: scope.clone(),
+        draft_id: edited.draft_id.clone(),
+        expected_draft_version: edited.version,
+        applicable_requested: true,
+        expected_control_version: paused_state.control_version,
+        unknown_total_risk_acknowledged: true,
+    };
+    let preview_response = service.handle_http_at(
+        &http_request(
+            &scope,
+            "POST",
+            "previews",
+            FULL_TOKEN,
+            serde_json::to_vec(&preview_request).expect("preview JSON"),
+        ),
+        100,
+    );
+    assert_eq!(preview_response.status, 200);
+    let preview: Preview =
+        serde_json::from_slice(&preview_response.body).expect("preview response");
+
+    let mut commit = command_from_state(&paused_state, &scope, "commit", "http-lost-reply-commit");
+    commit.expected_active_revision_id = Some(paused_state.active_revision_id.clone());
+    commit.preview_id = Some(preview.preview_id);
+    commit.approved_manifest_sha256 = preview.prepared_manifest_sha256;
+    let lost_response = service.handle_http_at(
+        &http_request(
+            &scope,
+            "POST",
+            "commits",
+            FULL_TOKEN,
+            serde_json::to_vec(&commit).expect("commit JSON"),
+        ),
+        100,
+    );
+    assert_eq!(lost_response.status, 503);
+    let lost_body: serde_json::Value =
+        serde_json::from_slice(&lost_response.body).expect("lost-reply error JSON");
+    assert_eq!(lost_body["error"]["retryable"], false);
+    assert_eq!(service.owner().commit_effect_count, 1);
+
+    for grant_id in ["edit", "pause", "commit", "resume"] {
+        service
+            .grants_mut()
+            .revoke(grant_id)
+            .expect("revoke write grant");
+    }
+    let recovered_response = service.handle_http_at(
+        &http_request(
+            &scope,
+            "GET",
+            "commands/by-idempotency-key/http-lost-reply-commit",
+            METADATA_TOKEN,
+            Vec::new(),
+        ),
+        100,
+    );
+    assert_eq!(recovered_response.status, 200);
+    let recovered_receipt: Receipt =
+        serde_json::from_slice(&recovered_response.body).expect("recovered receipt");
+    assert_eq!(recovered_receipt.kind, "commit");
+    assert_eq!(service.owner().commit_effect_count, 1);
+    assert!(
+        service
+            .owner()
+            .calls
+            .contains(&"get_receipt_by_idempotency_key".to_owned())
+    );
+    let query_response = service.handle_http_at(
+        &http_request(
+            &scope,
+            "GET",
+            "commands?idempotency_key=http-lost-reply-commit",
+            METADATA_TOKEN,
+            Vec::new(),
+        ),
+        100,
+    );
+    assert_eq!(query_response.status, 200);
+}
+
+#[test]
 fn published_facade_openapi_is_local_and_matches_transport_shapes() {
     let document: serde_json::Value = serde_json::from_str(include_str!(
         "../contracts/context-control/harness-facade.openapi.json"
@@ -1067,6 +1644,16 @@ fn published_facade_openapi_is_local_and_matches_transport_shapes() {
         paths["/v2/runs/{run_id}/context-control/eligible-items"]["get"]["responses"]["200"]["content"]
             ["application/json"]["schema"]["type"],
         "array"
+    );
+    assert_eq!(
+        paths["/v2/runs/{run_id}/context-control/commands"]["get"]["responses"]["200"]["content"]["application/json"]
+            ["schema"]["type"],
+        "array"
+    );
+    assert_eq!(
+        paths["/v2/runs/{run_id}/context-control/commands/by-idempotency-key/{idempotency_key}"]["get"]
+            ["operationId"],
+        "facadeReceiptRecovery"
     );
     let mut references = Vec::new();
     collect_refs(&document, &mut references);

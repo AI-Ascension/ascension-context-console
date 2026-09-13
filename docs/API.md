@@ -43,6 +43,8 @@ demo only and never shares read capabilities with writes:
 | `/v2/runs/{run_id}/context-control/drafts` | Create a versioned draft from the active revision. |
 | `/v2/runs/{run_id}/context-control/drafts/{draft_id}/operations` | Apply bounded include/exclude/pin/note/objective/restore operations with draft CAS. |
 | `/v2/runs/{run_id}/context-control/previews` | Build an exploratory or held-boundary immutable preview without inference. |
+| `/v2/runs/{run_id}/context-control/commands` | Refresh a bounded collection of owner command receipts. |
+| `/v2/runs/{run_id}/context-control/commands/by-idempotency-key/{idempotency_key}` | Recover an owner receipt using the caller-known idempotency key after a lost write response. |
 | `/v2/runs/{run_id}/context-control/pause` | Latch the scheduler at a validated boundary. |
 | `/v2/runs/{run_id}/context-control/commits` | CAS-commit an approved preview while remaining paused. |
 | `/v2/runs/{run_id}/context-control/resume` | Explicitly release the approved continuation after revalidation. |

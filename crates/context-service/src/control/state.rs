@@ -243,6 +243,14 @@ impl ControlPlane {
         self.revisions.values().cloned().collect()
     }
 
+    /// Returns one immutable revision without materializing the complete revision history.
+    pub fn get_revision(&self, revision_id: &str) -> Result<Revision, ControlError> {
+        self.revisions
+            .get(revision_id)
+            .cloned()
+            .ok_or_else(|| ControlError::invalid("revision_not_found", "revision is unavailable"))
+    }
+
     /// Returns immutable preview projections without exposing their prepared input material.
     pub fn previews(&self) -> Vec<Preview> {
         self.previews
@@ -1012,6 +1020,20 @@ impl ControlPlane {
         self.commands
             .values()
             .find_map(|(_, receipt)| (receipt.command_id == command_id).then_some(receipt.clone()))
+            .ok_or_else(|| ControlError::invalid("command_not_found", "command is unavailable"))
+    }
+
+    /// Look up a durable receipt by the caller-provided idempotency key.
+    ///
+    /// The owner-generated command ID is not necessarily known to a caller when a mutation was
+    /// applied but its response was lost, so recovery must be keyed by the value the caller kept.
+    pub fn receipt_for_idempotency_key(
+        &self,
+        idempotency_key: &str,
+    ) -> Result<Receipt, ControlError> {
+        self.commands
+            .get(idempotency_key)
+            .map(|(_, receipt)| receipt.clone())
             .ok_or_else(|| ControlError::invalid("command_not_found", "command is unavailable"))
     }
 

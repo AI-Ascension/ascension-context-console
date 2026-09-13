@@ -65,6 +65,9 @@
           "previews",
           "receipts",
           "receipt_read",
+          "receipt_recovery",
+          "receipt_by_idempotency_key",
+          "receipt_by_reference",
           "create_draft",
           "draft_create",
           "apply_patch",
@@ -90,6 +93,7 @@
           "drafts",
           "previews",
           "receipts",
+          "receipt_recovery",
           "create_draft",
           "apply_patch",
           "create_preview",
@@ -99,7 +103,7 @@
         ]
       },
       "uniqueItems": true,
-      "maxItems": 13
+      "maxItems": 14
     },
     "grant_permissions": {
       "type": "array",

@@ -607,6 +607,57 @@
         }
       }
     },
+    "/v2/runs/{run_id}/context-control/commands": {
+      "get": {
+        "operationId": "facadeReceipts",
+        "summary": "Enumerate bounded owner command receipts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/Principal"
+          }
+        ],
+        "security": [
+          {
+            "bearerCapability": []
+          }
+        ],
+        "x-required-permission": "context.metadata.read",
+        "responses": {
+          "200": {
+            "description": "Bounded receipt array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "items": {
+                    "$ref": "#/components/schemas/Receipt"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
     "/v2/runs/{run_id}/context-control/commands/{command_id}": {
       "get": {
         "operationId": "facadeReceipt",
@@ -634,6 +685,60 @@
         "responses": {
           "200": {
             "description": "Receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Denied"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/v2/runs/{run_id}/context-control/commands/by-idempotency-key/{idempotency_key}": {
+      "get": {
+        "operationId": "facadeReceiptRecovery",
+        "summary": "Recover one command receipt by the caller's idempotency key",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/Origin"
+          },
+          {
+            "$ref": "#/components/parameters/Principal"
+          }
+        ],
+        "security": [
+          {
+            "bearerCapability": []
+          }
+        ],
+        "x-required-permission": "context.metadata.read",
+        "x-recovery-key": "caller idempotency key; owner command ID need not be known",
+        "responses": {
+          "200": {
+            "description": "Recovered owner receipt",
             "content": {
               "application/json": {
                 "schema": {
@@ -873,6 +978,15 @@
         "schema": {
           "$ref": "#/components/schemas/Id"
         }
+      },
+      "IdempotencyKey": {
+        "name": "idempotency_key",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        },
+        "description": "Caller-known command identity retained for receipt recovery."
       },
       "Origin": {
         "name": "Origin",
@@ -1797,6 +1911,9 @@
                 "previews",
                 "receipts",
                 "receipt_read",
+                "receipt_recovery",
+                "receipt_by_idempotency_key",
+                "receipt_by_reference",
                 "create_draft",
                 "draft_create",
                 "apply_patch",
@@ -1811,7 +1928,7 @@
           },
           "forwarded_operations": {
             "type": "array",
-            "maxItems": 13,
+            "maxItems": 14,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -1823,6 +1940,7 @@
                 "drafts",
                 "previews",
                 "receipts",
+                "receipt_recovery",
                 "create_draft",
                 "apply_patch",
                 "create_preview",
