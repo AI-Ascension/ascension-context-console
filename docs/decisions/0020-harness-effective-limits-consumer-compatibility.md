@@ -2,11 +2,10 @@
 
 ## Status
 
-Proposed. This record **prepares** the owner/consumer compatibility decision for the Context
-Console adoption of the harness effective-limit contract. It requires agreement from the Context
-Console owner, the harness producer owner (`AI-Ascension/sts2-harness#95`), and the Studio consumer
-before any schema migration. Nothing in this record authorizes the migration, a deployment, or a
-native/provider run.
+Accepted (coordinating-agent decision, 2026-09-14). The coordinated owner/consumer agreement is
+recorded on `ascension-context-console#24` and `sts2-harness#95`; the schema migration is the next
+PR. This record previously stood as Proposed; the four open questions are resolved below. Nothing
+here authorizes a deployment or a native/provider run.
 
 ## Context
 
@@ -100,24 +99,38 @@ Synthetic/contract-level only. The producer bytes are pinned by digest; no nativ
 deployment behavior is claimed. Console's delivery remains its bounded validation, ingest/storage,
 scoped control API/CLI, and browser presentation.
 
-## Open questions requiring owner/consumer agreement
+## Resolved questions and evidence
 
-1. **Unversioned policy tightening.** Should this repository accept the producer's stricter
-   provider-session policy (`version`/`epoch` `minimum: 1`) under the unchanged `…policy.v1`
-   identity, or should the producer bump the policy schema version to signal the tightening?
-2. **Studio cutover.** Does Studio read the advertised capability descriptors directly or through a
-   shared adapter, and who sequences the `v3` cutover so both consumers move together?
-3. **Encryption widening intent.** Confirm `hardening.encrypted_state` as `boolean` is intentional,
-   and that each consumer retains its own authenticated-encryption requirement for private
-   retention.
-4. **Method-name widening mapping.** The provider-session `enabled_methods` pattern now admits
-   slash-containing and leading-punctuation names. Should the Console map or normalize these to its
-   bounded method identifiers, or pass unknown names through as explicit `unknown_methods`?
+1. **Unversioned policy tightening — accepted, no producer version bump.** Copy the producer's
+   `…policy.v1` provider-session policy bytes (`version`/`epoch` `minimum: 1`). The producer contract
+   is authoritative for the executable limits, the tightened minima reject only semantically invalid
+   `0` values, and no Context Console policy payload uses `0` (verified across `crates/`,
+   `contracts/`, and `fixtures/`). If the producer later versions the policy, consumers re-pin.
+2. **Studio cutover — dual reader, then coordinated flip.** This repository keeps a version-specific
+   `v1`/`v3` reader and only advertises `v3` once Studio can accept it (Studio consumer feature
+   `ascension-workflow-studio#119`). The harness pin matrix moves both consumer entries to `aligned`
+   after that.
+3. **Encryption widening — confirmed intentional; independent guard retained.** The producer `v3`
+   contract defines `hardening.encrypted_state` as a boolean. This repository does not rely on it for
+   safety: private retention still requires an accepted policy exception and authenticated
+   encryption (`RetentionPolicy::validate`), independent of the schema value.
+4. **Method-name widening — accepted as-is.** The Console already uses slash-containing method names
+   (for example `thread/read` in its provider-session fixture), which the `v1` pattern rejected; the
+   `v3` pattern admits them. Unknown or malformed names remain explicit `unknown_methods`/invalid
+   rather than being silently normalized.
+
+### Verified consumer inconsistency
+
+The copied `v1` capability schemas are not merely older versions: this repository's own
+provider-session fixture already uses values the copied `v1` schema rejects (`enabled_methods`
+`thread/read` violates the `v1` pattern; `hardening.encrypted_state: false` violates the `v1`
+`const: true`). Replacing the copies with the producer `v3` bytes is therefore a correctness fix, not
+only a version alignment.
 
 ## Consequences
 
 Adoption aligns a real producer/consumer contract defect (current harness-produced descriptors use
 `v3` and cannot be read by a strict `v1` consumer), unblocks the `#24` obligation and downstream
 `#18`/`#19`, and makes value presentation depend on authenticated executable limits rather than
-portable schema ceilings alone. Until agreement and the coordinated migration land, this repository
-must not claim adoption, and the harness pin matrix must keep it `pending`.
+portable schema ceilings alone. With the decision accepted, the migration PR follows; until it
+lands, this repository must not claim adoption, and the harness pin matrix must keep it `pending`.
