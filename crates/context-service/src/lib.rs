@@ -12,6 +12,7 @@ mod capture;
 mod cli;
 mod control;
 mod demo;
+pub mod effective_limits;
 mod harness_facade;
 mod http;
 mod memory;
@@ -53,8 +54,11 @@ pub use harness_facade::{
     PreviewRequest, ProtectedAuthReference, RetentionMode, RetentionPolicy, SecretDigest,
 };
 pub use memory::{
-    MAX_MEMORY_BODY_BYTES, MAX_MEMORY_QUERY_BYTES, MemoryCapabilities, MemoryQueryRequest,
-    MemoryRoute, MemoryRouteError, MemoryScope,
+    AdvertisedMemoryCapabilities, CapabilitiesReadError, MAX_MEMORY_BODY_BYTES,
+    MAX_MEMORY_QUERY_BYTES, MEMORY_CAPABILITIES_SCHEMA, MEMORY_CAPABILITIES_SCHEMA_V1,
+    MemoryBinding, MemoryCapabilities, MemoryCapabilitiesV1, MemoryEffectiveLimits,
+    MemoryQueryRequest, MemoryRoute, MemoryRouteError, MemoryScope,
+    read_advertised_memory_capabilities,
 };
 pub use owner::{
     HarnessOwner, HarnessOwnerComposition, OWNER_MAX_BODY_BYTES, OWNER_MAX_RESPONSE_BYTES,
@@ -67,8 +71,11 @@ pub use private_store::{
     EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,
 };
 pub use provider_session::{
-    ProviderSessionRoute, SessionApiError, SessionBindingView, SessionCapabilitiesView,
-    SessionHardeningView, SessionOperationView, SessionRouteMode, SessionScopeView,
+    AdvertisedSessionCapabilities, ProviderSessionRoute, SESSION_CAPABILITIES_SCHEMA,
+    SESSION_CAPABILITIES_SCHEMA_V1, SessionApiError, SessionBinding, SessionBindingView,
+    SessionCapabilitiesReadError, SessionCapabilitiesV1, SessionCapabilitiesView,
+    SessionEffectiveLimits, SessionHardeningView, SessionOperationView, SessionRouteMode,
+    SessionScopeView, read_advertised_session_capabilities,
 };
 pub use read_api::{
     ApiError, HttpRequest, HttpResponse, MAX_HTTP_BODY_BYTES, MAX_HTTP_REQUEST_BYTES, ReadApi,

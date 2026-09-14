@@ -11,16 +11,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
+use crate::effective_limits::{
+    EFFECTIVE_LIMIT_RECORD_SCHEMA, EffectiveLimitRecord, LimitRow, UnavailableReason, contract_pins,
+};
 use crate::owner::{
     HarnessOwnerComposition, OwnerError, OwnerGrantBook, OwnerOperation, OwnerRequestContext,
     owner_call, owner_scope, validate_public_value,
 };
 
-pub const MEMORY_CAPABILITIES_SCHEMA: &str = "ascension.context-memory.capabilities.v1";
+/// Advertised capability schema. The `v3` contract additionally requires the `effective_limits`
+/// and `binding` objects. The `v1` payload shape remains readable through the dual reader.
+pub const MEMORY_CAPABILITIES_SCHEMA: &str = "ascension.context-memory.capabilities.v3";
+/// Legacy capability schema preserved for dual reading during migration.
+pub const MEMORY_CAPABILITIES_SCHEMA_V1: &str = "ascension.context-memory.capabilities.v1";
 pub const MEMORY_QUERY_SCHEMA: &str = "ascension.context-memory.query.v1";
 pub const MAX_MEMORY_QUERY_BYTES: usize = 4 * 1024;
 pub const MAX_MEMORY_BODY_BYTES: usize = 16 * 1024;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+/// Portable `policy.v1` ceiling for `optional_byte_budget`; broader than the executable ceiling.
+const MEMORY_POLICY_SCHEMA_MAX_OPTIONAL_BYTES: u64 = 65_536;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +40,50 @@ pub struct MemoryScope {
     pub agent_id: String,
 }
 
+/// Canonical `effective_limits` object required by the `context-memory` capability `v3` schema.
+///
+/// The fixture values in [`MemoryRoute::capabilities`] are synthetic and equal to the portable
+/// schema ceilings; they are not a claim about a live harness owner or profile.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryEffectiveLimits {
+    pub policy_schema: String,
+    pub max_candidates: u64,
+    pub max_results: u64,
+    pub max_selected: u64,
+    pub optional_byte_budget: u64,
+    pub max_entries_per_run: u64,
+    pub max_corpus_bytes: u64,
+    pub max_source_bytes: u64,
+    pub max_sources_per_job: u64,
+    pub max_job_input_bytes: u64,
+    pub max_summary_output_bytes: u64,
+    pub max_query_bytes: u64,
+    pub max_lineage_depth: u64,
+    pub max_global_memory_bytes: u64,
+    pub max_global_memory_jobs: u64,
+    pub max_retention_resources: u64,
+    pub max_retention_bytes: u64,
+    pub max_cache_entries: u64,
+    pub max_review_records: u64,
+    pub max_memory_bindings: u64,
+    pub max_usage_attempts: u64,
+}
+
+/// Owner/adapter identity required by the `context-memory` capability `v3` schema.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryBinding {
+    pub owner: String,
+    pub owner_revision: String,
+    pub policy_schema_sha256: String,
+    pub model_revision: String,
+    pub adapter_revision: String,
+    pub adapter_revision_sha256: String,
+    pub descriptor_sha256: String,
+}
+
+/// Advertised `v3` context-memory capability descriptor.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MemoryCapabilities {
@@ -49,7 +102,331 @@ pub struct MemoryCapabilities {
     pub semantic_vector_retrieval: String,
     pub hidden_reasoning_access: bool,
     pub direct_game_dispatch: bool,
+    pub effective_limits: MemoryEffectiveLimits,
+    pub binding: MemoryBinding,
     pub supported_operations: Vec<String>,
+}
+
+/// Legacy `v1` capability descriptor, still readable through the dual reader.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryCapabilitiesV1 {
+    pub schema: String,
+    pub product_phase: u8,
+    pub scope: MemoryScope,
+    pub enabled: bool,
+    pub local_lexical_retrieval: String,
+    pub extractive_compaction: String,
+    pub abstractive_adapter: String,
+    pub abstractive_live_verified: bool,
+    pub per_decision_policy: String,
+    pub phase2_approval_required: bool,
+    pub persistent_provider_sessions: bool,
+    pub provider_side_compaction: bool,
+    pub semantic_vector_retrieval: String,
+    pub hidden_reasoning_access: bool,
+    pub direct_game_dispatch: bool,
+    pub supported_operations: Vec<String>,
+}
+
+/// Result of the context-memory dual reader.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdvertisedMemoryCapabilities {
+    V1(Box<MemoryCapabilitiesV1>),
+    V3(Box<MemoryCapabilities>),
+}
+
+impl AdvertisedMemoryCapabilities {
+    #[must_use]
+    pub fn schema(&self) -> &str {
+        match self {
+            Self::V1(capabilities) => &capabilities.schema,
+            Self::V3(capabilities) => &capabilities.schema,
+        }
+    }
+
+    #[must_use]
+    pub fn effective_limits(&self) -> Option<&MemoryEffectiveLimits> {
+        match self {
+            Self::V1(_) => None,
+            Self::V3(capabilities) => Some(&capabilities.effective_limits),
+        }
+    }
+
+    #[must_use]
+    pub fn enabled(&self) -> bool {
+        match self {
+            Self::V1(capabilities) => capabilities.enabled,
+            Self::V3(capabilities) => capabilities.enabled,
+        }
+    }
+}
+
+/// Why a capability descriptor could not be read.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CapabilitiesReadError {
+    UnknownSchema,
+    Malformed,
+}
+
+/// Dual reader: a valid `v1` payload still reads, and a `v3` payload reads with effective limits.
+///
+/// # Errors
+///
+/// Returns [`CapabilitiesReadError::UnknownSchema`] for an unrecognized schema and
+/// [`CapabilitiesReadError::Malformed`] for a payload that does not match the named version.
+pub fn read_advertised_memory_capabilities(
+    bytes: &[u8],
+) -> Result<AdvertisedMemoryCapabilities, CapabilitiesReadError> {
+    let value: Value =
+        serde_json::from_slice(bytes).map_err(|_| CapabilitiesReadError::Malformed)?;
+    match value.get("schema").and_then(Value::as_str) {
+        Some(MEMORY_CAPABILITIES_SCHEMA_V1) => {
+            serde_json::from_value::<MemoryCapabilitiesV1>(value)
+                .map(|capabilities| AdvertisedMemoryCapabilities::V1(Box::new(capabilities)))
+                .map_err(|_| CapabilitiesReadError::Malformed)
+        }
+        Some(MEMORY_CAPABILITIES_SCHEMA) => serde_json::from_value::<MemoryCapabilities>(value)
+            .map(|capabilities| AdvertisedMemoryCapabilities::V3(Box::new(capabilities)))
+            .map_err(|_| CapabilitiesReadError::Malformed),
+        _ => Err(CapabilitiesReadError::UnknownSchema),
+    }
+}
+
+impl MemoryCapabilities {
+    /// The legacy `v1` advertisement derived from this `v3` target descriptor. The served route
+    /// keeps using this shape until the coordinated `v3` cutover.
+    #[must_use]
+    pub fn into_v1(self) -> MemoryCapabilitiesV1 {
+        MemoryCapabilitiesV1 {
+            schema: MEMORY_CAPABILITIES_SCHEMA_V1.to_owned(),
+            product_phase: self.product_phase,
+            scope: self.scope,
+            enabled: self.enabled,
+            local_lexical_retrieval: self.local_lexical_retrieval,
+            extractive_compaction: self.extractive_compaction,
+            abstractive_adapter: self.abstractive_adapter,
+            abstractive_live_verified: self.abstractive_live_verified,
+            per_decision_policy: self.per_decision_policy,
+            phase2_approval_required: self.phase2_approval_required,
+            persistent_provider_sessions: self.persistent_provider_sessions,
+            provider_side_compaction: self.provider_side_compaction,
+            semantic_vector_retrieval: self.semantic_vector_retrieval,
+            hidden_reasoning_access: self.hidden_reasoning_access,
+            direct_game_dispatch: self.direct_game_dispatch,
+            supported_operations: self.supported_operations,
+        }
+    }
+
+    /// Derivation of the trusted effective-limit record from this validated capability
+    /// descriptor. The record-under-test must be authenticated against this derivation, never
+    /// the other way around.
+    ///
+    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
+    /// harness producer derivation and is not yet verified against a real harness-produced
+    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
+    #[must_use]
+    pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
+        let limits = &self.effective_limits;
+        EffectiveLimitRecord {
+            schema: EFFECTIVE_LIMIT_RECORD_SCHEMA.to_owned(),
+            surface: "context-memory".to_owned(),
+            owner: self.binding.owner.clone(),
+            owner_revision: self.binding.owner_revision.clone(),
+            capability_schema: self.schema.clone(),
+            capability_descriptor_sha256: self.binding.descriptor_sha256.clone(),
+            enabled: self.enabled,
+            rows: vec![
+                LimitRow::policy(
+                    "max_candidates",
+                    limits.max_candidates,
+                    limits.max_candidates,
+                    limits.max_candidates,
+                    "MemoryPolicy::validate_schema+validate_against_capabilities",
+                ),
+                LimitRow::policy(
+                    "max_results",
+                    limits.max_results,
+                    limits.max_results,
+                    limits.max_results,
+                    "MemoryPolicy::validate_schema+validate_against_capabilities",
+                ),
+                LimitRow::policy(
+                    "max_selected",
+                    limits.max_selected,
+                    limits.max_selected,
+                    limits.max_selected,
+                    "MemoryPolicy::validate_schema+validate_against_capabilities",
+                ),
+                LimitRow::policy(
+                    "optional_byte_budget",
+                    MEMORY_POLICY_SCHEMA_MAX_OPTIONAL_BYTES,
+                    limits.optional_byte_budget,
+                    limits.optional_byte_budget,
+                    "MemoryPolicy::validate_schema+validate_against_capabilities",
+                ),
+                LimitRow::profile_selected(
+                    "max_entries_per_run",
+                    limits.max_entries_per_run,
+                    limits.max_entries_per_run,
+                    "MemoryCorpus::with_limits",
+                ),
+                LimitRow::profile_selected(
+                    "max_corpus_bytes",
+                    limits.max_corpus_bytes,
+                    limits.max_corpus_bytes,
+                    "MemoryCorpus::with_limits",
+                ),
+                LimitRow::runtime_guard(
+                    "max_source_bytes",
+                    limits.max_source_bytes,
+                    limits.max_source_bytes,
+                    "MemoryCorpus admission",
+                ),
+                LimitRow::runtime_guard(
+                    "max_sources_per_job",
+                    limits.max_sources_per_job,
+                    limits.max_sources_per_job,
+                    "SummaryJob admission",
+                ),
+                LimitRow::runtime_guard(
+                    "max_job_input_bytes",
+                    limits.max_job_input_bytes,
+                    limits.max_job_input_bytes,
+                    "SummaryJob budget admission",
+                ),
+                LimitRow::runtime_guard(
+                    "max_summary_output_bytes",
+                    limits.max_summary_output_bytes,
+                    limits.max_summary_output_bytes,
+                    "SummaryJob output admission",
+                ),
+                LimitRow::runtime_guard(
+                    "max_query_bytes",
+                    limits.max_query_bytes,
+                    limits.max_query_bytes,
+                    "MemoryQuery validation",
+                ),
+                LimitRow::runtime_guard(
+                    "max_lineage_depth",
+                    limits.max_lineage_depth,
+                    limits.max_lineage_depth,
+                    "MemoryEntry lineage admission",
+                ),
+                LimitRow::runtime_guard(
+                    "max_global_memory_bytes",
+                    limits.max_global_memory_bytes,
+                    limits.max_global_memory_bytes,
+                    "MemoryBudgetLedger",
+                ),
+                LimitRow::runtime_guard(
+                    "max_global_memory_jobs",
+                    limits.max_global_memory_jobs,
+                    limits.max_global_memory_jobs,
+                    "MemoryBudgetLedger",
+                ),
+                LimitRow::runtime_guard(
+                    "max_retention_resources",
+                    limits.max_retention_resources,
+                    limits.max_retention_resources,
+                    "RetentionInventory",
+                ),
+                LimitRow::runtime_guard(
+                    "max_retention_bytes",
+                    limits.max_retention_bytes,
+                    limits.max_retention_bytes,
+                    "RetentionInventory",
+                ),
+                LimitRow::runtime_guard(
+                    "max_cache_entries",
+                    limits.max_cache_entries,
+                    limits.max_cache_entries,
+                    "RetrievalCache",
+                ),
+                LimitRow::runtime_guard(
+                    "max_review_records",
+                    limits.max_review_records,
+                    limits.max_review_records,
+                    "ImmutableReviewLedger",
+                ),
+                LimitRow::runtime_guard(
+                    "max_memory_bindings",
+                    limits.max_memory_bindings,
+                    limits.max_memory_bindings,
+                    "AtomicBindingStore",
+                ),
+                LimitRow::runtime_guard(
+                    "max_usage_attempts",
+                    limits.max_usage_attempts,
+                    limits.max_usage_attempts,
+                    "UsageLedger",
+                ),
+            ],
+        }
+    }
+
+    /// Admit a policy value against this descriptor's executable ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when disabled, absent, or above the executable ceiling.
+    pub fn admit_policy_value(&self, field: &str, requested: u64) -> Result<(), UnavailableReason> {
+        self.effective_limit_record().admit(field, requested)
+    }
+
+    /// Admit a policy value only after authenticating the published record against this trusted
+    /// descriptor's derivation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when the record is stale, tampered, targets another profile,
+    /// or the value exceeds the executable ceiling.
+    pub fn admit_authorized_record(
+        &self,
+        record: &EffectiveLimitRecord,
+        field: &str,
+        requested: u64,
+    ) -> Result<(), UnavailableReason> {
+        record.admit_authorized(&self.effective_limit_record(), field, requested)
+    }
+}
+
+fn fixture_effective_limits() -> MemoryEffectiveLimits {
+    MemoryEffectiveLimits {
+        policy_schema: "ascension.context-memory.policy.v1".to_owned(),
+        max_candidates: 64,
+        max_results: 16,
+        max_selected: 32,
+        optional_byte_budget: 8192,
+        max_entries_per_run: 10_000,
+        max_corpus_bytes: 268_435_456,
+        max_source_bytes: 65_536,
+        max_sources_per_job: 16,
+        max_job_input_bytes: 65_536,
+        max_summary_output_bytes: 8192,
+        max_query_bytes: 4096,
+        max_lineage_depth: 2,
+        max_global_memory_bytes: 262_144,
+        max_global_memory_jobs: 32,
+        max_retention_resources: 512,
+        max_retention_bytes: 268_435_456,
+        max_cache_entries: 256,
+        max_review_records: 512,
+        max_memory_bindings: 256,
+        max_usage_attempts: 1024,
+    }
+}
+
+fn fixture_binding() -> MemoryBinding {
+    MemoryBinding {
+        owner: "sts2-harness".to_owned(),
+        owner_revision: "harness-context-memory-v3".to_owned(),
+        policy_schema_sha256: contract_pins::MEMORY_POLICY_SCHEMA_SHA256.to_owned(),
+        model_revision: "not-applicable".to_owned(),
+        adapter_revision: "harness-context-memory-v3".to_owned(),
+        adapter_revision_sha256: contract_pins::MEMORY_CAPABILITIES_SCHEMA_SHA256.to_owned(),
+        descriptor_sha256: contract_pins::MEMORY_CAPABILITIES_SCHEMA_SHA256.to_owned(),
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -203,7 +580,17 @@ impl MemoryRoute {
         }
     }
 
-    pub fn capabilities(&self) -> MemoryCapabilities {
+    /// The live advertised capability descriptor. Per ADR 0020 decision 4 this stays on the
+    /// legacy `v1` shape until the Studio consumer adopts `v3`; the `v3` target is exposed only
+    /// through [`Self::target_capabilities`] and is not served yet.
+    #[must_use]
+    pub fn capabilities(&self) -> MemoryCapabilitiesV1 {
+        self.target_capabilities().into_v1()
+    }
+
+    /// The `v3` target capability descriptor (inert prep). Not returned on the live route yet.
+    #[must_use]
+    pub fn target_capabilities(&self) -> MemoryCapabilities {
         MemoryCapabilities {
             schema: MEMORY_CAPABILITIES_SCHEMA.to_owned(),
             product_phase: 3,
@@ -224,12 +611,51 @@ impl MemoryRoute {
             semantic_vector_retrieval: "unsupported".to_owned(),
             hidden_reasoning_access: false,
             direct_game_dispatch: false,
+            effective_limits: fixture_effective_limits(),
+            binding: fixture_binding(),
             supported_operations: if self.enabled {
                 ["search"].into_iter().map(str::to_owned).collect()
             } else {
                 Vec::new()
             },
         }
+    }
+
+    /// Derivation of the trusted effective-limit record from the validated `v3` target capability
+    /// descriptor. The record-under-test must be authenticated against this derivation, never
+    /// the other way around.
+    ///
+    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
+    /// harness producer derivation and is not yet verified against a real harness-produced
+    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
+    #[must_use]
+    pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
+        self.target_capabilities().effective_limit_record()
+    }
+
+    /// Admit a policy value against this descriptor's executable ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when disabled, absent, or above the executable ceiling.
+    pub fn admit_policy_value(&self, field: &str, requested: u64) -> Result<(), UnavailableReason> {
+        self.effective_limit_record().admit(field, requested)
+    }
+
+    /// Admit a policy value only after authenticating the published record against this trusted
+    /// descriptor's derivation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when the record is stale, tampered, targets another profile,
+    /// or the value exceeds the executable ceiling.
+    pub fn admit_authorized_record(
+        &self,
+        record: &EffectiveLimitRecord,
+        field: &str,
+        requested: u64,
+    ) -> Result<(), UnavailableReason> {
+        record.admit_authorized(&self.effective_limit_record(), field, requested)
     }
 
     pub fn handle(
@@ -721,5 +1147,93 @@ mod tests {
             .unwrap_or(Value::Null);
         assert!(status["projection_generation"].is_null());
         assert!(status["corpus_generation"].is_null());
+    }
+
+    #[test]
+    fn served_capability_advertises_v1_until_studio_adopts_v3() {
+        let mut route = MemoryRoute::new(scope(), true);
+        route.grant_search("searcher");
+        let served = route
+            .handle("GET", "/v3/memory/capabilities", "searcher", &[])
+            .expect("capabilities");
+        assert_eq!(served["schema"], MEMORY_CAPABILITIES_SCHEMA_V1);
+        assert!(served.get("effective_limits").is_none());
+        assert!(served.get("binding").is_none());
+        assert_eq!(route.capabilities().schema, MEMORY_CAPABILITIES_SCHEMA_V1);
+    }
+
+    #[test]
+    fn v3_target_capability_advertises_effective_limits_and_binding() {
+        let mut route = MemoryRoute::new(scope(), true);
+        route.grant_search("searcher");
+        let value = serde_json::to_value(route.target_capabilities()).expect("capabilities");
+        assert_eq!(value["schema"], MEMORY_CAPABILITIES_SCHEMA);
+        assert_eq!(
+            value["effective_limits"]["policy_schema"],
+            "ascension.context-memory.policy.v1"
+        );
+        assert_eq!(value["effective_limits"]["max_candidates"], 64);
+        assert_eq!(value["binding"]["owner"], "sts2-harness");
+        assert_eq!(
+            value["binding"]["owner_revision"],
+            "harness-context-memory-v3"
+        );
+        assert_eq!(
+            value["binding"]["descriptor_sha256"],
+            contract_pins::MEMORY_CAPABILITIES_SCHEMA_SHA256
+        );
+    }
+
+    #[test]
+    fn dual_reader_reads_legacy_and_current_payloads() {
+        let mut route = MemoryRoute::new(scope(), true);
+        route.grant_search("searcher");
+        let v3_bytes = serde_json::to_vec(&route.target_capabilities()).expect("v3 bytes");
+        let v3 = read_advertised_memory_capabilities(&v3_bytes).expect("v3 reads");
+        assert_eq!(v3.schema(), MEMORY_CAPABILITIES_SCHEMA);
+        let limits = v3.effective_limits().expect("v3 effective limits");
+        assert_eq!(limits.max_results, 16);
+        assert!(v3.enabled());
+
+        let mut legacy = serde_json::to_value(route.capabilities()).expect("capabilities");
+        let object = legacy.as_object_mut().expect("object");
+        object.remove("effective_limits");
+        object.remove("binding");
+        object.insert(
+            "schema".to_owned(),
+            Value::String(MEMORY_CAPABILITIES_SCHEMA_V1.to_owned()),
+        );
+        let v1_bytes = serde_json::to_vec(&legacy).expect("v1 bytes");
+        let v1 = read_advertised_memory_capabilities(&v1_bytes).expect("v1 reads");
+        assert_eq!(v1.schema(), MEMORY_CAPABILITIES_SCHEMA_V1);
+        assert!(v1.effective_limits().is_none());
+        assert!(v1.enabled());
+    }
+
+    #[test]
+    fn memory_admission_fails_closed_and_authenticates_record() {
+        let mut route = MemoryRoute::new(scope(), true);
+        route.grant_search("searcher");
+        assert_eq!(route.admit_policy_value("max_candidates", 64), Ok(()));
+        assert_eq!(
+            route.admit_policy_value("max_candidates", 65),
+            Err(UnavailableReason::EffectiveLimitExceeded)
+        );
+        assert_eq!(
+            route.admit_policy_value("absent", 1),
+            Err(UnavailableReason::FieldNotAdvertised)
+        );
+
+        let trusted = route.effective_limit_record();
+        assert_eq!(
+            route.admit_authorized_record(&trusted, "max_results", 16),
+            Ok(())
+        );
+        let mut tampered = trusted.clone();
+        tampered.rows[0].executable_ceiling = 128;
+        assert_eq!(
+            route.admit_authorized_record(&tampered, "max_candidates", 64),
+            Err(UnavailableReason::DescriptorTampered)
+        );
     }
 }

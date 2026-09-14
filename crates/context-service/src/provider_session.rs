@@ -10,12 +10,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
+use crate::effective_limits::{
+    EFFECTIVE_LIMIT_RECORD_SCHEMA, EffectiveLimitRecord, LimitRow, UnavailableReason, contract_pins,
+};
 use crate::owner::{
     HarnessOwnerComposition, OwnerError, OwnerGrantBook, OwnerOperation, OwnerRequestContext,
     owner_call, owner_scope, validate_public_value,
 };
 
 pub const SESSION_API_SCHEMA: &str = "ascension.provider-session.api-result.v1";
+/// Advertised capability schema. The `v3` contract additionally requires the `effective_limits`
+/// and `binding` objects. The `v1` payload shape remains readable through the dual reader.
+pub const SESSION_CAPABILITIES_SCHEMA: &str = "ascension.provider-session.capabilities.v3";
+/// Legacy capability schema preserved for dual reading during migration.
+pub const SESSION_CAPABILITIES_SCHEMA_V1: &str = "ascension.provider-session.capabilities.v1";
 const MAX_BODY_BYTES: usize = 16 * 1024;
 const MAX_BINDINGS: usize = 128;
 const MAX_OPERATIONS: usize = 512;
@@ -83,9 +91,71 @@ pub struct SessionHardeningView {
     pub transform_handling: String,
 }
 
+/// Canonical `effective_limits` object required by the `provider-session` capability `v3` schema.
+///
+/// The fixture values are synthetic and equal to the portable schema ceilings; they are not a
+/// claim about a live provider, native peer, or harness owner.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionEffectiveLimits {
+    pub policy_schema: String,
+    pub max_session_items: u64,
+    pub max_dependencies: u64,
+    pub max_events: u64,
+    pub max_operations: u64,
+    pub max_prepared: u64,
+    pub max_candidates: u64,
+    pub max_maintenance_jobs: u64,
+    pub max_completed_turns: u64,
+    pub max_history_ttl_seconds: u64,
+    pub max_frame_bytes: u64,
+    pub max_history_bytes: u64,
+    pub max_prepared_bytes: u64,
+    pub max_suffix_bytes: u64,
+    pub max_output_schema_bytes: u64,
+    pub max_method_bytes: u64,
+    pub max_json_depth: u64,
+}
+
+/// Owner/adapter identity required by the `provider-session` capability `v3` schema.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionBinding {
+    pub owner: String,
+    pub owner_revision: String,
+    pub policy_schema_sha256: String,
+    pub model_revision: String,
+    pub adapter_revision: String,
+    pub adapter_revision_sha256: String,
+    pub descriptor_sha256: String,
+}
+
+/// Advertised `v3` provider-session capability descriptor.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionCapabilitiesView {
+    pub schema: String,
+    pub profile_id: String,
+    pub profile_sha256: String,
+    pub native_version: String,
+    pub native_binary_sha256: String,
+    pub native_schema_sha256: String,
+    pub evidence: String,
+    pub transport: String,
+    pub enabled_methods: Vec<String>,
+    pub hardening: SessionHardeningView,
+    pub effective_limits: SessionEffectiveLimits,
+    pub binding: SessionBinding,
+    pub strict_executable: bool,
+    pub experimental_api: bool,
+    pub unknown_methods: String,
+    pub raw_rpc: bool,
+}
+
+/// Legacy `v1` capability descriptor, still readable through the dual reader.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionCapabilitiesV1 {
     pub schema: String,
     pub profile_id: String,
     pub profile_sha256: String,
@@ -100,6 +170,272 @@ pub struct SessionCapabilitiesView {
     pub experimental_api: bool,
     pub unknown_methods: String,
     pub raw_rpc: bool,
+}
+
+/// Result of the provider-session dual reader.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdvertisedSessionCapabilities {
+    V1(Box<SessionCapabilitiesV1>),
+    V3(Box<SessionCapabilitiesView>),
+}
+
+impl AdvertisedSessionCapabilities {
+    #[must_use]
+    pub fn schema(&self) -> &str {
+        match self {
+            Self::V1(capabilities) => &capabilities.schema,
+            Self::V3(capabilities) => &capabilities.schema,
+        }
+    }
+
+    #[must_use]
+    pub fn effective_limits(&self) -> Option<&SessionEffectiveLimits> {
+        match self {
+            Self::V1(_) => None,
+            Self::V3(capabilities) => Some(&capabilities.effective_limits),
+        }
+    }
+}
+
+/// Why a provider-session capability descriptor could not be read.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SessionCapabilitiesReadError {
+    UnknownSchema,
+    Malformed,
+}
+
+/// Dual reader: a valid `v1` payload still reads, and a `v3` payload reads with effective limits.
+///
+/// # Errors
+///
+/// Returns [`SessionCapabilitiesReadError::UnknownSchema`] for an unrecognized schema and
+/// [`SessionCapabilitiesReadError::Malformed`] for a payload that does not match the named version.
+pub fn read_advertised_session_capabilities(
+    bytes: &[u8],
+) -> Result<AdvertisedSessionCapabilities, SessionCapabilitiesReadError> {
+    let value: Value =
+        serde_json::from_slice(bytes).map_err(|_| SessionCapabilitiesReadError::Malformed)?;
+    match value.get("schema").and_then(Value::as_str) {
+        Some(SESSION_CAPABILITIES_SCHEMA_V1) => {
+            serde_json::from_value::<SessionCapabilitiesV1>(value)
+                .map(|capabilities| AdvertisedSessionCapabilities::V1(Box::new(capabilities)))
+                .map_err(|_| SessionCapabilitiesReadError::Malformed)
+        }
+        Some(SESSION_CAPABILITIES_SCHEMA) => {
+            serde_json::from_value::<SessionCapabilitiesView>(value)
+                .map(|capabilities| AdvertisedSessionCapabilities::V3(Box::new(capabilities)))
+                .map_err(|_| SessionCapabilitiesReadError::Malformed)
+        }
+        _ => Err(SessionCapabilitiesReadError::UnknownSchema),
+    }
+}
+
+/// Portable `policy.v1` ceilings for the two policy-backed provider-session values.
+const SESSION_POLICY_SCHEMA_MAX_COMPLETED_TURNS: u64 = 1024;
+const SESSION_POLICY_SCHEMA_MAX_HISTORY_TTL_SECONDS: u64 = 604_800;
+
+impl SessionCapabilitiesView {
+    /// The legacy `v1` advertisement derived from this `v3` target descriptor. The served route
+    /// keeps using this shape until the coordinated `v3` cutover.
+    #[must_use]
+    pub fn to_v1(&self) -> SessionCapabilitiesV1 {
+        SessionCapabilitiesV1 {
+            schema: SESSION_CAPABILITIES_SCHEMA_V1.to_owned(),
+            profile_id: self.profile_id.clone(),
+            profile_sha256: self.profile_sha256.clone(),
+            native_version: self.native_version.clone(),
+            native_binary_sha256: self.native_binary_sha256.clone(),
+            native_schema_sha256: self.native_schema_sha256.clone(),
+            evidence: self.evidence.clone(),
+            transport: self.transport.clone(),
+            enabled_methods: self.enabled_methods.clone(),
+            hardening: self.hardening.clone(),
+            strict_executable: self.strict_executable,
+            experimental_api: self.experimental_api,
+            unknown_methods: self.unknown_methods.clone(),
+            raw_rpc: self.raw_rpc,
+        }
+    }
+
+    /// Derivation of the trusted effective-limit record from this validated capability
+    /// descriptor. The record-under-test must be authenticated against this derivation, never
+    /// the other way around.
+    ///
+    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
+    /// harness producer derivation and is not yet verified against a real harness-produced
+    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
+    #[must_use]
+    pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
+        let limits = &self.effective_limits;
+        EffectiveLimitRecord {
+            schema: EFFECTIVE_LIMIT_RECORD_SCHEMA.to_owned(),
+            surface: "provider-session".to_owned(),
+            owner: self.binding.owner.clone(),
+            owner_revision: self.binding.owner_revision.clone(),
+            capability_schema: self.schema.clone(),
+            capability_descriptor_sha256: self.binding.descriptor_sha256.clone(),
+            enabled: !self.enabled_methods.is_empty(),
+            rows: vec![
+                LimitRow::policy(
+                    "max_completed_turns",
+                    SESSION_POLICY_SCHEMA_MAX_COMPLETED_TURNS,
+                    limits.max_completed_turns,
+                    limits.max_completed_turns,
+                    "ProviderSessionPolicy::validate_schema+ProviderSessionBroker::new",
+                ),
+                LimitRow::policy(
+                    "max_history_ttl_seconds",
+                    SESSION_POLICY_SCHEMA_MAX_HISTORY_TTL_SECONDS,
+                    limits.max_history_ttl_seconds,
+                    limits.max_history_ttl_seconds,
+                    "ProviderSessionPolicy::validate_schema+ProviderSessionBroker::new",
+                ),
+                LimitRow::runtime_guard(
+                    "max_session_items",
+                    limits.max_session_items,
+                    limits.max_session_items,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_dependencies",
+                    limits.max_dependencies,
+                    limits.max_dependencies,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_events",
+                    limits.max_events,
+                    limits.max_events,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_operations",
+                    limits.max_operations,
+                    limits.max_operations,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_prepared",
+                    limits.max_prepared,
+                    limits.max_prepared,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_candidates",
+                    limits.max_candidates,
+                    limits.max_candidates,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_maintenance_jobs",
+                    limits.max_maintenance_jobs,
+                    limits.max_maintenance_jobs,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_frame_bytes",
+                    limits.max_frame_bytes,
+                    limits.max_frame_bytes,
+                    "NativeTransport",
+                ),
+                LimitRow::runtime_guard(
+                    "max_history_bytes",
+                    limits.max_history_bytes,
+                    limits.max_history_bytes,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_prepared_bytes",
+                    limits.max_prepared_bytes,
+                    limits.max_prepared_bytes,
+                    "ProviderSessionBroker",
+                ),
+                LimitRow::runtime_guard(
+                    "max_suffix_bytes",
+                    limits.max_suffix_bytes,
+                    limits.max_suffix_bytes,
+                    "NativeTransport",
+                ),
+                LimitRow::runtime_guard(
+                    "max_output_schema_bytes",
+                    limits.max_output_schema_bytes,
+                    limits.max_output_schema_bytes,
+                    "NativeTransport",
+                ),
+                LimitRow::runtime_guard(
+                    "max_method_bytes",
+                    limits.max_method_bytes,
+                    limits.max_method_bytes,
+                    "NativeFrame parse",
+                ),
+                LimitRow::runtime_guard(
+                    "max_json_depth",
+                    limits.max_json_depth,
+                    limits.max_json_depth,
+                    "NativeFrame parse",
+                ),
+            ],
+        }
+    }
+
+    /// Admit a session policy value against this descriptor's executable ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when disabled, absent, or above the executable ceiling.
+    pub fn admit_policy_value(&self, field: &str, requested: u64) -> Result<(), UnavailableReason> {
+        self.effective_limit_record().admit(field, requested)
+    }
+
+    /// Admit a value only after authenticating the published record against this trusted
+    /// descriptor's derivation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when the record is stale, tampered, targets another profile,
+    /// or the value exceeds the executable ceiling.
+    pub fn admit_authorized_record(
+        &self,
+        record: &EffectiveLimitRecord,
+        field: &str,
+        requested: u64,
+    ) -> Result<(), UnavailableReason> {
+        record.admit_authorized(&self.effective_limit_record(), field, requested)
+    }
+}
+
+fn fixture_session_effective_limits() -> SessionEffectiveLimits {
+    SessionEffectiveLimits {
+        policy_schema: "ascension.provider-session.policy.v1".to_owned(),
+        max_session_items: 512,
+        max_dependencies: 128,
+        max_events: 4096,
+        max_operations: 1024,
+        max_prepared: 1024,
+        max_candidates: 4,
+        max_maintenance_jobs: 2,
+        max_completed_turns: 128,
+        max_history_ttl_seconds: 86_400,
+        max_frame_bytes: 262_144,
+        max_history_bytes: 4_194_304,
+        max_prepared_bytes: 4_194_304,
+        max_suffix_bytes: 131_072,
+        max_output_schema_bytes: 65_536,
+        max_method_bytes: 128,
+        max_json_depth: 64,
+    }
+}
+
+fn fixture_session_binding() -> SessionBinding {
+    SessionBinding {
+        owner: "sts2-harness".to_owned(),
+        owner_revision: "harness-provider-session-v3".to_owned(),
+        policy_schema_sha256: contract_pins::SESSION_POLICY_SCHEMA_SHA256.to_owned(),
+        model_revision: "codex-app-server-fixture-v1".to_owned(),
+        adapter_revision: "harness-provider-session-v3".to_owned(),
+        adapter_revision_sha256: contract_pins::SESSION_CAPABILITIES_SCHEMA_SHA256.to_owned(),
+        descriptor_sha256: contract_pins::SESSION_CAPABILITIES_SCHEMA_SHA256.to_owned(),
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -321,7 +657,7 @@ impl ProviderSessionRoute {
             principal: principal.into(),
             mode: SessionRouteMode::FixtureOnly,
             capabilities: SessionCapabilitiesView {
-                schema: "ascension.provider-session.capabilities.v1".to_owned(),
+                schema: SESSION_CAPABILITIES_SCHEMA.to_owned(),
                 profile_id: "codex-app-server-fixture-v1".to_owned(),
                 profile_sha256: sha256_hex("codex-app-server-fixture-v1"),
                 native_version: "fixture-peer-1".to_owned(),
@@ -341,10 +677,15 @@ impl ProviderSessionRoute {
                 hardening: SessionHardeningView {
                     tools_enabled: false,
                     ambient_history: false,
+                    // Widened from `const true` to `boolean` by the producer. The console keeps its
+                    // independent private-retention guard (accepted policy approval plus
+                    // authenticated encryption) regardless of this advertised value.
                     encrypted_state: false,
                     configuration_verified: true,
                     transform_handling: "detect_and_fence".to_owned(),
                 },
+                effective_limits: fixture_session_effective_limits(),
+                binding: fixture_session_binding(),
                 strict_executable: false,
                 experimental_api: false,
                 unknown_methods: "deny".to_owned(),
@@ -496,6 +837,52 @@ impl ProviderSessionRoute {
         self.mode.clone()
     }
 
+    /// The live advertised capability descriptor. Per ADR 0020 decision 4 this stays on the
+    /// legacy `v1` shape until the Studio consumer adopts `v3`; the `v3` target is exposed only
+    /// through [`Self::target_capabilities_v3`] and is not served yet.
+    #[must_use]
+    pub fn capabilities(&self) -> SessionCapabilitiesV1 {
+        self.capabilities.to_v1()
+    }
+
+    /// The `v3` target capability descriptor (inert prep). Not returned on the live route yet.
+    #[must_use]
+    pub fn target_capabilities_v3(&self) -> &SessionCapabilitiesView {
+        &self.capabilities
+    }
+
+    /// Derivation of the trusted effective-limit record from the `v3` target capability descriptor.
+    #[must_use]
+    pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
+        self.capabilities.effective_limit_record()
+    }
+
+    /// Admit a session policy value against the advertised executable ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when disabled, absent, or above the executable ceiling.
+    pub fn admit_policy_value(&self, field: &str, requested: u64) -> Result<(), UnavailableReason> {
+        self.capabilities.admit_policy_value(field, requested)
+    }
+
+    /// Admit a value only after authenticating the published record against the advertised
+    /// descriptor's derivation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnavailableReason`] when the record is stale, tampered, targets another profile,
+    /// or the value exceeds the executable ceiling.
+    pub fn admit_authorized_record(
+        &self,
+        record: &EffectiveLimitRecord,
+        field: &str,
+        requested: u64,
+    ) -> Result<(), UnavailableReason> {
+        self.capabilities
+            .admit_authorized_record(record, field, requested)
+    }
+
     pub fn handle(
         &mut self,
         method: &str,
@@ -578,7 +965,7 @@ impl ProviderSessionRoute {
             return if method == "GET" {
                 Ok(self.envelope(
                     "capabilities",
-                    serde_json::to_value(&self.capabilities)
+                    serde_json::to_value(self.capabilities())
                         .map_err(|_| SessionApiError::BadRequest)?,
                 ))
             } else {
@@ -1828,5 +2215,110 @@ fn canonical_value(value: &Value) -> Value {
         }
         Value::Array(values) => Value::Array(values.iter().map(canonical_value).collect()),
         _ => value.clone(),
+    }
+}
+
+#[cfg(test)]
+mod capabilities_tests {
+    use super::*;
+
+    #[test]
+    fn served_capability_advertises_v1_until_studio_adopts_v3() {
+        let mut route = ProviderSessionRoute::fixture("operator");
+        let served = route
+            .handle(
+                "GET",
+                "/v1/runs/run-fixture/provider-sessions/capabilities",
+                "operator",
+                &[],
+            )
+            .expect("capabilities");
+        assert_eq!(served["value"]["schema"], SESSION_CAPABILITIES_SCHEMA_V1);
+        assert!(served["value"].get("effective_limits").is_none());
+        assert!(served["value"].get("binding").is_none());
+        assert_eq!(route.capabilities().schema, SESSION_CAPABILITIES_SCHEMA_V1);
+    }
+
+    #[test]
+    fn v3_target_capability_advertises_effective_limits_and_binding() {
+        let route = ProviderSessionRoute::fixture("operator");
+        let value = serde_json::to_value(route.target_capabilities_v3()).expect("capabilities");
+        assert_eq!(value["schema"], SESSION_CAPABILITIES_SCHEMA);
+        assert_eq!(
+            value["effective_limits"]["policy_schema"],
+            "ascension.provider-session.policy.v1"
+        );
+        assert_eq!(value["effective_limits"]["max_completed_turns"], 128);
+        assert_eq!(value["binding"]["owner"], "sts2-harness");
+        assert_eq!(
+            value["binding"]["owner_revision"],
+            "harness-provider-session-v3"
+        );
+        assert_eq!(
+            value["binding"]["descriptor_sha256"],
+            contract_pins::SESSION_CAPABILITIES_SCHEMA_SHA256
+        );
+    }
+
+    #[test]
+    fn dual_reader_reads_legacy_and_current_payloads() {
+        let route = ProviderSessionRoute::fixture("operator");
+        let v3_bytes = serde_json::to_vec(route.target_capabilities_v3()).expect("v3 bytes");
+        let v3 = read_advertised_session_capabilities(&v3_bytes).expect("v3 reads");
+        assert_eq!(v3.schema(), SESSION_CAPABILITIES_SCHEMA);
+        // Slash-containing method names are admitted by the widened v3 pattern.
+        let value: Value = serde_json::from_slice(&v3_bytes).expect("value");
+        assert!(
+            value["enabled_methods"]
+                .as_array()
+                .expect("methods")
+                .iter()
+                .any(|method| method == "thread/read")
+        );
+        assert_eq!(
+            v3.effective_limits().expect("limits").max_completed_turns,
+            128
+        );
+
+        let mut legacy =
+            serde_json::to_value(route.target_capabilities_v3()).expect("capabilities");
+        let object = legacy.as_object_mut().expect("object");
+        object.remove("effective_limits");
+        object.remove("binding");
+        object.insert(
+            "schema".to_owned(),
+            Value::String(SESSION_CAPABILITIES_SCHEMA_V1.to_owned()),
+        );
+        let v1_bytes = serde_json::to_vec(&legacy).expect("v1 bytes");
+        let v1 = read_advertised_session_capabilities(&v1_bytes).expect("v1 reads");
+        assert_eq!(v1.schema(), SESSION_CAPABILITIES_SCHEMA_V1);
+        assert!(v1.effective_limits().is_none());
+        // A v1 payload cannot advertise the executable ceiling.
+        assert_eq!(
+            read_advertised_session_capabilities(b"not json"),
+            Err(SessionCapabilitiesReadError::Malformed)
+        );
+    }
+
+    #[test]
+    fn session_admission_fails_closed_and_authenticates_record() {
+        let route = ProviderSessionRoute::fixture("operator");
+        assert_eq!(route.admit_policy_value("max_completed_turns", 128), Ok(()));
+        assert_eq!(
+            route.admit_policy_value("max_completed_turns", 129),
+            Err(UnavailableReason::EffectiveLimitExceeded)
+        );
+        assert_eq!(
+            route.admit_policy_value("absent", 1),
+            Err(UnavailableReason::FieldNotAdvertised)
+        );
+
+        let trusted = route.effective_limit_record();
+        let mut tampered = trusted.clone();
+        tampered.rows[0].policy_schema_ceiling = Some(128);
+        assert_eq!(
+            route.admit_authorized_record(&tampered, "max_completed_turns", 128),
+            Err(UnavailableReason::DescriptorTampered)
+        );
     }
 }
