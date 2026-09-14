@@ -222,9 +222,9 @@ impl MemoryCapabilities {
     /// descriptor. The record-under-test must be authenticated against this derivation, never
     /// the other way around.
     ///
-    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
-    /// harness producer derivation and is not yet verified against a real harness-produced
-    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
+    /// Schema ceilings below are fixed by the pinned policy/capability artifacts, independently
+    /// of the selected limits. Producer-generated conformance vectors check all rows, including
+    /// restricted and disabled profiles; the caller still supplies a trusted descriptor.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
         let limits = &self.effective_limits;
@@ -239,125 +239,125 @@ impl MemoryCapabilities {
             rows: vec![
                 LimitRow::policy(
                     "max_candidates",
-                    limits.max_candidates,
-                    limits.max_candidates,
+                    64,
+                    64,
                     limits.max_candidates,
                     "MemoryPolicy::validate_schema+validate_against_capabilities",
                 ),
                 LimitRow::policy(
                     "max_results",
-                    limits.max_results,
-                    limits.max_results,
+                    16,
+                    16,
                     limits.max_results,
                     "MemoryPolicy::validate_schema+validate_against_capabilities",
                 ),
                 LimitRow::policy(
                     "max_selected",
-                    limits.max_selected,
-                    limits.max_selected,
+                    32,
+                    32,
                     limits.max_selected,
                     "MemoryPolicy::validate_schema+validate_against_capabilities",
                 ),
                 LimitRow::policy(
                     "optional_byte_budget",
                     MEMORY_POLICY_SCHEMA_MAX_OPTIONAL_BYTES,
-                    limits.optional_byte_budget,
+                    8192,
                     limits.optional_byte_budget,
                     "MemoryPolicy::validate_schema+validate_against_capabilities",
                 ),
                 LimitRow::profile_selected(
                     "max_entries_per_run",
-                    limits.max_entries_per_run,
+                    10_000,
                     limits.max_entries_per_run,
                     "MemoryCorpus::with_limits",
                 ),
                 LimitRow::profile_selected(
                     "max_corpus_bytes",
-                    limits.max_corpus_bytes,
+                    268_435_456,
                     limits.max_corpus_bytes,
                     "MemoryCorpus::with_limits",
                 ),
                 LimitRow::runtime_guard(
                     "max_source_bytes",
-                    limits.max_source_bytes,
+                    65_536,
                     limits.max_source_bytes,
                     "MemoryCorpus admission",
                 ),
                 LimitRow::runtime_guard(
                     "max_sources_per_job",
-                    limits.max_sources_per_job,
+                    16,
                     limits.max_sources_per_job,
                     "SummaryJob admission",
                 ),
                 LimitRow::runtime_guard(
                     "max_job_input_bytes",
-                    limits.max_job_input_bytes,
+                    65_536,
                     limits.max_job_input_bytes,
                     "SummaryJob budget admission",
                 ),
                 LimitRow::runtime_guard(
                     "max_summary_output_bytes",
-                    limits.max_summary_output_bytes,
+                    8192,
                     limits.max_summary_output_bytes,
                     "SummaryJob output admission",
                 ),
                 LimitRow::runtime_guard(
                     "max_query_bytes",
-                    limits.max_query_bytes,
+                    4096,
                     limits.max_query_bytes,
                     "MemoryQuery validation",
                 ),
                 LimitRow::runtime_guard(
                     "max_lineage_depth",
-                    limits.max_lineage_depth,
+                    2,
                     limits.max_lineage_depth,
                     "MemoryEntry lineage admission",
                 ),
                 LimitRow::runtime_guard(
                     "max_global_memory_bytes",
-                    limits.max_global_memory_bytes,
+                    262_144,
                     limits.max_global_memory_bytes,
                     "MemoryBudgetLedger",
                 ),
                 LimitRow::runtime_guard(
                     "max_global_memory_jobs",
-                    limits.max_global_memory_jobs,
+                    32,
                     limits.max_global_memory_jobs,
                     "MemoryBudgetLedger",
                 ),
                 LimitRow::runtime_guard(
                     "max_retention_resources",
-                    limits.max_retention_resources,
+                    512,
                     limits.max_retention_resources,
                     "RetentionInventory",
                 ),
                 LimitRow::runtime_guard(
                     "max_retention_bytes",
-                    limits.max_retention_bytes,
+                    268_435_456,
                     limits.max_retention_bytes,
                     "RetentionInventory",
                 ),
                 LimitRow::runtime_guard(
                     "max_cache_entries",
-                    limits.max_cache_entries,
+                    256,
                     limits.max_cache_entries,
                     "RetrievalCache",
                 ),
                 LimitRow::runtime_guard(
                     "max_review_records",
-                    limits.max_review_records,
+                    512,
                     limits.max_review_records,
                     "ImmutableReviewLedger",
                 ),
                 LimitRow::runtime_guard(
                     "max_memory_bindings",
-                    limits.max_memory_bindings,
+                    256,
                     limits.max_memory_bindings,
                     "AtomicBindingStore",
                 ),
                 LimitRow::runtime_guard(
                     "max_usage_attempts",
-                    limits.max_usage_attempts,
+                    1024,
                     limits.max_usage_attempts,
                     "UsageLedger",
                 ),

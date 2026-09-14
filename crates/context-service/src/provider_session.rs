@@ -261,9 +261,9 @@ impl SessionCapabilitiesView {
     /// descriptor. The record-under-test must be authenticated against this derivation, never
     /// the other way around.
     ///
-    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
-    /// harness producer derivation and is not yet verified against a real harness-produced
-    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
+    /// Schema ceilings below are fixed by the pinned policy/capability artifacts, independently
+    /// of the selected limits. Producer-generated conformance vectors check all rows, including
+    /// restricted and disabled profiles; the caller still supplies a trusted descriptor.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
         let limits = &self.effective_limits;
@@ -279,98 +279,98 @@ impl SessionCapabilitiesView {
                 LimitRow::policy(
                     "max_completed_turns",
                     SESSION_POLICY_SCHEMA_MAX_COMPLETED_TURNS,
-                    limits.max_completed_turns,
+                    128,
                     limits.max_completed_turns,
                     "ProviderSessionPolicy::validate_schema+ProviderSessionBroker::new",
                 ),
                 LimitRow::policy(
                     "max_history_ttl_seconds",
                     SESSION_POLICY_SCHEMA_MAX_HISTORY_TTL_SECONDS,
-                    limits.max_history_ttl_seconds,
+                    86_400,
                     limits.max_history_ttl_seconds,
                     "ProviderSessionPolicy::validate_schema+ProviderSessionBroker::new",
                 ),
                 LimitRow::runtime_guard(
                     "max_session_items",
-                    limits.max_session_items,
+                    512,
                     limits.max_session_items,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_dependencies",
-                    limits.max_dependencies,
+                    128,
                     limits.max_dependencies,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_events",
-                    limits.max_events,
+                    4096,
                     limits.max_events,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_operations",
-                    limits.max_operations,
+                    1024,
                     limits.max_operations,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_prepared",
-                    limits.max_prepared,
+                    1024,
                     limits.max_prepared,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_candidates",
-                    limits.max_candidates,
+                    4,
                     limits.max_candidates,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_maintenance_jobs",
-                    limits.max_maintenance_jobs,
+                    2,
                     limits.max_maintenance_jobs,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_frame_bytes",
-                    limits.max_frame_bytes,
+                    262_144,
                     limits.max_frame_bytes,
                     "NativeTransport",
                 ),
                 LimitRow::runtime_guard(
                     "max_history_bytes",
-                    limits.max_history_bytes,
+                    4_194_304,
                     limits.max_history_bytes,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_prepared_bytes",
-                    limits.max_prepared_bytes,
+                    4_194_304,
                     limits.max_prepared_bytes,
                     "ProviderSessionBroker",
                 ),
                 LimitRow::runtime_guard(
                     "max_suffix_bytes",
-                    limits.max_suffix_bytes,
+                    131_072,
                     limits.max_suffix_bytes,
                     "NativeTransport",
                 ),
                 LimitRow::runtime_guard(
                     "max_output_schema_bytes",
-                    limits.max_output_schema_bytes,
+                    65_536,
                     limits.max_output_schema_bytes,
                     "NativeTransport",
                 ),
                 LimitRow::runtime_guard(
                     "max_method_bytes",
-                    limits.max_method_bytes,
+                    128,
                     limits.max_method_bytes,
                     "NativeFrame parse",
                 ),
                 LimitRow::runtime_guard(
                     "max_json_depth",
-                    limits.max_json_depth,
+                    64,
                     limits.max_json_depth,
                     "NativeFrame parse",
                 ),
