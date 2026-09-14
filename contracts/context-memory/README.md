@@ -35,9 +35,12 @@ Producer: `AI-Ascension/sts2-harness`, `origin/main` revision
 | `contracts/context-memory/policy.schema.json` | `55c9bba8ec71ae00b1a6c6bec07b1ca85ec9df0de0d7a0bfa2b5cd663f9aa416` |
 | `contracts/context-memory/capabilities.schema.json` | `2b980bbdcdd886398c1e590303b82afee174e4569164e79b210ab35f6669bd22` |
 
-The advertised capability schema is `ascension.context-memory.capabilities.v3`, whose descriptor
-requires the `effective_limits` and `binding` objects. A dual reader keeps
-`ascension.context-memory.capabilities.v1` payloads readable while Studio adopts `v3`.
+The live/served advertisement **remains** `ascension.context-memory.capabilities.v1` (ADR 0020
+decision 4). The `v3` artifacts and the dual reader are present as inert preparation but are not
+served until Studio adopts `v3` in the coordinated cutover. The `v3` target descriptor (with the
+required `effective_limits` and `binding` objects) is reachable only through the non-served
+`target_capabilities()` accessor; `read_advertised_memory_capabilities` reads both `v1` and `v3`
+payloads.
 
 Values are admitted only after the published record is authenticated against the derivation of the
 validated trusted descriptor; an absent field is `field_not_advertised`, never unlimited. The

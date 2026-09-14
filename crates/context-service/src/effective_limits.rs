@@ -10,6 +10,14 @@
 //!
 //! All behavior here is contract/fixture-level. The copied producer bytes are pinned by digest in
 //! [`contract_pins`]; no native, provider, owner, or deployment behavior is claimed.
+//!
+//! NOTE (real-record conformance unverified): the surface-specific `class`/`validator`/ceiling
+//! mapping used to derive the trusted record from a capability descriptor is a local fixture
+//! reconstruction of the harness producer derivation. It has not been checked against a
+//! real harness-produced `ascension.harness.effective-limits.v1` record, so
+//! [`EffectiveLimitRecord::authenticate`] keeps the strict full-equality check and fails closed
+//! (`descriptor_tampered`) rather than presenting an unverified value. A future coordinated
+//! adoption step must confirm this mapping against a producer record before relying on it.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -434,12 +442,15 @@ pub fn admit_consumer(
     trusted.admit(field, requested)
 }
 
+/// Mirrors the producer schema token pattern `^[A-Za-z0-9][A-Za-z0-9._:-]*$`, which admits a
+/// colon but requires the first byte to be alphanumeric.
 fn valid_token(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
+    let mut bytes = value.bytes();
+    match bytes.next() {
+        Some(first) if first.is_ascii_alphanumeric() => {}
+        _ => return false,
+    }
+    value.len() <= 128 && bytes.all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(&byte))
 }
 
 fn valid_sha256(value: &str) -> bool {
@@ -722,5 +733,58 @@ mod tests {
             ),
             Err(UnavailableReason::ConsumerNotRecorded)
         );
+    }
+
+    #[test]
+    fn record_tokens_follow_the_producer_pattern() {
+        // Producer pattern `^[A-Za-z0-9][A-Za-z0-9._:-]*$` admits a colon after the first byte.
+        assert!(valid_token("thread:read"));
+        assert!(valid_token("ns:sub:field"));
+        assert!(valid_token("a1._:-z"));
+        assert!(!valid_token(":leading"));
+        assert!(!valid_token("-leading"));
+        assert!(!valid_token(""));
+        assert!(!valid_token("has space"));
+        assert!(!valid_token("has/slash"));
+
+        let mut colon_field = trusted();
+        colon_field.rows[0].field = "ns:max_candidates".to_owned();
+        assert_eq!(colon_field.validate(), Ok(()));
+    }
+
+    // NOTE (real-record conformance unverified): this exercises the local fixture derivation only.
+    // The producer-record equality check must stay fail-closed until a real harness record is
+    // compared, because the hardcoded class/validator/ceiling mapping is not yet proven.
+    #[test]
+    fn admission_uses_the_descriptor_derived_record_as_the_trusted_side() {
+        let route_record = trusted();
+        // A clone of the derivation admits, because the trusted side is the derived record.
+        let adopted = route_record.clone();
+        assert_eq!(
+            adopted.admit_authorized(&route_record, "max_candidates", 64),
+            Ok(())
+        );
+
+        // A record-under-test that changes a ceiling while keeping the trusted label fails against
+        // the derivation even when the descriptor digest still looks trusted.
+        let mut ceiling_changed = route_record.clone();
+        ceiling_changed.rows[0].executable_ceiling = 128;
+        assert_eq!(
+            ceiling_changed.admit_authorized(&route_record, "max_candidates", 64),
+            Err(UnavailableReason::DescriptorTampered)
+        );
+
+        // A valid record-under-test with the trusted label but a different owner also fails
+        // against the derivation.
+        let mut owner_changed = route_record.clone();
+        owner_changed.owner = "other-owner".to_owned();
+        assert_eq!(
+            owner_changed.admit_authorized(&route_record, "max_candidates", 64),
+            Err(UnavailableReason::DescriptorTampered)
+        );
+
+        // If the record under test were (wrongly) supplied as its own trusted side it would pass,
+        // showing the gate's guarantee depends on the independent descriptor derivation.
+        assert_eq!(owner_changed.authenticate(&owner_changed), Ok(()));
     }
 }

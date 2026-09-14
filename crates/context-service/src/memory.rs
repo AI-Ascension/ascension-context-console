@@ -194,9 +194,37 @@ pub fn read_advertised_memory_capabilities(
 }
 
 impl MemoryCapabilities {
+    /// The legacy `v1` advertisement derived from this `v3` target descriptor. The served route
+    /// keeps using this shape until the coordinated `v3` cutover.
+    #[must_use]
+    pub fn into_v1(self) -> MemoryCapabilitiesV1 {
+        MemoryCapabilitiesV1 {
+            schema: MEMORY_CAPABILITIES_SCHEMA_V1.to_owned(),
+            product_phase: self.product_phase,
+            scope: self.scope,
+            enabled: self.enabled,
+            local_lexical_retrieval: self.local_lexical_retrieval,
+            extractive_compaction: self.extractive_compaction,
+            abstractive_adapter: self.abstractive_adapter,
+            abstractive_live_verified: self.abstractive_live_verified,
+            per_decision_policy: self.per_decision_policy,
+            phase2_approval_required: self.phase2_approval_required,
+            persistent_provider_sessions: self.persistent_provider_sessions,
+            provider_side_compaction: self.provider_side_compaction,
+            semantic_vector_retrieval: self.semantic_vector_retrieval,
+            hidden_reasoning_access: self.hidden_reasoning_access,
+            direct_game_dispatch: self.direct_game_dispatch,
+            supported_operations: self.supported_operations,
+        }
+    }
+
     /// Derivation of the trusted effective-limit record from this validated capability
     /// descriptor. The record-under-test must be authenticated against this derivation, never
     /// the other way around.
+    ///
+    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
+    /// harness producer derivation and is not yet verified against a real harness-produced
+    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
         let limits = &self.effective_limits;
@@ -552,7 +580,17 @@ impl MemoryRoute {
         }
     }
 
-    pub fn capabilities(&self) -> MemoryCapabilities {
+    /// The live advertised capability descriptor. Per ADR 0020 decision 4 this stays on the
+    /// legacy `v1` shape until the Studio consumer adopts `v3`; the `v3` target is exposed only
+    /// through [`Self::target_capabilities`] and is not served yet.
+    #[must_use]
+    pub fn capabilities(&self) -> MemoryCapabilitiesV1 {
+        self.target_capabilities().into_v1()
+    }
+
+    /// The `v3` target capability descriptor (inert prep). Not returned on the live route yet.
+    #[must_use]
+    pub fn target_capabilities(&self) -> MemoryCapabilities {
         MemoryCapabilities {
             schema: MEMORY_CAPABILITIES_SCHEMA.to_owned(),
             product_phase: 3,
@@ -583,13 +621,16 @@ impl MemoryRoute {
         }
     }
 
-    /// Derivation of the trusted effective-limit record from this validated capability
+    /// Derivation of the trusted effective-limit record from the validated `v3` target capability
     /// descriptor. The record-under-test must be authenticated against this derivation, never
     /// the other way around.
+    ///
+    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
+    /// harness producer derivation and is not yet verified against a real harness-produced
+    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
-        let capabilities = self.capabilities();
-        capabilities.effective_limit_record()
+        self.target_capabilities().effective_limit_record()
     }
 
     /// Admit a policy value against this descriptor's executable ceiling.
@@ -1109,10 +1150,23 @@ mod tests {
     }
 
     #[test]
-    fn v3_capability_advertises_effective_limits_and_binding() {
+    fn served_capability_advertises_v1_until_studio_adopts_v3() {
         let mut route = MemoryRoute::new(scope(), true);
         route.grant_search("searcher");
-        let value = serde_json::to_value(route.capabilities()).expect("capabilities");
+        let served = route
+            .handle("GET", "/v3/memory/capabilities", "searcher", &[])
+            .expect("capabilities");
+        assert_eq!(served["schema"], MEMORY_CAPABILITIES_SCHEMA_V1);
+        assert!(served.get("effective_limits").is_none());
+        assert!(served.get("binding").is_none());
+        assert_eq!(route.capabilities().schema, MEMORY_CAPABILITIES_SCHEMA_V1);
+    }
+
+    #[test]
+    fn v3_target_capability_advertises_effective_limits_and_binding() {
+        let mut route = MemoryRoute::new(scope(), true);
+        route.grant_search("searcher");
+        let value = serde_json::to_value(route.target_capabilities()).expect("capabilities");
         assert_eq!(value["schema"], MEMORY_CAPABILITIES_SCHEMA);
         assert_eq!(
             value["effective_limits"]["policy_schema"],
@@ -1134,7 +1188,7 @@ mod tests {
     fn dual_reader_reads_legacy_and_current_payloads() {
         let mut route = MemoryRoute::new(scope(), true);
         route.grant_search("searcher");
-        let v3_bytes = serde_json::to_vec(&route.capabilities()).expect("v3 bytes");
+        let v3_bytes = serde_json::to_vec(&route.target_capabilities()).expect("v3 bytes");
         let v3 = read_advertised_memory_capabilities(&v3_bytes).expect("v3 reads");
         assert_eq!(v3.schema(), MEMORY_CAPABILITIES_SCHEMA);
         let limits = v3.effective_limits().expect("v3 effective limits");

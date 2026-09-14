@@ -235,9 +235,35 @@ const SESSION_POLICY_SCHEMA_MAX_COMPLETED_TURNS: u64 = 1024;
 const SESSION_POLICY_SCHEMA_MAX_HISTORY_TTL_SECONDS: u64 = 604_800;
 
 impl SessionCapabilitiesView {
+    /// The legacy `v1` advertisement derived from this `v3` target descriptor. The served route
+    /// keeps using this shape until the coordinated `v3` cutover.
+    #[must_use]
+    pub fn to_v1(&self) -> SessionCapabilitiesV1 {
+        SessionCapabilitiesV1 {
+            schema: SESSION_CAPABILITIES_SCHEMA_V1.to_owned(),
+            profile_id: self.profile_id.clone(),
+            profile_sha256: self.profile_sha256.clone(),
+            native_version: self.native_version.clone(),
+            native_binary_sha256: self.native_binary_sha256.clone(),
+            native_schema_sha256: self.native_schema_sha256.clone(),
+            evidence: self.evidence.clone(),
+            transport: self.transport.clone(),
+            enabled_methods: self.enabled_methods.clone(),
+            hardening: self.hardening.clone(),
+            strict_executable: self.strict_executable,
+            experimental_api: self.experimental_api,
+            unknown_methods: self.unknown_methods.clone(),
+            raw_rpc: self.raw_rpc,
+        }
+    }
+
     /// Derivation of the trusted effective-limit record from this validated capability
     /// descriptor. The record-under-test must be authenticated against this derivation, never
     /// the other way around.
+    ///
+    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
+    /// harness producer derivation and is not yet verified against a real harness-produced
+    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
         let limits = &self.effective_limits;
@@ -811,13 +837,21 @@ impl ProviderSessionRoute {
         self.mode.clone()
     }
 
-    /// The advertised capability descriptor for the fixture route.
+    /// The live advertised capability descriptor. Per ADR 0020 decision 4 this stays on the
+    /// legacy `v1` shape until the Studio consumer adopts `v3`; the `v3` target is exposed only
+    /// through [`Self::target_capabilities_v3`] and is not served yet.
     #[must_use]
-    pub fn capabilities(&self) -> &SessionCapabilitiesView {
+    pub fn capabilities(&self) -> SessionCapabilitiesV1 {
+        self.capabilities.to_v1()
+    }
+
+    /// The `v3` target capability descriptor (inert prep). Not returned on the live route yet.
+    #[must_use]
+    pub fn target_capabilities_v3(&self) -> &SessionCapabilitiesView {
         &self.capabilities
     }
 
-    /// Derivation of the trusted effective-limit record from the advertised capability descriptor.
+    /// Derivation of the trusted effective-limit record from the `v3` target capability descriptor.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
         self.capabilities.effective_limit_record()
@@ -931,7 +965,7 @@ impl ProviderSessionRoute {
             return if method == "GET" {
                 Ok(self.envelope(
                     "capabilities",
-                    serde_json::to_value(&self.capabilities)
+                    serde_json::to_value(self.capabilities())
                         .map_err(|_| SessionApiError::BadRequest)?,
                 ))
             } else {
@@ -2189,9 +2223,26 @@ mod capabilities_tests {
     use super::*;
 
     #[test]
-    fn v3_capability_advertises_effective_limits_and_binding() {
+    fn served_capability_advertises_v1_until_studio_adopts_v3() {
+        let mut route = ProviderSessionRoute::fixture("operator");
+        let served = route
+            .handle(
+                "GET",
+                "/v1/runs/run-fixture/provider-sessions/capabilities",
+                "operator",
+                &[],
+            )
+            .expect("capabilities");
+        assert_eq!(served["value"]["schema"], SESSION_CAPABILITIES_SCHEMA_V1);
+        assert!(served["value"].get("effective_limits").is_none());
+        assert!(served["value"].get("binding").is_none());
+        assert_eq!(route.capabilities().schema, SESSION_CAPABILITIES_SCHEMA_V1);
+    }
+
+    #[test]
+    fn v3_target_capability_advertises_effective_limits_and_binding() {
         let route = ProviderSessionRoute::fixture("operator");
-        let value = serde_json::to_value(route.capabilities()).expect("capabilities");
+        let value = serde_json::to_value(route.target_capabilities_v3()).expect("capabilities");
         assert_eq!(value["schema"], SESSION_CAPABILITIES_SCHEMA);
         assert_eq!(
             value["effective_limits"]["policy_schema"],
@@ -2212,7 +2263,7 @@ mod capabilities_tests {
     #[test]
     fn dual_reader_reads_legacy_and_current_payloads() {
         let route = ProviderSessionRoute::fixture("operator");
-        let v3_bytes = serde_json::to_vec(route.capabilities()).expect("v3 bytes");
+        let v3_bytes = serde_json::to_vec(route.target_capabilities_v3()).expect("v3 bytes");
         let v3 = read_advertised_session_capabilities(&v3_bytes).expect("v3 reads");
         assert_eq!(v3.schema(), SESSION_CAPABILITIES_SCHEMA);
         // Slash-containing method names are admitted by the widened v3 pattern.
@@ -2229,7 +2280,8 @@ mod capabilities_tests {
             128
         );
 
-        let mut legacy = serde_json::to_value(route.capabilities()).expect("capabilities");
+        let mut legacy =
+            serde_json::to_value(route.target_capabilities_v3()).expect("capabilities");
         let object = legacy.as_object_mut().expect("object");
         object.remove("effective_limits");
         object.remove("binding");
