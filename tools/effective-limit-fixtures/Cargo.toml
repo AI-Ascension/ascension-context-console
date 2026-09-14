@@ -1,0 +1,17 @@
+[package]
+name = "console-effective-limit-fixtures"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+publish = false
+license = "MIT"
+
+# An offline fixture generator, deliberately outside the product workspace.
+[workspace]
+
+[dependencies]
+sts2-harness = { git = "https://github.com/AI-Ascension/sts2-harness", rev = "f8015e52ccb530e60d722283ef2b063da372169b" }
+serde_json = "=1.0.151"
+
+[lints.rust]
+unsafe_code = "forbid"

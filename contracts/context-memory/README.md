@@ -48,6 +48,8 @@ closed fail-closed reasons are `effective_limit_exceeded`, `disabled`, `field_no
 `descriptor_stale`, `descriptor_tampered`, `profile_mismatch`, `consumer_not_recorded`, and
 `consumer_pin_not_adopted`.
 
-Evidence is synthetic/fixture/contract-level only: the producer bytes are pinned by digest and the
-fixture ceilings equal the portable schema ceilings. No native, provider, owner, deployment, or
-real-owner behavior is claimed.
+Producer-library conformance now covers default, restricted and disabled memory descriptors:
+schema maxima stay fixed while the selected corpus and other executable limits can be smaller.
+See [original vectors and regeneration](../../fixtures/effective-limits/README.md). The local
+consumer pin remains `pending`, advertising `v1` without effective limits until coordinated cutover.
+No native, provider, owner, deployment, or real-owner behavior is claimed.

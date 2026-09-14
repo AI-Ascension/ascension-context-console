@@ -35,6 +35,13 @@ The target `phase2_durable` tests cover encrypted journal reopen, wrong-key/tamp
 transaction rollback with outbox atomicity, additive schema repair with retained Phase 1 bytes,
 legacy active-state refusal, and immutable snapshot backup.
 
+`producer_conformance` decodes original synthetic descriptors emitted by the pinned harness
+library through the actual memory/session dual readers. It compares all effective-limit rows,
+including restricted profiles, against independently generated producer records and the copied
+policy/capability ceilings; checks boundary admission and mutations; and verifies legacy v1 and
+pending-consumer behavior. See [fixture provenance and regeneration](../fixtures/effective-limits/README.md).
+This is producer-library contract evidence, not a real-owner, provider or native acceptance run.
+
 Phase 3 target tests cover the closed `/v3/memory` query, separate search/review permissions,
 disabled capability disclosure, projection-unavailable responses, and the compiled `phase3-cli`
 help/capabilities/search commands. The target facade remains provider/game/process free. Companion

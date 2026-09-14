@@ -11,13 +11,11 @@
 //! All behavior here is contract/fixture-level. The copied producer bytes are pinned by digest in
 //! [`contract_pins`]; no native, provider, owner, or deployment behavior is claimed.
 //!
-//! NOTE (real-record conformance unverified): the surface-specific `class`/`validator`/ceiling
-//! mapping used to derive the trusted record from a capability descriptor is a local fixture
-//! reconstruction of the harness producer derivation. It has not been checked against a
-//! real harness-produced `ascension.harness.effective-limits.v1` record, so
-//! [`EffectiveLimitRecord::authenticate`] keeps the strict full-equality check and fails closed
-//! (`descriptor_tampered`) rather than presenting an unverified value. A future coordinated
-//! adoption step must confirm this mapping against a producer record before relying on it.
+//! Producer-generated synthetic conformance vectors check the surface-specific
+//! `class`/`validator`/ceiling mapping against the pinned harness library, including restricted
+//! profiles whose executable limits differ from schema maxima. Authentication still requires a
+//! separately trusted capability descriptor; parsing a descriptor is not owner authentication.
+//! These tests do not establish attached-owner, provider, native, or deployment acceptance.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -380,27 +378,28 @@ pub struct ConsumerPin {
     pub surfaces: Vec<ConsumerSurface>,
 }
 
-/// The console's recorded consumer pin for the pinned producer revision.
+/// The console's current served consumer pin. Inert v3 reading support is not adoption: the
+/// coordinated Studio cutover and producer pin-matrix update have not happened.
 #[must_use]
 pub fn console_consumer_pin() -> ConsumerPin {
     ConsumerPin {
         repository: CONSUMER_REPOSITORY.to_owned(),
         producer_revision: PRODUCER_REVISION.to_owned(),
-        adoption: Adoption::Aligned,
+        adoption: Adoption::Pending,
         surfaces: vec![
             ConsumerSurface {
                 surface: "context-memory".to_owned(),
                 advertised_capability_schema: Some(
-                    "ascension.context-memory.capabilities.v3".to_owned(),
+                    "ascension.context-memory.capabilities.v1".to_owned(),
                 ),
-                effective_limits_advertised: true,
+                effective_limits_advertised: false,
             },
             ConsumerSurface {
                 surface: "provider-session".to_owned(),
                 advertised_capability_schema: Some(
-                    "ascension.provider-session.capabilities.v3".to_owned(),
+                    "ascension.provider-session.capabilities.v1".to_owned(),
                 ),
-                effective_limits_advertised: true,
+                effective_limits_advertised: false,
             },
         ],
     }
@@ -670,7 +669,14 @@ mod tests {
     #[test]
     fn consumer_pin_gates_admission() {
         let trusted = trusted();
-        let pin = console_consumer_pin();
+        let mut pin = console_consumer_pin();
+        // Synthetic future adoption, not the current served configuration.
+        pin.adoption = Adoption::Aligned;
+        for surface in &mut pin.surfaces {
+            surface.advertised_capability_schema =
+                Some(format!("ascension.{}.capabilities.v3", surface.surface));
+            surface.effective_limits_advertised = true;
+        }
         assert_eq!(
             admit_consumer(
                 &pin,
