@@ -134,3 +134,8 @@ Adoption aligns a real producer/consumer contract defect (current harness-produc
 `#18`/`#19`, and makes value presentation depend on authenticated executable limits rather than
 portable schema ceilings alone. With the decision accepted, the migration PR follows; until it
 lands, this repository must not claim adoption, and the harness pin matrix must keep it `pending`.
+
+Implementation follow-up: [ADR 0021](0021-owner-capability-sidecar.md) defines the Rust owner
+sidecar, independent trust configuration, default v3 advertisement and explicit v1 rollback.
+The cutover PR remains gated on Studio adoption and the harness-owned pin-matrix update;
+source conformance does not establish a production owner transport.

@@ -378,28 +378,40 @@ pub struct ConsumerPin {
     pub surfaces: Vec<ConsumerSurface>,
 }
 
-/// The console's current served consumer pin. Inert v3 reading support is not adoption: the
-/// coordinated Studio cutover and producer pin-matrix update have not happened.
+/// The console's default v3 consumer disclosure. The authoritative harness matrix is maintained
+/// separately with the merged consumer/CI pins; this does not update it.
 #[must_use]
 pub fn console_consumer_pin() -> ConsumerPin {
+    console_consumer_pin_for(crate::CapabilityVersion::V3)
+}
+
+/// A rollback advertisement cannot claim effective-limit adoption.
+#[must_use]
+pub fn console_consumer_pin_for(version: crate::CapabilityVersion) -> ConsumerPin {
+    let aligned = version == crate::CapabilityVersion::V3;
+    let suffix = if aligned { "v3" } else { "v1" };
     ConsumerPin {
         repository: CONSUMER_REPOSITORY.to_owned(),
         producer_revision: PRODUCER_REVISION.to_owned(),
-        adoption: Adoption::Pending,
+        adoption: if aligned {
+            Adoption::Aligned
+        } else {
+            Adoption::Pending
+        },
         surfaces: vec![
             ConsumerSurface {
                 surface: "context-memory".to_owned(),
-                advertised_capability_schema: Some(
-                    "ascension.context-memory.capabilities.v1".to_owned(),
-                ),
-                effective_limits_advertised: false,
+                advertised_capability_schema: Some(format!(
+                    "ascension.context-memory.capabilities.{suffix}"
+                )),
+                effective_limits_advertised: aligned,
             },
             ConsumerSurface {
                 surface: "provider-session".to_owned(),
-                advertised_capability_schema: Some(
-                    "ascension.provider-session.capabilities.v1".to_owned(),
-                ),
-                effective_limits_advertised: false,
+                advertised_capability_schema: Some(format!(
+                    "ascension.provider-session.capabilities.{suffix}"
+                )),
+                effective_limits_advertised: aligned,
             },
         ],
     }

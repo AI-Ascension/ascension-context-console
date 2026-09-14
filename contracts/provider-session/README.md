@@ -28,12 +28,11 @@ Producer: `AI-Ascension/sts2-harness`, `origin/main` revision
 | `contracts/provider-session/policy.schema.json` | `48d6dc1c75504983c3d5e6a1152c0447874eeb512e45b276ab440962e52781a5` |
 | `contracts/provider-session/capabilities.schema.json` | `de1348ec7434703722b00a2ddb4bcef7cec02b3788ff14af018cf7b7efaf21f0` |
 
-The live/served advertisement **remains** `ascension.provider-session.capabilities.v1` (ADR 0020
-decision 4). The `v3` artifacts and the dual reader are present as inert preparation but are not
-served until Studio adopts `v3` in the coordinated cutover. The `v3` target descriptor (with the
-required `effective_limits` and `binding` objects) is reachable only through the non-served
-`target_capabilities_v3()` accessor; `read_advertised_session_capabilities` reads both `v1` and
-`v3` payloads.
+The coordinated cutover serves `ascension.provider-session.capabilities.v3` with validated payload
+digests, `effective_limits` and `binding`. Attached presentation requires an actual producer
+record sidecar and independent owner/scope/profile configuration. Both v1/v3 readers remain;
+explicit `CapabilityVersion::V1` rollback omits executable limits and reports a pending consumer
+pin. See [ADR 0021](../../docs/decisions/0021-owner-capability-sidecar.md).
 
 The `encrypted_state` widening does **not** relax this repository's private-retention guard:
 private retention still requires an accepted policy exception and authenticated encryption
@@ -50,5 +49,6 @@ Producer-library conformance now covers default and restricted session descripto
 fixed schema maxima independently of selected executable limits. A deliberately empty-method
 synthetic vector exercises disabled record admission; the producer rejects it for native
 attachment. See [original vectors and regeneration](../../fixtures/effective-limits/README.md).
-The local consumer pin remains `pending`, advertising `v1` without effective limits until
-coordinated cutover. No native, provider, owner, deployment, or real-owner behavior is claimed.
+The local default consumer disclosure is v3/aligned; rollback remains pending/v1. The authoritative
+harness matrix still needs its separate owner update. No native, provider, owner, deployment, or
+real-owner behavior is claimed.

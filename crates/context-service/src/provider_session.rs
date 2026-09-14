@@ -47,6 +47,7 @@ pub enum SessionApiError {
     Ambiguous,
     Unavailable,
     MalformedPeer,
+    EffectiveLimit(UnavailableReason),
 }
 
 impl std::fmt::Display for SessionApiError {
@@ -66,6 +67,7 @@ impl std::fmt::Display for SessionApiError {
             Self::Ambiguous => "provider-session operation outcome is ambiguous",
             Self::Unavailable => "provider-session provider state is unavailable",
             Self::MalformedPeer => "provider-session peer response is malformed",
+            Self::EffectiveLimit(reason) => reason.code(),
         })
     }
 }
@@ -431,10 +433,10 @@ fn fixture_session_binding() -> SessionBinding {
         owner: "sts2-harness".to_owned(),
         owner_revision: "harness-provider-session-v3".to_owned(),
         policy_schema_sha256: contract_pins::SESSION_POLICY_SCHEMA_SHA256.to_owned(),
-        model_revision: "codex-app-server-fixture-v1".to_owned(),
-        adapter_revision: "harness-provider-session-v3".to_owned(),
-        adapter_revision_sha256: contract_pins::SESSION_CAPABILITIES_SCHEMA_SHA256.to_owned(),
-        descriptor_sha256: contract_pins::SESSION_CAPABILITIES_SCHEMA_SHA256.to_owned(),
+        model_revision: "fixture-peer-1".to_owned(),
+        adapter_revision: "codex-app-server-fixture-v1".to_owned(),
+        adapter_revision_sha256: sha256_hex("codex-app-server-fixture-v1"),
+        descriptor_sha256: String::new(),
     }
 }
 
@@ -508,6 +510,7 @@ pub struct ProviderSessionRoute {
     attached_scope: Option<SessionScopeView>,
     attached_bindings: BTreeMap<String, SessionScopeView>,
     attached_operations: BTreeMap<String, SessionScopeView>,
+    capability_version: crate::CapabilityVersion,
 }
 
 #[derive(Clone, Debug)]
@@ -653,7 +656,7 @@ struct SessionCleanupCommand {
 impl ProviderSessionRoute {
     #[must_use]
     pub fn fixture(principal: impl Into<String>) -> Self {
-        Self {
+        let mut route = Self {
             principal: principal.into(),
             mode: SessionRouteMode::FixtureOnly,
             capabilities: SessionCapabilitiesView {
@@ -699,7 +702,13 @@ impl ProviderSessionRoute {
             attached_scope: None,
             attached_bindings: BTreeMap::new(),
             attached_operations: BTreeMap::new(),
+            capability_version: crate::CapabilityVersion::V3,
+        };
+        // Serialization failure leaves an invalid empty digest; the served route fails closed.
+        if let Ok(digest) = route.capabilities.descriptor_digest() {
+            route.capabilities.binding.descriptor_sha256 = digest;
         }
+        route
     }
 
     /// Builds the explicitly attached composition. The route owns no native session state in this
@@ -837,15 +846,25 @@ impl ProviderSessionRoute {
         self.mode.clone()
     }
 
-    /// The live advertised capability descriptor. Per ADR 0020 decision 4 this stays on the
-    /// legacy `v1` shape until the Studio consumer adopts `v3`; the `v3` target is exposed only
-    /// through [`Self::target_capabilities_v3`] and is not served yet.
+    /// Select an explicit legacy advertisement for rollback; v1 discloses no executable limits.
     #[must_use]
-    pub fn capabilities(&self) -> SessionCapabilitiesV1 {
-        self.capabilities.to_v1()
+    pub fn with_capability_version(mut self, version: crate::CapabilityVersion) -> Self {
+        self.capability_version = version;
+        self
     }
 
-    /// The `v3` target capability descriptor (inert prep). Not returned on the live route yet.
+    #[must_use]
+    pub fn consumer_pin(&self) -> crate::effective_limits::ConsumerPin {
+        crate::effective_limits::console_consumer_pin_for(self.capability_version)
+    }
+
+    /// The local v3 descriptor. Attached routes obtain and authenticate an actual owner reply.
+    #[must_use]
+    pub fn capabilities(&self) -> SessionCapabilitiesView {
+        self.capabilities.clone()
+    }
+
+    /// The local synthetic v3 descriptor, validated before the served route presents it.
     #[must_use]
     pub fn target_capabilities_v3(&self) -> &SessionCapabilitiesView {
         &self.capabilities
@@ -963,11 +982,15 @@ impl ProviderSessionRoute {
             && segments[4] == "capabilities"
         {
             return if method == "GET" {
-                Ok(self.envelope(
-                    "capabilities",
-                    serde_json::to_value(self.capabilities())
-                        .map_err(|_| SessionApiError::BadRequest)?,
-                ))
+                self.capabilities
+                    .validate_descriptor()
+                    .map_err(SessionApiError::EffectiveLimit)?;
+                let value = match self.capability_version {
+                    crate::CapabilityVersion::V3 => serde_json::to_value(self.capabilities()),
+                    crate::CapabilityVersion::V1 => serde_json::to_value(self.capabilities.to_v1()),
+                }
+                .map_err(|_| SessionApiError::BadRequest)?;
+                Ok(self.envelope("capabilities", value))
             } else {
                 Err(SessionApiError::MethodNotAllowed)
             };
@@ -1276,7 +1299,7 @@ impl ProviderSessionRoute {
         let call = owner_call(operation, scope.clone(), reference.clone(), payload, grant)
             .map_err(|_| SessionApiError::BadRequest)?;
         let owner = composition.owner();
-        let reply = match owner.call(call) {
+        let mut reply = match owner.call(call) {
             Ok(reply) => reply,
             Err(OwnerError::LostReply { receipt_id }) => {
                 if !valid_id(&receipt_id) {
@@ -1337,6 +1360,10 @@ impl ProviderSessionRoute {
         reply
             .validate_for(operation)
             .map_err(|_| SessionApiError::MalformedPeer)?;
+        composition
+            .capability_trust
+            .present(operation, &scope, &mut reply, self.capability_version)
+            .map_err(SessionApiError::EffectiveLimit)?;
         self.record_attached_references(&scope, reply.value.as_ref())?;
         owner_session_result(operation, revocation_epoch, reply)
     }
@@ -2223,7 +2250,7 @@ mod capabilities_tests {
     use super::*;
 
     #[test]
-    fn served_capability_advertises_v1_until_studio_adopts_v3() {
+    fn served_capability_is_valid_v3_with_explicit_v1_rollback() {
         let mut route = ProviderSessionRoute::fixture("operator");
         let served = route
             .handle(
@@ -2233,10 +2260,23 @@ mod capabilities_tests {
                 &[],
             )
             .expect("capabilities");
+        assert_eq!(served["value"]["schema"], SESSION_CAPABILITIES_SCHEMA);
+        route
+            .capabilities()
+            .validate_descriptor()
+            .expect("valid descriptor");
+        let mut route = route.with_capability_version(crate::CapabilityVersion::V1);
+        let served = route
+            .handle(
+                "GET",
+                "/v1/runs/run-fixture/provider-sessions/capabilities",
+                "operator",
+                &[],
+            )
+            .expect("rollback");
         assert_eq!(served["value"]["schema"], SESSION_CAPABILITIES_SCHEMA_V1);
         assert!(served["value"].get("effective_limits").is_none());
         assert!(served["value"].get("binding").is_none());
-        assert_eq!(route.capabilities().schema, SESSION_CAPABILITIES_SCHEMA_V1);
     }
 
     #[test]
@@ -2256,7 +2296,10 @@ mod capabilities_tests {
         );
         assert_eq!(
             value["binding"]["descriptor_sha256"],
-            contract_pins::SESSION_CAPABILITIES_SCHEMA_SHA256
+            route
+                .target_capabilities_v3()
+                .descriptor_digest()
+                .expect("payload digest")
         );
     }
 

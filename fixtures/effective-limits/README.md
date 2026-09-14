@@ -44,6 +44,8 @@ The generator invokes no provider, native peer, game, listener or deployed servi
 may fetch its exact Git dependencies and locked crates. Its fixture's `compiled_peer` metadata
 comes from the producer's fixture constructor; it does not mean this generator launched a peer.
 
-Served capabilities remain v1 and the current Console consumer pin remains pending. Studio v3
-adoption, coordinated advertisement and the harness's authoritative pin-matrix update are separate
-delivery gates. These vectors establish producer-library synthetic conformance only.
+The coordinated cutover defaults to v3; explicit v1 rollback reports a pending consumer pin and
+omits effective-limit claims. `capability_routes` exercises the actual attached route composition
+with these records and separately configured trust descriptors. Studio v3 adoption and the
+harness-owned authoritative pin-matrix update remain merge gates. These vectors establish
+producer-library synthetic conformance only; see [ADR 0021](../../docs/decisions/0021-owner-capability-sidecar.md).
