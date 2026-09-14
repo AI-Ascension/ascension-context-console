@@ -49,7 +49,7 @@ The matrix records this repository as a **pending** `copied_contracts` consumer 
 - provider-session policy tightens `version` and `epoch` from `minimum: 0` to `minimum: 1`, with
   title wording. The `$id` is unchanged, so this tightening is **not version-signalled**.
 
-## Decision (proposed)
+## Decision
 
 1. Treat the harness producer artifacts as authoritative for the capability descriptor and policy
    of both surfaces; copy and pin the producer bytes at a recorded harness revision.
@@ -77,7 +77,7 @@ The matrix records this repository as a **pending** `copied_contracts` consumer 
 | new required `effective_limits` | Additive (`v3` only) | Producer must populate; consumer should admit before presenting | Valid `v1` payloads omit it (both schemas are `additionalProperties: false`); the `v3` reader requires it |
 | new required `binding` | Additive (`v3` only) | Consumer may ignore until it validates owner/adapter identity | Version-specific readers validate their own closed shape |
 | provider-session `enabled_methods[].pattern` widening | Widening within the versioned capabilities change (`v1`→`v3`) | `v3` admits slash-containing/leading-punctuation method names that `v1` rejected | Record the method-name mapping; treat unknown methods as `unknown_methods` |
-| provider-session policy `version`/`epoch` min `0`→`1` | **Unversioned tightening** | Payloads with `0` become invalid under the same `$id` | Decision required (see Open questions) |
+| provider-session policy `version`/`epoch` min `0`→`1` | **Unversioned tightening** | Payloads with `0` become invalid under the same `$id` | Accepted (see Resolved questions) |
 | `hardening.encrypted_state` `const true` → `boolean` | Widening | Could weaken a naive consumer | Console keeps an independent retention guard |
 
 No route is removed and no Console snapshot/event schema changes.
