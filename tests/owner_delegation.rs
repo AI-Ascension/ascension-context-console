@@ -7,6 +7,18 @@ use context_service::{
     SessionApiError, SessionScopeView,
 };
 use serde_json::{Value, json};
+
+// Preserve the original owner contract as explicit v1 rollback coverage. The v3 sidecar,
+// independent trust and pre-query admission paths are exercised by `capability_routes`.
+fn legacy_memory(scope: MemoryScope, composition: HarnessOwnerComposition) -> MemoryRoute {
+    MemoryRoute::attached(scope, composition)
+        .with_capability_version(context_service::CapabilityVersion::V1)
+}
+
+fn legacy_sessions(principal: &str, composition: HarnessOwnerComposition) -> ProviderSessionRoute {
+    ProviderSessionRoute::attached(principal, composition)
+        .with_capability_version(context_service::CapabilityVersion::V1)
+}
 use std::collections::BTreeMap;
 use std::sync::MutexGuard;
 use std::sync::{Arc, Mutex};
@@ -66,6 +78,28 @@ impl RecordingOwner {
             "native_calls": 0,
             "game_effects": 0,
         });
+        if operation == OwnerOperation::MemoryCapabilities {
+            let descriptor = MemoryRoute::new(
+                MemoryScope {
+                    project_id: scope.project_id.clone(),
+                    run_id: scope.run_id.clone(),
+                    episode_id: scope.episode_id.clone(),
+                    agent_id: scope.agent_id.clone(),
+                },
+                false,
+            )
+            .capabilities()
+            .into_v1();
+            value =
+                serde_json::to_value(descriptor).map_err(|_| OwnerPortError::MalformedResponse)?;
+        } else if operation == OwnerOperation::SessionCapabilities {
+            value = serde_json::to_value(
+                ProviderSessionRoute::fixture("fixture")
+                    .capabilities()
+                    .to_v1(),
+            )
+            .map_err(|_| OwnerPortError::MalformedResponse)?;
+        }
         if operation == OwnerOperation::SessionCandidate {
             value["binding_id"] = Value::String("binding-owner-1".to_owned());
             value["operation_id"] = Value::String(operation_id.clone());
@@ -96,6 +130,7 @@ impl RecordingOwner {
             OwnerReply {
                 receipt,
                 value: Some(value),
+                effective_limits: None,
             }
         } else {
             OwnerReply::new(receipt, Some(value)).map_err(|_| OwnerPortError::MalformedResponse)?
@@ -285,7 +320,7 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 #[test]
 fn attached_memory_delegates_exact_query_and_keeps_lanes_independent() -> Result<(), String> {
     let owner = Arc::new(RecordingOwner::default());
-    let route = MemoryRoute::attached(
+    let route = legacy_memory(
         memory_scope(),
         HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100)),
     );
@@ -330,7 +365,7 @@ fn attached_memory_delegates_exact_query_and_keeps_lanes_independent() -> Result
 #[test]
 fn attached_memory_delegates_status_selection_and_review_lanes() -> Result<(), String> {
     let owner = Arc::new(RecordingOwner::default());
-    let route = MemoryRoute::attached(
+    let route = legacy_memory(
         memory_scope(),
         HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100)),
     );
@@ -378,7 +413,7 @@ fn attached_memory_delegates_status_selection_and_review_lanes() -> Result<(), S
 fn attached_compatibility_handlers_require_explicit_security_context() {
     let owner = Arc::new(RecordingOwner::default());
     let composition = HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100));
-    let memory = MemoryRoute::attached(memory_scope(), composition.clone());
+    let memory = legacy_memory(memory_scope(), composition.clone());
     assert_eq!(
         memory.handle(
             "POST",
@@ -389,7 +424,7 @@ fn attached_compatibility_handlers_require_explicit_security_context() {
         Err(MemoryRouteError::PermissionDenied)
     );
 
-    let mut sessions = ProviderSessionRoute::attached("session-principal", composition);
+    let mut sessions = legacy_sessions("session-principal", composition);
     assert_eq!(
         sessions.handle(
             "GET",
@@ -406,7 +441,7 @@ fn attached_compatibility_handlers_require_explicit_security_context() {
 fn attached_mutation_payloads_are_closed_and_typed_before_forwarding() {
     let owner = Arc::new(RecordingOwner::default());
     let composition = HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100));
-    let memory = MemoryRoute::attached(memory_scope(), composition.clone());
+    let memory = legacy_memory(memory_scope(), composition.clone());
     for body in [
         br#"{"idempotency_key":"generate-1","proposal_id":7}"#.as_slice(),
         br#"{"idempotency_key":"generate-2","proposal_id":"proposal-1","nested":{"url":"https://evil.test"}}"#.as_slice(),
@@ -438,7 +473,7 @@ fn attached_mutation_payloads_are_closed_and_typed_before_forwarding() {
 
     let session_composition =
         HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100));
-    let mut sessions = ProviderSessionRoute::attached("session-principal", session_composition);
+    let mut sessions = legacy_sessions("session-principal", session_composition);
     sessions
         .register_attached_binding(
             "binding-owner-1",
@@ -472,7 +507,7 @@ fn attached_mutation_payloads_are_closed_and_typed_before_forwarding() {
 #[test]
 fn attached_memory_fails_closed_before_forwarding_for_security_and_scope() {
     let owner = Arc::new(RecordingOwner::default());
-    let route = MemoryRoute::attached(
+    let route = legacy_memory(
         memory_scope(),
         HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100)),
     );
@@ -566,7 +601,7 @@ fn attached_memory_fails_closed_before_forwarding_for_security_and_scope() {
 fn lost_reply_looks_up_receipt_without_retrying_and_preserves_outcomes() -> Result<(), String> {
     let owner = Arc::new(RecordingOwner::default());
     *lock(&owner.lose_next) = Some("receipt-1".to_owned());
-    let route = MemoryRoute::attached(
+    let route = legacy_memory(
         memory_scope(),
         HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100)),
     );
@@ -609,7 +644,7 @@ fn lost_reply_looks_up_receipt_without_retrying_and_preserves_outcomes() -> Resu
 #[test]
 fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<(), String> {
     let owner = Arc::new(RecordingOwner::default());
-    let route = MemoryRoute::attached(
+    let route = legacy_memory(
         memory_scope(),
         HarnessOwnerComposition::new(owner.clone(), grant_book(owner_scope(), 100)),
     );
@@ -652,7 +687,7 @@ fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<
     assert_eq!(unsupported["outcome"], "unsupported");
 
     let session_owner = Arc::new(RecordingOwner::default());
-    let mut sessions = ProviderSessionRoute::attached(
+    let mut sessions = legacy_sessions(
         "session-principal",
         HarnessOwnerComposition::new(session_owner.clone(), grant_book(session_scope(), 100)),
     );
@@ -708,7 +743,7 @@ fn lost_reply_recovery_correlates_receipts_and_maps_lookup_failures() -> Result<
 #[test]
 fn attached_reference_indexes_bound_restore_and_owner_registration() {
     let owner = Arc::new(RecordingOwner::default());
-    let mut route = ProviderSessionRoute::attached(
+    let mut route = legacy_sessions(
         "session-principal",
         HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100)),
     );
@@ -744,7 +779,7 @@ fn attached_reference_indexes_bound_restore_and_owner_registration() {
     );
 
     let owner = Arc::new(RecordingOwner::default());
-    let mut full_bindings = ProviderSessionRoute::attached(
+    let mut full_bindings = legacy_sessions(
         "session-principal",
         HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100)),
     );
@@ -771,7 +806,7 @@ fn attached_reference_indexes_bound_restore_and_owner_registration() {
     assert_eq!(owner.call_count(), 0);
 
     let owner = Arc::new(RecordingOwner::default());
-    let mut full_operations = ProviderSessionRoute::attached(
+    let mut full_operations = legacy_sessions(
         "session-principal",
         HarnessOwnerComposition::new(owner.clone(), grant_book(session_scope(), 100)),
     );
@@ -800,7 +835,7 @@ fn attached_session_delegates_history_and_compaction_with_separate_control_grant
 -> Result<(), String> {
     let owner = Arc::new(RecordingOwner::default());
     let scope = session_scope();
-    let mut route = ProviderSessionRoute::attached(
+    let mut route = legacy_sessions(
         "session-principal",
         HarnessOwnerComposition::new(owner.clone(), grant_book(scope, 100)),
     );
@@ -896,7 +931,7 @@ fn attached_session_delegates_history_and_compaction_with_separate_control_grant
 fn attached_session_rejects_foreign_references_and_forbidden_owner_content() {
     let owner = Arc::new(RecordingOwner::default());
     let scope = session_scope();
-    let mut route = ProviderSessionRoute::attached(
+    let mut route = legacy_sessions(
         "session-principal",
         HarnessOwnerComposition::new(owner.clone(), grant_book(scope, 100)),
     );

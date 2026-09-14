@@ -424,8 +424,8 @@ fn fixture_binding() -> MemoryBinding {
         policy_schema_sha256: contract_pins::MEMORY_POLICY_SCHEMA_SHA256.to_owned(),
         model_revision: "not-applicable".to_owned(),
         adapter_revision: "harness-context-memory-v3".to_owned(),
-        adapter_revision_sha256: contract_pins::MEMORY_CAPABILITIES_SCHEMA_SHA256.to_owned(),
-        descriptor_sha256: contract_pins::MEMORY_CAPABILITIES_SCHEMA_SHA256.to_owned(),
+        adapter_revision_sha256: digest(b"harness-context-memory-v3"),
+        descriptor_sha256: String::new(),
     }
 }
 
@@ -481,6 +481,7 @@ pub enum MemoryRouteError {
     PermissionDenied,
     Unsupported,
     Unavailable,
+    EffectiveLimit(UnavailableReason),
 }
 
 impl std::fmt::Display for MemoryRouteError {
@@ -492,6 +493,7 @@ impl std::fmt::Display for MemoryRouteError {
             Self::PermissionDenied => "memory route permission is denied",
             Self::Unsupported => "memory route operation is unsupported",
             Self::Unavailable => "memory route owner is unavailable",
+            Self::EffectiveLimit(reason) => reason.code(),
         })
     }
 }
@@ -505,6 +507,7 @@ pub struct MemoryRoute {
     search_principals: Vec<String>,
     review_principals: Vec<String>,
     owner: Option<HarnessOwnerComposition>,
+    capability_version: crate::CapabilityVersion,
 }
 
 impl PartialEq for MemoryRoute {
@@ -514,6 +517,7 @@ impl PartialEq for MemoryRoute {
             && self.search_principals == other.search_principals
             && self.review_principals == other.review_principals
             && self.owner.is_some() == other.owner.is_some()
+            && self.capability_version == other.capability_version
     }
 }
 
@@ -527,6 +531,7 @@ impl MemoryRoute {
             search_principals: Vec::new(),
             review_principals: Vec::new(),
             owner: None,
+            capability_version: crate::CapabilityVersion::V3,
         }
     }
 
@@ -540,6 +545,7 @@ impl MemoryRoute {
             search_principals: Vec::new(),
             review_principals: Vec::new(),
             owner: Some(composition),
+            capability_version: crate::CapabilityVersion::V3,
         }
     }
 
@@ -580,18 +586,28 @@ impl MemoryRoute {
         }
     }
 
-    /// The live advertised capability descriptor. Per ADR 0020 decision 4 this stays on the
-    /// legacy `v1` shape until the Studio consumer adopts `v3`; the `v3` target is exposed only
-    /// through [`Self::target_capabilities`] and is not served yet.
+    /// Select an explicit legacy advertisement for rollback; v1 discloses no executable limits.
     #[must_use]
-    pub fn capabilities(&self) -> MemoryCapabilitiesV1 {
-        self.target_capabilities().into_v1()
+    pub fn with_capability_version(mut self, version: crate::CapabilityVersion) -> Self {
+        self.capability_version = version;
+        self
     }
 
-    /// The `v3` target capability descriptor (inert prep). Not returned on the live route yet.
+    #[must_use]
+    pub fn consumer_pin(&self) -> crate::effective_limits::ConsumerPin {
+        crate::effective_limits::console_consumer_pin_for(self.capability_version)
+    }
+
+    /// The local v3 descriptor. Attached routes obtain and authenticate an actual owner reply.
+    #[must_use]
+    pub fn capabilities(&self) -> MemoryCapabilities {
+        self.target_capabilities()
+    }
+
+    /// Local synthetic descriptor. The served path validates it before serialization.
     #[must_use]
     pub fn target_capabilities(&self) -> MemoryCapabilities {
-        MemoryCapabilities {
+        let mut capabilities = MemoryCapabilities {
             schema: MEMORY_CAPABILITIES_SCHEMA.to_owned(),
             product_phase: 3,
             scope: self.scope.clone(),
@@ -618,16 +634,20 @@ impl MemoryRoute {
             } else {
                 Vec::new()
             },
+        };
+        // Serialization failure leaves an invalid empty digest; the served route fails closed.
+        if let Ok(digest) = capabilities.descriptor_digest() {
+            capabilities.binding.descriptor_sha256 = digest;
         }
+        capabilities
     }
 
     /// Derivation of the trusted effective-limit record from the validated `v3` target capability
     /// descriptor. The record-under-test must be authenticated against this derivation, never
     /// the other way around.
     ///
-    /// NOTE: the `class`/`validator`/ceiling mapping below is a fixture reconstruction of the
-    /// harness producer derivation and is not yet verified against a real harness-produced
-    /// `ascension.harness.effective-limits.v1` record; the equality check stays fail-closed.
+    /// This helper describes the local fixture only. Attached routes require the producer's
+    /// actual supplied record and never substitute this derivation for that record.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
         self.target_capabilities().effective_limit_record()
@@ -708,7 +728,15 @@ impl MemoryRoute {
                 {
                     return Err(MemoryRouteError::PermissionDenied);
                 }
-                serde_json::to_value(self.capabilities()).map_err(|_| MemoryRouteError::Unsupported)
+                let capabilities = self.capabilities();
+                capabilities
+                    .validate_descriptor()
+                    .map_err(MemoryRouteError::EffectiveLimit)?;
+                match self.capability_version {
+                    crate::CapabilityVersion::V3 => serde_json::to_value(capabilities),
+                    crate::CapabilityVersion::V1 => serde_json::to_value(capabilities.into_v1()),
+                }
+                .map_err(|_| MemoryRouteError::Unsupported)
             }
             ("GET", "/v3/memory/status") => {
                 if !self
@@ -825,7 +853,6 @@ impl MemoryRoute {
         let grant = composition
             .authorize(context, operation.grant_class(), &scope, write)
             .map_err(|_| MemoryRouteError::PermissionDenied)?;
-        let revocation_epoch = grant.revocation_epoch;
         let payload = match operation {
             OwnerOperation::MemoryCapabilities | OwnerOperation::MemoryStatus => {
                 if !body.is_empty() {
@@ -837,6 +864,38 @@ impl MemoryRoute {
                 let request: MemoryQueryRequest = crate::parse_control_json(body)
                     .map_err(|_| MemoryRouteError::InvalidRequest)?;
                 validate_query(&request, &self.scope)?;
+                if self.capability_version == crate::CapabilityVersion::V3 {
+                    // Fresh read-only capability proof, with the same independently authorized
+                    // read grant. No query is forwarded until its selected limits are admitted.
+                    let capability_call = owner_call(
+                        OwnerOperation::MemoryCapabilities,
+                        scope.clone(),
+                        None,
+                        json!({}),
+                        grant.clone(),
+                    )
+                    .map_err(|_| MemoryRouteError::InvalidRequest)?;
+                    let mut publication = composition
+                        .owner()
+                        .call(capability_call)
+                        .map_err(|_| MemoryRouteError::Unavailable)?;
+                    publication
+                        .validate_for(OwnerOperation::MemoryCapabilities)
+                        .map_err(|_| MemoryRouteError::Unsupported)?;
+                    composition
+                        .capability_trust
+                        .present(
+                            OwnerOperation::MemoryCapabilities,
+                            &scope,
+                            &mut publication,
+                            self.capability_version,
+                        )
+                        .map_err(MemoryRouteError::EffectiveLimit)?;
+                    composition
+                        .capability_trust
+                        .admit_memory_query(&scope, &publication, &request)
+                        .map_err(MemoryRouteError::EffectiveLimit)?;
+                }
                 serde_json::to_value(request).map_err(|_| MemoryRouteError::InvalidRequest)?
             }
             OwnerOperation::MemoryGeneration
@@ -844,10 +903,21 @@ impl MemoryRoute {
             | OwnerOperation::MemorySelection => parse_owner_command(operation, body)?,
             _ => return Err(MemoryRouteError::Unsupported),
         };
+        // A revocation during the extra capability read must stop the subsequent query.
+        let grant = if operation == OwnerOperation::MemoryQuery
+            && self.capability_version == crate::CapabilityVersion::V3
+        {
+            composition
+                .authorize(context, operation.grant_class(), &scope, write)
+                .map_err(|_| MemoryRouteError::PermissionDenied)?
+        } else {
+            grant
+        };
+        let revocation_epoch = grant.revocation_epoch;
         let call = owner_call(operation, scope.clone(), None, payload, grant)
             .map_err(|_| MemoryRouteError::InvalidRequest)?;
         let owner = composition.owner();
-        let reply = match owner.call(call) {
+        let mut reply = match owner.call(call) {
             Ok(reply) => reply,
             Err(OwnerError::LostReply { receipt_id }) => {
                 if !valid_id(&receipt_id) {
@@ -855,7 +925,7 @@ impl MemoryRoute {
                 }
                 let lookup = crate::owner::OwnerReceiptLookup {
                     operation,
-                    scope,
+                    scope: scope.clone(),
                     reference: None,
                     receipt_id: receipt_id.clone(),
                 };
@@ -908,6 +978,10 @@ impl MemoryRoute {
         reply
             .validate_for(operation)
             .map_err(|_| MemoryRouteError::Unsupported)?;
+        composition
+            .capability_trust
+            .present(operation, &scope, &mut reply, self.capability_version)
+            .map_err(MemoryRouteError::EffectiveLimit)?;
         owner_result(operation, revocation_epoch, reply)
     }
 }
@@ -1150,16 +1224,24 @@ mod tests {
     }
 
     #[test]
-    fn served_capability_advertises_v1_until_studio_adopts_v3() {
+    fn served_capability_is_valid_v3_with_explicit_v1_rollback() {
         let mut route = MemoryRoute::new(scope(), true);
         route.grant_search("searcher");
         let served = route
             .handle("GET", "/v3/memory/capabilities", "searcher", &[])
             .expect("capabilities");
+        assert_eq!(served["schema"], MEMORY_CAPABILITIES_SCHEMA);
+        route
+            .capabilities()
+            .validate_descriptor()
+            .expect("valid descriptor");
+        let route = route.with_capability_version(crate::CapabilityVersion::V1);
+        let served = route
+            .handle("GET", "/v3/memory/capabilities", "searcher", &[])
+            .expect("rollback");
         assert_eq!(served["schema"], MEMORY_CAPABILITIES_SCHEMA_V1);
         assert!(served.get("effective_limits").is_none());
         assert!(served.get("binding").is_none());
-        assert_eq!(route.capabilities().schema, MEMORY_CAPABILITIES_SCHEMA_V1);
     }
 
     #[test]
@@ -1180,7 +1262,10 @@ mod tests {
         );
         assert_eq!(
             value["binding"]["descriptor_sha256"],
-            contract_pins::MEMORY_CAPABILITIES_SCHEMA_SHA256
+            route
+                .target_capabilities()
+                .descriptor_digest()
+                .expect("payload digest")
         );
     }
 

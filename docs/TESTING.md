@@ -39,7 +39,10 @@ legacy active-state refusal, and immutable snapshot backup.
 library through the actual memory/session dual readers. It compares all effective-limit rows,
 including restricted profiles, against independently generated producer records and the copied
 policy/capability ceilings; checks boundary admission and mutations; and verifies legacy v1 and
-pending-consumer behavior. See [fixture provenance and regeneration](../fixtures/effective-limits/README.md).
+explicit rollback pending-consumer behavior. `capability_routes` covers authenticated v3
+capability routes, record mutations, independent scope/source/epoch trust, selected query limits
+and zero-query dispatch on rejection. Existing `owner_delegation` regressions explicitly select
+v1 rollback; default v3 attachment requires the sidecar and trust configuration. See [fixture provenance and regeneration](../fixtures/effective-limits/README.md).
 This is producer-library contract evidence, not a real-owner, provider or native acceptance run.
 
 Phase 3 target tests cover the closed `/v3/memory` query, separate search/review permissions,

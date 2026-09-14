@@ -4,7 +4,7 @@
 
 use context_service::effective_limits::{
     Adoption, ConsumerPin, EffectiveLimitRecord, LimitClass, PRODUCER_REVISION, UnavailableReason,
-    admit_consumer, console_consumer_pin,
+    admit_consumer, console_consumer_pin_for,
 };
 use context_service::{
     AdvertisedMemoryCapabilities, AdvertisedSessionCapabilities, MemoryCapabilities,
@@ -293,8 +293,8 @@ fn exact_producer_payload_digests_survive_consumer_reading_and_v1_remains_readab
 }
 
 #[test]
-fn current_consumer_pin_stays_pending_and_synthetic_adoption_cannot_bypass_authentication() {
-    let current = console_consumer_pin();
+fn rollback_consumer_pin_stays_pending_and_adoption_cannot_bypass_authentication() {
+    let current = console_consumer_pin_for(context_service::CapabilityVersion::V1);
     assert_eq!(current.adoption, Adoption::Pending);
     for surface in &current.surfaces {
         assert!(!surface.effective_limits_advertised);

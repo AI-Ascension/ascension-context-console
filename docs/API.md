@@ -143,3 +143,11 @@ JSON envelope is `ascension.context-control.cli-result.v1`; private content is r
 and note bodies are accepted only from stdin. Exit code 0 means the command completed or was
 accepted; 2 is usage/validation, 3 is a stale/conflict outcome, 4 is denied, and 5 is durable-store
 unavailability. This fixture CLI has no provider, game, URL, or process-execution capability.
+
+Capability v3 admission requires the owner-supplied effective-limit sidecar and independently
+configured descriptor trust described in [ADR 0021](decisions/0021-owner-capability-sidecar.md).
+Admission failures use the existing HTTP 422 error envelope with bounded reason codes including
+`consumer_not_recorded`, `consumer_pin_not_adopted`, `field_not_advertised`,
+`descriptor_tampered`, `descriptor_stale`, `profile_mismatch` and `effective_limit_exceeded`.
+Memory search refreshes capabilities and rejects requests above selected executable query
+limits before dispatching an owner query. Explicit v1 rollback omits effective-limit claims.

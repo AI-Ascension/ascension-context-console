@@ -8,6 +8,8 @@
 //! primitives for end-to-end review.
 
 mod association;
+mod capability_admission;
+mod capability_validation;
 mod capture;
 mod cli;
 mod control;
@@ -26,6 +28,8 @@ mod telemetry;
 pub use association::{
     AssociationResolutionError, ResolvedWorkflowContext, resolve_workflow_context_association,
 };
+pub use capability_admission::{MemoryCapabilityTrust, SessionCapabilityTrust};
+pub use capability_validation::CapabilityVersion;
 pub use capture::{
     CaptureConfig, CaptureError, CaptureMode, CaptureRecord, CaptureSink, MemoryCapture,
     NoopCapture, PreparedCapture, TransportState,

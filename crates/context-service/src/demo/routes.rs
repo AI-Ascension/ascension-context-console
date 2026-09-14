@@ -520,6 +520,7 @@ fn memory_error_response(error: MemoryRouteError) -> HttpResponse {
         MemoryRouteError::MethodNotAllowed => 405,
         MemoryRouteError::Unsupported => 404,
         MemoryRouteError::Unavailable => 503,
+        MemoryRouteError::EffectiveLimit(_) => 422,
     };
     control_value_response(
         status,
@@ -544,6 +545,7 @@ fn provider_session_error_response(error: SessionApiError) -> HttpResponse {
         | SessionApiError::Ambiguous => 409,
         SessionApiError::Unavailable | SessionApiError::MalformedPeer => 503,
         SessionApiError::BadRequest | SessionApiError::Unsupported => 400,
+        SessionApiError::EffectiveLimit(_) => 422,
     };
     control_value_response(
         status,

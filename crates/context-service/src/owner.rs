@@ -348,6 +348,7 @@ struct AuthorizedGrant {
 pub struct HarnessOwnerComposition {
     owner: Arc<dyn HarnessOwner>,
     grants: Arc<Mutex<OwnerGrantBook>>,
+    pub(crate) capability_trust: crate::capability_admission::OwnerCapabilityTrust,
 }
 
 impl fmt::Debug for HarnessOwnerComposition {
@@ -365,12 +366,33 @@ impl HarnessOwnerComposition {
         Self {
             owner,
             grants: Arc::new(Mutex::new(grants)),
+            capability_trust: crate::capability_admission::OwnerCapabilityTrust::default(),
         }
     }
 
     #[must_use]
     pub fn owner(&self) -> Arc<dyn HarnessOwner> {
         Arc::clone(&self.owner)
+    }
+
+    /// Attach independently selected memory capability configuration, never a reply-derived pin.
+    #[must_use]
+    pub fn with_memory_capability_trust(
+        mut self,
+        trust: crate::capability_admission::MemoryCapabilityTrust,
+    ) -> Self {
+        self.capability_trust.memory = Some(trust);
+        self
+    }
+
+    /// Attach independently selected session capability configuration and its exact owner scope.
+    #[must_use]
+    pub fn with_session_capability_trust(
+        mut self,
+        trust: crate::capability_admission::SessionCapabilityTrust,
+    ) -> Self {
+        self.capability_trust.session = Some(trust);
+        self
     }
 
     pub fn revoke(&self, grant_id: &str) -> Result<(), OwnerAuthError> {
@@ -618,6 +640,10 @@ impl OwnerReceipt {
 pub struct OwnerReply {
     pub receipt: OwnerReceipt,
     pub value: Option<Value>,
+    /// Optional producer-published record for an accepted memory/session capability operation.
+    /// This internal typed sidecar is not an extra field in either closed v3 descriptor and
+    /// does not assert that a management/CLI/network transport exists.
+    pub effective_limits: Option<crate::effective_limits::EffectiveLimitRecord>,
 }
 
 impl fmt::Debug for OwnerReply {
@@ -626,6 +652,7 @@ impl fmt::Debug for OwnerReply {
             .debug_struct("OwnerReply")
             .field("receipt", &self.receipt)
             .field("value_present", &self.value.is_some())
+            .field("effective_limits_present", &self.effective_limits.is_some())
             .finish()
     }
 }
@@ -639,7 +666,62 @@ impl OwnerReply {
         if receipt.outcome != OwnerOutcome::Accepted && value.is_some() {
             return Err(OwnerResponseError::ValueForNonAccepted);
         }
-        Ok(Self { receipt, value })
+        Ok(Self {
+            receipt,
+            value,
+            effective_limits: None,
+        })
+    }
+
+    /// Supply the actual producer record. The route authenticates it against independent trust;
+    /// this constructor does not manufacture or authenticate a record from `value`.
+    pub fn with_effective_limits(
+        mut self,
+        record: crate::effective_limits::EffectiveLimitRecord,
+    ) -> Result<Self, OwnerResponseError> {
+        self.effective_limits = Some(record);
+        self.validate_limit_sidecar()?;
+        Ok(self)
+    }
+
+    fn validate_limit_sidecar(&self) -> Result<(), OwnerResponseError> {
+        let Some(record) = &self.effective_limits else {
+            return Ok(());
+        };
+        if self.receipt.outcome != OwnerOutcome::Accepted
+            || !matches!(
+                self.receipt.operation.as_str(),
+                "memory.capabilities" | "provider_session.capabilities"
+            )
+        {
+            return Err(OwnerResponseError::OperationMismatch);
+        }
+        if record.rows.len() > 64
+            || [
+                &record.schema,
+                &record.surface,
+                &record.owner,
+                &record.owner_revision,
+                &record.capability_schema,
+                &record.capability_descriptor_sha256,
+            ]
+            .into_iter()
+            .any(|value| value.len() > 128)
+            || record
+                .rows
+                .iter()
+                .any(|row| row.field.len() > 128 || row.validator.len() > 256)
+        {
+            return Err(OwnerResponseError::ResponseTooLarge);
+        }
+        let record_bytes =
+            serde_json::to_vec(record).map_err(|_| OwnerResponseError::InvalidReceipt)?;
+        let value_bytes =
+            serde_json::to_vec(&self.value).map_err(|_| OwnerResponseError::InvalidReceipt)?;
+        if record_bytes.len().saturating_add(value_bytes.len()) > OWNER_MAX_RESPONSE_BYTES {
+            return Err(OwnerResponseError::ResponseTooLarge);
+        }
+        Ok(())
     }
 
     /// Validates that a reply belongs to the operation that was requested and that read lanes
@@ -660,6 +742,7 @@ impl OwnerReply {
         {
             return Err(OwnerResponseError::ReadHadEffects);
         }
+        self.validate_limit_sidecar()?;
         Ok(())
     }
 
