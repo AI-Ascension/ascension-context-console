@@ -77,7 +77,7 @@ The matrix records this repository as a **pending** `copied_contracts` consumer 
 | capabilities `v1` → `v3` (`$id`/`schema` const) | Versioned, additive-but-required | Strict `v1` readers reject `v3` | Dual version-specific readers; cut over after Studio adopts `v3` |
 | new required `effective_limits` | Additive (`v3` only) | Producer must populate; consumer should admit before presenting | Valid `v1` payloads omit it (both schemas are `additionalProperties: false`); the `v3` reader requires it |
 | new required `binding` | Additive (`v3` only) | Consumer may ignore until it validates owner/adapter identity | Version-specific readers validate their own closed shape |
-| provider-session `enabled_methods[].pattern` widening | **Unversioned widening** | `v3` admits slash-containing/leading-punctuation method names that `v1` rejected | Record the method-name mapping; treat unknown methods as `unknown_methods` |
+| provider-session `enabled_methods[].pattern` widening | Widening within the versioned capabilities change (`v1`→`v3`) | `v3` admits slash-containing/leading-punctuation method names that `v1` rejected | Record the method-name mapping; treat unknown methods as `unknown_methods` |
 | provider-session policy `version`/`epoch` min `0`→`1` | **Unversioned tightening** | Payloads with `0` become invalid under the same `$id` | Decision required (see Open questions) |
 | `hardening.encrypted_state` `const true` → `boolean` | Widening | Could weaken a naive consumer | Console keeps an independent retention guard |
 
