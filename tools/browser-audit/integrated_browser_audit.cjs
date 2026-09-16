@@ -253,6 +253,7 @@ async function run() {
     let approvalSecretCleared = false;
     let foreignRunDenied = false;
     let secondRunHistoryEmpty = false;
+    let expectedPolicyScopeDenials = 0;
     const sourceSha256 = 'a'.repeat(64);
     const targetSha256 = 'b'.repeat(64);
     const proposalSha256 = 'c'.repeat(64);
@@ -312,6 +313,11 @@ async function run() {
       game_effects: 0,
     });
     policyPage.on('request', (request) => policyBrowserUrls.push(request.url()));
+    policyPage.on('response', (response) => {
+      if (response.status() === 403 && new URL(response.url()).pathname.endsWith('/provider-session-policy')) {
+        expectedPolicyScopeDenials += 1;
+      }
+    });
     policyPage.on('console', (message) => { if (message.type() === 'error') policyConsoleErrors.push(message.text()); });
     policyPage.on('pageerror', (error) => policyPageErrors.push(String(error)));
     await policyPage.route(`${base}/v1/workflow-runs/${policyRunId}/provider-session-policy**`, async (route) => {
@@ -497,7 +503,8 @@ async function run() {
     assert.equal(await policyPage.locator('#policy-owner-token').inputValue(), '');
     assert.equal(await policyPage.locator('#policy-owner-run-id').inputValue(), '');
     assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), true);
-    assert.deepEqual(policyConsoleErrors, []);
+    assert.equal(expectedPolicyScopeDenials, 1);
+    assert.deepEqual(policyConsoleErrors.filter((error) => !/status of 403 \(Forbidden\)/.test(error)), []);
     assert.deepEqual(policyPageErrors, []);
     assert.equal(policyBrowserUrls.every((url) => !url.includes(policyToken) && !url.includes(foreignPolicyToken)), true);
     const policyStorage = await policyPage.evaluate(async () => ({
