@@ -11,6 +11,16 @@ import {
 } from "./api.js";
 import { loadBundle } from "./bundle.js";
 import {
+  PolicyOwnerError,
+  adoptImportedProviderSessionPolicy,
+  adoptProviderSessionPolicyProposal,
+  approveProviderSessionPolicy,
+  getProviderSessionPolicy,
+  importProviderSessionPolicy,
+  maxPolicyBytes,
+  proposeProviderSessionPolicy,
+} from "./policy-owner.js";
+import {
   consoleState,
   invalidatePreview,
   itemKey,
@@ -27,6 +37,8 @@ import {
 
 let approvedContinuationPreviewId;
 let commandCounter = 0;
+let policyOwnerSession;
+let policyOwnerGeneration = 0;
 
 function scopeForControl() {
   return consoleState.controlState && consoleState.controlState.scope;
@@ -139,6 +151,272 @@ async function loadProviderSessions() {
     document.querySelector("#session-panel").hidden = false;
     document.querySelector("#session-message").textContent = error instanceof Error ? error.message : "provider session boundary unavailable";
   }
+}
+
+function policyOwnerNode(tagName, text, className) {
+  const node = document.createElement(tagName);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function addPolicyOwnerFact(parent, label, value) {
+  const row = policyOwnerNode("div");
+  row.append(policyOwnerNode("dt", label), policyOwnerNode("dd", value));
+  parent.append(row);
+}
+
+function appendPolicyOption(select, value, label, disabled = false) {
+  const option = policyOwnerNode("option", label);
+  option.value = value;
+  option.disabled = disabled;
+  select.append(option);
+}
+
+function clearPolicyOwnerDraftInputs() {
+  document.querySelector("#policy-owner-import-file").value = "";
+  document.querySelector("#policy-owner-target-file").value = "";
+  document.querySelector("#policy-owner-proposal-id").value = "";
+  document.querySelector("#policy-owner-adopt-import").value = "";
+  document.querySelector("#policy-owner-source").value = "";
+  document.querySelectorAll("#policy-owner-proposals [data-approval-for]").forEach((input) => {
+    input.value = "";
+  });
+}
+
+function invalidatePolicyOwnerDisplay(badgeText, messageText) {
+  policyOwnerGeneration += 1;
+  policyOwnerSession = undefined;
+  document.querySelector("#policy-owner-content").hidden = true;
+  document.querySelector("#policy-owner-badge").textContent = badgeText;
+  const message = document.querySelector("#policy-owner-message");
+  message.dataset.state = "";
+  message.textContent = messageText;
+  clearPolicyOwnerDraftInputs();
+  document.querySelector("#policy-owner-active").replaceChildren();
+  document.querySelector("#policy-owner-history").replaceChildren();
+  document.querySelector("#policy-owner-proposals").replaceChildren();
+  document.querySelector("#policy-owner-revision").textContent = "";
+}
+
+function renderPolicyOwner(view) {
+  const active = document.querySelector("#policy-owner-active");
+  active.replaceChildren();
+  if (view.active) {
+    addPolicyOwnerFact(active, "Identity", `${view.active.policy_id}@${view.active.version}`);
+    addPolicyOwnerFact(active, "Digest", view.active.sha256);
+    addPolicyOwnerFact(active, "Mode and continuity", `${view.active.mode} · ${view.active.continuity}`);
+    addPolicyOwnerFact(active, "Limits", `${view.active.max_completed_turns} turns · ${view.active.history_ttl_seconds} seconds`);
+  } else {
+    active.append(policyOwnerNode("p", "No policy is currently adopted for this workflow run.", "muted"));
+  }
+  document.querySelector("#policy-owner-revision").textContent = `Workflow run ${view.run_id} · owner revision ${view.revision}`;
+
+  const history = document.querySelector("#policy-owner-history");
+  const adoptChoices = document.querySelector("#policy-owner-adopt-import");
+  const sourceChoices = document.querySelector("#policy-owner-source");
+  history.replaceChildren();
+  adoptChoices.replaceChildren();
+  sourceChoices.replaceChildren();
+  appendPolicyOption(adoptChoices, "", "Select an imported policy…");
+  appendPolicyOption(sourceChoices, "", "Select a source policy…");
+  for (const policy of view.history) {
+    const summary = `${policy.policy_id}@${policy.version} · ${policy.mode} · ${policy.continuity}`;
+    const row = policyOwnerNode("li");
+    row.append(policyOwnerNode("code", policy.sha256), document.createTextNode(` · ${summary}${policy.active ? " · active" : ""}`));
+    history.append(row);
+    appendPolicyOption(
+      adoptChoices,
+      policy.sha256,
+      `${summary} · ${policy.sha256.slice(0, 12)}…`,
+      policy.active,
+    );
+    appendPolicyOption(sourceChoices, policy.sha256, `${summary} · ${policy.sha256.slice(0, 12)}…`);
+  }
+  if (view.history.length === 0) history.append(policyOwnerNode("li", "No policy bytes have been imported."));
+
+  const proposals = document.querySelector("#policy-owner-proposals");
+  proposals.replaceChildren();
+  if (view.proposals.length === 0) {
+    proposals.append(policyOwnerNode("li", "No migration proposals have been recorded."));
+  }
+  for (const proposal of view.proposals) {
+    const row = policyOwnerNode("li");
+    row.append(policyOwnerNode("strong", `${proposal.proposal_id} · ${proposal.state}`));
+    row.append(policyOwnerNode("p", `Proposal ${proposal.proposal_sha256}`));
+    row.append(policyOwnerNode("p", `Source ${proposal.source_sha256} → target ${proposal.target_sha256}`));
+    row.append(policyOwnerNode(
+      "p",
+      `${proposal.approval_recorded ? "Approval recorded by owner." : "No approval recorded."}${proposal.adopted_policy_sha256 ? ` Adopted ${proposal.adopted_policy_sha256}.` : ""}`,
+    ));
+    if (proposal.state !== "adopted") {
+      const label = policyOwnerNode("label", `Approval reference for ${proposal.proposal_id}`);
+      const approval = document.createElement("input");
+      approval.type = "password";
+      approval.autocomplete = "off";
+      approval.maxLength = 128;
+      approval.dataset.approvalFor = proposal.proposal_id;
+      label.append(approval);
+      row.append(label);
+      const action = policyOwnerNode(
+        "button",
+        proposal.state === "proposed" ? "Record approval" : "Adopt approved proposal",
+      );
+      action.type = "button";
+      action.disabled = true;
+      approval.addEventListener("input", () => {
+        action.disabled = !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(approval.value);
+      });
+      action.addEventListener("click", () => {
+        const token = policyOwnerSession?.token;
+        const runId = policyOwnerSession?.runId;
+        if (!token || !runId || action.disabled) return;
+        const mutate = proposal.state === "proposed"
+          ? () => approveProviderSessionPolicy(runId, token, proposal.proposal_id, proposal.proposal_sha256, approval.value, policyOwnerSession.view.revision)
+          : () => adoptProviderSessionPolicyProposal(runId, token, proposal.proposal_id, proposal.proposal_sha256, approval.value, policyOwnerSession.view.revision);
+        void performPolicyOwnerCommand(
+          proposal.state === "proposed" ? "Proposal approval" : "Proposal adoption",
+          mutate,
+        );
+      });
+      row.append(action);
+    }
+    proposals.append(row);
+  }
+}
+
+async function refreshPolicyOwner(notice = "Current owner history loaded.") {
+  const generation = ++policyOwnerGeneration;
+  const runId = document.querySelector("#policy-owner-run-id").value;
+  const token = document.querySelector("#policy-owner-token").value;
+  const content = document.querySelector("#policy-owner-content");
+  const message = document.querySelector("#policy-owner-message");
+  const badge = document.querySelector("#policy-owner-badge");
+  content.hidden = true;
+  clearPolicyOwnerDraftInputs();
+  document.querySelector("#policy-owner-active").replaceChildren();
+  document.querySelector("#policy-owner-history").replaceChildren();
+  document.querySelector("#policy-owner-proposals").replaceChildren();
+  policyOwnerSession = undefined;
+  message.dataset.state = "";
+  message.textContent = "Loading current policy-owner metadata…";
+  try {
+    const response = await getProviderSessionPolicy(runId, token);
+    if (generation !== policyOwnerGeneration) return;
+    policyOwnerSession = { runId, token, view: response.value };
+    renderPolicyOwner(response.value);
+    content.hidden = false;
+    badge.textContent = "authenticated owner";
+    message.textContent = notice;
+  } catch (error) {
+    if (generation !== policyOwnerGeneration) return;
+    badge.textContent = "owner unavailable";
+    message.dataset.state = "error";
+    if (error instanceof PolicyOwnerError && error.status === 403) {
+      message.textContent = "Access denied. The owner token needs the scoped workflow grant for this request.";
+    } else if (error instanceof PolicyOwnerError && error.status === 409) {
+      message.textContent = "Owner state changed or the run does not match. Refresh and verify the workflow run ID.";
+    } else if (error instanceof PolicyOwnerError && error.status === 404) {
+      message.textContent = "The workflow run or saved-policy owner is unavailable.";
+    } else {
+      message.textContent = error instanceof PolicyOwnerError && error.status === 400
+        ? error.message
+        : "Could not load the authenticated saved-policy owner. No local policy history is substituted.";
+    }
+  }
+}
+
+async function performPolicyOwnerCommand(label, action) {
+  const generation = policyOwnerGeneration;
+  const message = document.querySelector("#policy-owner-message");
+  message.dataset.state = "";
+  message.textContent = `${label} is being submitted with the current owner revision…`;
+  try {
+    const result = await action();
+    if (generation !== policyOwnerGeneration) return;
+    await refreshPolicyOwner(`${label} recorded at owner revision ${result.revision}. Approval references were cleared; re-enter one before a later approval or adoption.`);
+  } catch (error) {
+    if (generation !== policyOwnerGeneration) return;
+    message.dataset.state = "error";
+    if (error instanceof PolicyOwnerError && error.status === 403) {
+      message.textContent = "Access denied. Check workflow:control and, for uploaded policy files, workflow:content:write.";
+    } else if (error instanceof PolicyOwnerError && error.status === 409) {
+      message.textContent = "The owner rejected a stale or conflicting change. Reload owner history before trying again.";
+    } else if (error instanceof PolicyOwnerError && error.status === 400) {
+      message.textContent = error.message;
+    } else {
+      message.textContent = `${label} could not be confirmed. Refresh owner history before retrying.`;
+    }
+  }
+}
+
+async function submitPolicyOwnerImport(event) {
+  event.preventDefault();
+  if (!policyOwnerSession) return;
+  const file = document.querySelector("#policy-owner-import-file").files?.[0];
+  if (!file || file.size === 0 || file.size > maxPolicyBytes
+    || !(file.type === "application/json" || file.name.toLowerCase().endsWith(".json"))) {
+    document.querySelector("#policy-owner-message").textContent = `Choose a non-empty JSON file no larger than ${maxPolicyBytes} bytes.`;
+    return;
+  }
+  const { runId, token, view } = policyOwnerSession;
+  await performPolicyOwnerCommand("Policy import", async () =>
+    importProviderSessionPolicy(runId, token, view.revision, await file.arrayBuffer()));
+}
+
+async function submitPolicyOwnerProposal(event) {
+  event.preventDefault();
+  if (!policyOwnerSession) return;
+  const file = document.querySelector("#policy-owner-target-file").files?.[0];
+  if (!file || file.size === 0 || file.size > maxPolicyBytes
+    || !(file.type === "application/json" || file.name.toLowerCase().endsWith(".json"))) {
+    document.querySelector("#policy-owner-message").textContent = `Choose a non-empty JSON file no larger than ${maxPolicyBytes} bytes.`;
+    return;
+  }
+  const sourceSha256 = document.querySelector("#policy-owner-source").value;
+  const proposalId = document.querySelector("#policy-owner-proposal-id").value;
+  const { runId, token, view } = policyOwnerSession;
+  await performPolicyOwnerCommand("Migration proposal", async () =>
+    proposeProviderSessionPolicy(runId, token, proposalId, sourceSha256, view.revision, await file.arrayBuffer()));
+}
+
+function wirePolicyOwner() {
+  document.querySelector("#policy-owner-connect-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    void refreshPolicyOwner();
+  });
+  for (const selector of ["#policy-owner-run-id", "#policy-owner-token"]) {
+    document.querySelector(selector).addEventListener("input", () => {
+      invalidatePolicyOwnerDisplay(
+        "owner selection changed",
+        "Workflow run or owner token changed. Refresh to load the scoped policy history.",
+      );
+    });
+  }
+  document.querySelector("#policy-owner-clear").addEventListener("click", () => {
+    document.querySelector("#policy-owner-token").value = "";
+    document.querySelector("#policy-owner-run-id").value = "";
+    invalidatePolicyOwnerDisplay(
+      "credentials cleared",
+      "Owner credentials and visible policy selections were cleared from this tab.",
+    );
+  });
+  document.querySelector("#policy-owner-import-form").addEventListener("submit", (event) => {
+    void submitPolicyOwnerImport(event);
+  });
+  document.querySelector("#policy-owner-propose-form").addEventListener("submit", (event) => {
+    void submitPolicyOwnerProposal(event);
+  });
+  document.querySelector("#policy-owner-adopt-import-button").addEventListener("click", () => {
+    if (!policyOwnerSession) return;
+    const policySha256 = document.querySelector("#policy-owner-adopt-import").value;
+    const { runId, token, view } = policyOwnerSession;
+    void performPolicyOwnerCommand("Initial policy adoption", () =>
+      adoptImportedProviderSessionPolicy(runId, token, policySha256, view.revision));
+  });
+  document.querySelector("#policy-owner-adopt-import").addEventListener("change", (event) => {
+    document.querySelector("#policy-owner-adopt-import-button").disabled = event.target.value.length === 0;
+  });
 }
 
 async function refreshControl() {
@@ -313,6 +591,7 @@ async function loadFixture() {
   await loadProviderSessions();
 }
 
+wirePolicyOwner();
 loadFixture().catch((error) => {
   showError(error instanceof Error ? error.message : "bundle could not be read");
 });

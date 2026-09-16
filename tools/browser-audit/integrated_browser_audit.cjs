@@ -61,6 +61,10 @@ async function stopServer(child) {
 }
 
 async function run() {
+  execFileSync(process.execPath, ['--test', path.join(__dirname, 'policy-owner-client.test.cjs')], {
+    cwd: root,
+    stdio: 'inherit',
+  });
   const child = spawn(
     prebuiltBinary || 'cargo',
     prebuiltBinary
@@ -237,6 +241,364 @@ async function run() {
     assert.deepEqual(stateRequests.filter((url) => !url.startsWith(base)), []);
     await statePage.close();
 
+    const policyPage = await context.newPage();
+    const policyRequests = [];
+    const policyBrowserUrls = [];
+    const policyConsoleErrors = [];
+    const policyPageErrors = [];
+    const policyRunId = 'run.live.console-fixture';
+    const policyForeignRunId = 'run.foreign.console-fixture';
+    const policyRaceOldRunId = 'run.race.old';
+    const policyRaceNewRunId = 'run.race.new';
+    const policyRaceClearRunId = 'run.race.clear';
+    const policyToken = 'fixture-policy-owner-token';
+    const foreignPolicyToken = 'fixture-foreign-policy-owner-token';
+    const policyRaceOldToken = 'fixture-policy-owner-old-token';
+    const policyRaceNewToken = 'fixture-policy-owner-new-token';
+    const policyRaceClearToken = 'fixture-policy-owner-clear-token';
+    let releaseOldRaceGet;
+    let releaseClearRaceGet;
+    const oldRaceGate = new Promise((resolve) => { releaseOldRaceGet = resolve; });
+    const clearRaceGate = new Promise((resolve) => { releaseClearRaceGet = resolve; });
+    let approvalSecretCleared = false;
+    let foreignRunDenied = false;
+    let secondRunHistoryEmpty = false;
+    let expectedPolicyScopeDenials = 0;
+    const sourceSha256 = 'a'.repeat(64);
+    const targetSha256 = 'b'.repeat(64);
+    const proposalSha256 = 'c'.repeat(64);
+    const policyView = {
+      schema_version: 'ascension.provider-session.policy-owner-view.v1',
+      operation: 'current',
+      value: { run_id: policyRunId, revision: 1, active: null, history: [], proposals: [] },
+      effect_class: 'local_metadata_only',
+      inference_calls: 0,
+      game_effects: 0,
+    };
+    const activeTarget = {
+      sha256: targetSha256,
+      policy_id: 'policy-console-fixture',
+      version: 2,
+      mode: 'inspect_only',
+      continuity: 'strict_reviewed',
+      max_completed_turns: 4,
+      history_ttl_seconds: 60,
+      epoch: 2,
+    };
+    const historySource = {
+      sha256: sourceSha256,
+      policy_id: 'policy-console-fixture',
+      version: 1,
+      mode: 'inspect_only',
+      continuity: 'strict_reviewed',
+      active: false,
+    };
+    const historyTarget = {
+      sha256: targetSha256,
+      policy_id: 'policy-console-fixture',
+      version: 2,
+      mode: 'inspect_only',
+      continuity: 'strict_reviewed',
+      active: false,
+    };
+    const proposalView = {
+      proposal_id: 'proposal-console',
+      proposal_sha256: proposalSha256,
+      source_sha256: sourceSha256,
+      target_sha256: targetSha256,
+      state: 'proposed',
+      approval_recorded: false,
+      adopted_policy_sha256: null,
+    };
+    const respondJson = (route, value, status = 200) =>
+      route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
+    const commandResponse = (operation, revision, policySha = null, proposalSha = null) => ({
+      schema_version: 'ascension.provider-session.policy-owner-command.v1',
+      operation,
+      revision,
+      policy_sha256: policySha,
+      proposal_sha256: proposalSha,
+      effect_class: 'local_metadata_only',
+      inference_calls: 0,
+      game_effects: 0,
+    });
+    policyPage.on('request', (request) => policyBrowserUrls.push(request.url()));
+    policyPage.on('response', (response) => {
+      if (response.status() === 403 && new URL(response.url()).pathname.endsWith('/provider-session-policy')) {
+        expectedPolicyScopeDenials += 1;
+      }
+    });
+    policyPage.on('console', (message) => { if (message.type() === 'error') policyConsoleErrors.push(message.text()); });
+    policyPage.on('pageerror', (error) => policyPageErrors.push(String(error)));
+    await policyPage.route(`${base}/v1/workflow-runs/${policyRunId}/provider-session-policy**`, async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const pathname = url.pathname;
+      assert.equal(url.origin, base, 'saved-policy requests must stay same-origin');
+      assert.equal(request.headers().authorization, `Bearer ${policyToken}`, 'owner token must be sent in the authorization header');
+      assert.equal(url.search.includes(policyToken), false, 'owner token must never appear in the URL');
+      policyRequests.push(`${request.method()} ${pathname}${url.search}`);
+      if (request.method() === 'GET' && pathname.endsWith('/provider-session-policy')) {
+        return respondJson(route, policyView);
+      }
+      const body = request.postDataBuffer();
+      if (request.method() !== 'POST' || !body) return respondJson(route, { error: { code: 'not_found' } }, 404);
+      if (pathname.endsWith('/provider-session-policy/import')) {
+        assert.equal(url.searchParams.get('expected_revision'), '1');
+        assert.deepEqual(body, Buffer.from('{\n  "policy_id": "policy-console-fixture",\n  "version": 1\n}\n'));
+        policyView.value.revision = 2;
+        policyView.value.history = [historySource];
+        return respondJson(route, commandResponse('import', 2, sourceSha256));
+      }
+      if (pathname.endsWith('/provider-session-policy/adoptions')) {
+        assert.equal(url.searchParams.get('expected_revision'), '2');
+        assert.deepEqual(JSON.parse(body.toString()), {
+          schema_version: 'ascension.provider-session.policy-owner-command.v1',
+          policy_sha256: sourceSha256,
+        });
+        policyView.value.revision = 3;
+        policyView.value.active = { ...activeTarget, sha256: sourceSha256, version: 1, epoch: 1 };
+        policyView.value.history = [{ ...historySource, active: true }];
+        return respondJson(route, commandResponse('adopt', 3, sourceSha256));
+      }
+      if (pathname.endsWith('/provider-session-policy/proposals/proposal-console')) {
+        assert.equal(url.searchParams.get('source_sha256'), sourceSha256);
+        assert.equal(url.searchParams.get('expected_revision'), '3');
+        assert.deepEqual(body, Buffer.from('{\n  "policy_id": "policy-console-fixture",\n  "version": 2\n}\n'));
+        policyView.value.revision = 4;
+        policyView.value.history = [policyView.value.history[0], historyTarget];
+        policyView.value.proposals = [{ ...proposalView }];
+        return respondJson(route, commandResponse('propose', 4, null, proposalSha256));
+      }
+      if (pathname.endsWith('/provider-session-policy/proposals/proposal-console/approve')) {
+        assert.equal(url.searchParams.get('expected_revision'), '4');
+        assert.deepEqual(JSON.parse(body.toString()), {
+          schema_version: 'ascension.provider-session.policy-owner-command.v1',
+          proposal_sha256: proposalSha256,
+          approval_ref: 'approval-console',
+        });
+        policyView.value.revision = 5;
+        policyView.value.proposals = [{ ...proposalView, state: 'approved', approval_recorded: true }];
+        return respondJson(route, commandResponse('approve', 5));
+      }
+      if (pathname.endsWith('/provider-session-policy/proposals/proposal-console/adopt')) {
+        assert.equal(url.searchParams.get('expected_revision'), '5');
+        assert.deepEqual(JSON.parse(body.toString()), {
+          schema_version: 'ascension.provider-session.policy-owner-command.v1',
+          proposal_sha256: proposalSha256,
+          approval_ref: 'approval-console',
+        });
+        policyView.value.revision = 6;
+        policyView.value.active = activeTarget;
+        policyView.value.history = [
+          { ...historySource, active: false },
+          { ...historyTarget, active: true },
+        ];
+        policyView.value.proposals = [{
+          ...proposalView,
+          state: 'adopted',
+          approval_recorded: true,
+          adopted_policy_sha256: targetSha256,
+        }];
+        return respondJson(route, commandResponse('adopt', 6, targetSha256));
+      }
+      return respondJson(route, { error: { code: 'not_found' } }, 404);
+    });
+    await policyPage.route(`${base}/v1/workflow-runs/${policyForeignRunId}/provider-session-policy**`, async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      assert.equal(url.origin, base, 'saved-policy requests must stay same-origin');
+      assert.equal(url.search.includes(policyToken), false, 'owner token must never appear in the URL');
+      assert.equal(url.search.includes(foreignPolicyToken), false, 'owner token must never appear in the URL');
+      policyRequests.push(`${request.method()} ${url.pathname}${url.search}`);
+      if (request.headers().authorization === `Bearer ${policyToken}`) {
+        return respondJson(route, { error: { code: 'workflow_run_scope_denied' } }, 403);
+      }
+      assert.equal(request.headers().authorization, `Bearer ${foreignPolicyToken}`);
+      assert.equal(request.method(), 'GET');
+      return respondJson(route, {
+        schema_version: 'ascension.provider-session.policy-owner-view.v1',
+        operation: 'current',
+        value: { run_id: policyForeignRunId, revision: 1, active: null, history: [], proposals: [] },
+        effect_class: 'local_metadata_only',
+        inference_calls: 0,
+        game_effects: 0,
+      });
+    });
+    const raceView = (runId, revision) => ({
+      schema_version: 'ascension.provider-session.policy-owner-view.v1',
+      operation: 'current',
+      value: { run_id: runId, revision, active: null, history: [], proposals: [] },
+      effect_class: 'local_metadata_only',
+      inference_calls: 0,
+      game_effects: 0,
+    });
+    await policyPage.route(`${base}/v1/workflow-runs/${policyRaceOldRunId}/provider-session-policy**`, async (route) => {
+      assert.equal(route.request().headers().authorization, `Bearer ${policyRaceOldToken}`);
+      await oldRaceGate;
+      await respondJson(route, raceView(policyRaceOldRunId, 77));
+    });
+    await policyPage.route(`${base}/v1/workflow-runs/${policyRaceNewRunId}/provider-session-policy**`, async (route) => {
+      assert.equal(route.request().headers().authorization, `Bearer ${policyRaceNewToken}`);
+      return respondJson(route, raceView(policyRaceNewRunId, 55));
+    });
+    await policyPage.route(`${base}/v1/workflow-runs/${policyRaceClearRunId}/provider-session-policy**`, async (route) => {
+      assert.equal(route.request().headers().authorization, `Bearer ${policyRaceClearToken}`);
+      await clearRaceGate;
+      await respondJson(route, raceView(policyRaceClearRunId, 88));
+    });
+    await policyPage.goto('/web/', { waitUntil: 'networkidle' });
+    await policyPage.locator('#policy-owner-run-id').fill(policyRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyToken);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 1'));
+    const sourceBytes = Buffer.from('{\n  "policy_id": "policy-console-fixture",\n  "version": 1\n}\n');
+    await policyPage.locator('#policy-owner-import-file').setInputFiles({
+      name: 'source-policy.json',
+      mimeType: 'application/json',
+      buffer: sourceBytes,
+    });
+    await policyPage.locator('#policy-owner-import').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 2'));
+    await policyPage.locator('#policy-owner-adopt-import').selectOption(sourceSha256);
+    await policyPage.locator('#policy-owner-adopt-import-button').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 3'));
+    await policyPage.locator('#policy-owner-source').selectOption(sourceSha256);
+    await policyPage.locator('#policy-owner-proposal-id').fill('proposal-console');
+    const targetBytes = Buffer.from('{\n  "policy_id": "policy-console-fixture",\n  "version": 2\n}\n');
+    await policyPage.locator('#policy-owner-target-file').setInputFiles({
+      name: 'target-policy.json',
+      mimeType: 'application/json',
+      buffer: targetBytes,
+    });
+    await policyPage.locator('#policy-owner-propose').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 4'));
+    const proposalRow = policyPage.locator('#policy-owner-proposals li').first();
+    const approvalInput = await proposalRow.locator('input').elementHandle();
+    await approvalInput.fill('approval-cleared-on-reset');
+    await policyPage.locator('#policy-owner-clear').click();
+    assert.equal(await policyPage.locator('#policy-owner-token').inputValue(), '');
+    assert.equal(await policyPage.locator('#policy-owner-run-id').inputValue(), '');
+    assert.equal(await approvalInput.evaluate((input) => input.value), '');
+    approvalSecretCleared = true;
+    await approvalInput.dispose();
+    assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), true);
+    await policyPage.locator('#policy-owner-run-id').fill(policyRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyToken);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 4'));
+    const refreshedProposalRow = policyPage.locator('#policy-owner-proposals li').first();
+    await refreshedProposalRow.locator('input').fill('approval-console');
+    await refreshedProposalRow.locator('button').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 5'));
+    const approvedProposalRow = policyPage.locator('#policy-owner-proposals li').first();
+    await approvedProposalRow.locator('input').fill('approval-console');
+    await approvedProposalRow.locator('button').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 6'));
+    assert.match(await policyPage.locator('#policy-owner-active').textContent(), /policy-console-fixture@2/);
+    assert.match(await policyPage.locator('#policy-owner-proposals').textContent(), /proposal-console · adopted/);
+    assert.deepEqual(policyConsoleErrors, []);
+    assert.deepEqual(policyPageErrors, []);
+    assert.equal(policyRequests.length, 12);
+    assert.equal(policyBrowserUrls.every((url) => url.startsWith(base)), true);
+    assert.equal(policyBrowserUrls.some((url) => url.includes(policyToken)), false);
+
+    await policyPage.locator('#policy-owner-run-id').fill(policyForeignRunId);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-message').textContent.includes('Access denied'));
+    assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), true);
+    assert.equal(await policyPage.locator('#policy-owner-active').textContent(), '');
+    assert.equal(await policyPage.locator('#policy-owner-history').textContent(), '');
+    assert.equal(await policyPage.locator('#policy-owner-proposals').textContent(), '');
+    assert.match(await policyPage.locator('#policy-owner-message').textContent(), /Access denied/);
+    foreignRunDenied = true;
+    await policyPage.locator('#policy-owner-token').fill(foreignPolicyToken);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.endsWith('owner revision 1'));
+    assert.match(await policyPage.locator('#policy-owner-active').textContent(), /No policy is currently adopted/);
+    assert.equal(await policyPage.locator('#policy-owner-history li').count(), 1);
+    assert.match(await policyPage.locator('#policy-owner-history').textContent(), /No policy bytes have been imported/);
+    assert.equal(await policyPage.locator('#policy-owner-proposals li').count(), 1);
+    assert.match(await policyPage.locator('#policy-owner-proposals').textContent(), /No migration proposals have been recorded/);
+    secondRunHistoryEmpty = true;
+    await policyPage.locator('#policy-owner-clear').click();
+    assert.equal(policyRequests.length, 14);
+    assert.equal(await policyPage.locator('#policy-owner-token').inputValue(), '');
+    assert.equal(await policyPage.locator('#policy-owner-run-id').inputValue(), '');
+    assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), true);
+    assert.equal(expectedPolicyScopeDenials, 1);
+    assert.deepEqual(policyConsoleErrors.filter((error) => !/status of 403 \(Forbidden\)/.test(error)), []);
+    assert.deepEqual(policyPageErrors, []);
+    assert.equal(policyBrowserUrls.every((url) => !url.includes(policyToken) && !url.includes(foreignPolicyToken)), true);
+
+    await policyPage.locator('#policy-owner-run-id').fill(policyRaceOldRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyRaceOldToken);
+    const oldRequest = policyPage.waitForRequest((request) =>
+      new URL(request.url()).pathname === `/v1/workflow-runs/${policyRaceOldRunId}/provider-session-policy`);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await oldRequest;
+    await policyPage.locator('#policy-owner-run-id').fill(policyRaceNewRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyRaceNewToken);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await policyPage.waitForFunction(
+      (runId) => document.querySelector('#policy-owner-revision').textContent.includes(`${runId} · owner revision 55`),
+      policyRaceNewRunId,
+    );
+    const oldResponse = policyPage.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/v1/workflow-runs/${policyRaceOldRunId}/provider-session-policy`);
+    releaseOldRaceGet();
+    await oldResponse;
+    await policyPage.waitForTimeout(25);
+    assert.match(await policyPage.locator('#policy-owner-revision').textContent(), /run\.race\.new · owner revision 55/);
+    assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), false);
+
+    await policyPage.locator('#policy-owner-run-id').fill(policyRaceClearRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyRaceClearToken);
+    const clearRequest = policyPage.waitForRequest((request) =>
+      new URL(request.url()).pathname === `/v1/workflow-runs/${policyRaceClearRunId}/provider-session-policy`);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await clearRequest;
+    const clearResponse = policyPage.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/v1/workflow-runs/${policyRaceClearRunId}/provider-session-policy`);
+    await policyPage.locator('#policy-owner-clear').click();
+    releaseClearRaceGet();
+    await clearResponse;
+    await policyPage.waitForTimeout(25);
+    assert.equal(await policyPage.locator('#policy-owner-token').inputValue(), '');
+    assert.equal(await policyPage.locator('#policy-owner-run-id').inputValue(), '');
+    assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), true);
+    assert.equal(await policyPage.locator('#policy-owner-revision').textContent(), '');
+    assert.match(await policyPage.locator('#policy-owner-message').textContent(), /cleared from this tab/);
+
+    assert.equal(policyBrowserUrls.every((url) => ![
+      policyToken,
+      foreignPolicyToken,
+      policyRaceOldToken,
+      policyRaceNewToken,
+      policyRaceClearToken,
+    ].some((token) => url.includes(token))), true);
+    assert.deepEqual(policyPageErrors, []);
+    const policyStorage = await policyPage.evaluate(async () => ({
+      localStorageEntries: localStorage.length,
+      sessionStorageEntries: sessionStorage.length,
+      indexedDbDatabases: typeof indexedDB.databases === 'function' ? (await indexedDB.databases()).length : 0,
+      cacheNames: await caches.keys(),
+    }));
+    assert.equal(policyStorage.localStorageEntries, 0);
+    assert.equal(policyStorage.sessionStorageEntries, 0);
+    assert.equal(policyStorage.indexedDbDatabases, 0);
+    assert.deepEqual(policyStorage.cacheNames, []);
+    await policyPage.close();
+
     const desktopPath = path.join(evidenceDir, 'integrated-browser-desktop.png');
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: desktopPath, fullPage: true });
@@ -294,7 +656,7 @@ async function run() {
       evidence_id: `INTEGRATED-BROWSER-${completedAt}`,
       completed_at: completedAt,
       requirement_ids: ['P1-025', 'P1-031', 'P1-032', 'P1-033', 'R04-001', 'R04-010', 'R04-060'],
-      case_ids: ['INTEGRATED-NORMAL-001', 'INTEGRATED-ADVERSARIAL-001', 'INTEGRATED-MANIFEST-PATH-001', 'PHASE4-SESSION-001'],
+      case_ids: ['INTEGRATED-NORMAL-001', 'INTEGRATED-ADVERSARIAL-001', 'INTEGRATED-MANIFEST-PATH-001', 'PHASE4-SESSION-001', 'POLICY-OWNER-CURRENT-001'],
       repository: {
         name: 'AI-Ascension/ascension-context-console',
         branch: require('node:child_process').execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -364,6 +726,27 @@ async function run() {
         game_effects: 0,
         rendered_operation_states: renderedStates,
       },
+      provider_session_saved_policy: {
+        workflow_run_id: policyRunId,
+        owner_requests: policyRequests.length,
+        authorization_header_only: true,
+        exact_source_bytes_uploaded: true,
+        exact_target_bytes_uploaded: true,
+        initial_adoption: true,
+        proposal_approval_adoption: true,
+        adopted_policy_rendered: true,
+        credentials_cleared: true,
+        approval_reference_cleared_on_reset: approvalSecretCleared,
+        foreign_run_denied_without_stale_view: foreignRunDenied,
+        switched_run_loaded_with_empty_history: secondRunHistoryEmpty,
+        browser_storage_empty: policyStorage.localStorageEntries === 0
+          && policyStorage.sessionStorageEntries === 0
+          && policyStorage.indexedDbDatabases === 0
+          && policyStorage.cacheNames.length === 0,
+        inference_calls: 0,
+        game_effects: 0,
+        evidence_class: 'synthetic_contract_fixture',
+      },
       integration_metrics: metrics,
       source_artifacts: [
         { path: 'crates/context-service/src/demo/mod.rs', sha256: sha256(path.join(root, 'crates/context-service/src/demo/mod.rs')) },
@@ -377,6 +760,7 @@ async function run() {
         { path: 'web/js/app.js', sha256: sha256(path.join(root, 'web', 'js', 'app.js')) },
         { path: 'web/js/api.js', sha256: sha256(path.join(root, 'web', 'js', 'api.js')) },
         { path: 'web/js/bundle.js', sha256: sha256(path.join(root, 'web', 'js', 'bundle.js')) },
+        { path: 'web/js/policy-owner.js', sha256: sha256(path.join(root, 'web', 'js', 'policy-owner.js')) },
         { path: 'web/js/render.js', sha256: sha256(path.join(root, 'web', 'js', 'render.js')) },
         { path: 'fixtures/valid/snapshot-metadata.json', sha256: sha256(path.join(root, 'fixtures', 'valid', 'snapshot-metadata.json')) },
         { path: 'fixtures/valid/snapshot-cli.json', sha256: sha256(path.join(root, 'fixtures', 'valid', 'snapshot-cli.json')) },
@@ -406,6 +790,15 @@ async function run() {
         phase4_session_fixture: true,
         phase4_csrf_denied: deniedSessionWrite === 403,
         phase4_async_states_distinct: new Set(renderedStates).size === 4,
+        saved_policy_operator_journey: policyView.value.revision === 6
+          && policyView.value.active.sha256 === targetSha256
+          && policyView.value.proposals[0].state === 'adopted'
+          && policyRequests.length === 14
+          && policyBrowserUrls.every((url) => url.startsWith(base))
+          && policyBrowserUrls.every((url) => !url.includes(policyToken) && !url.includes(foreignPolicyToken))
+          && approvalSecretCleared
+          && foreignRunDenied
+          && secondRunHistoryEmpty,
       },
       artifacts: [
         { path: desktopPath, sha256: sha256(desktopPath) },

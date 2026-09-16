@@ -45,10 +45,24 @@ fn checked_in_review_assets_are_non_empty() {
         fixtures::WEB_APP,
         fixtures::WEB_API,
         fixtures::WEB_BUNDLE,
+        fixtures::WEB_POLICY_OWNER,
         fixtures::WEB_RENDER,
     ] {
         assert!(!asset.is_empty());
     }
+}
+
+#[test]
+fn policy_owner_module_is_served_from_the_review_surface() {
+    let mut state = DemoState::build(0).expect("demo state");
+    let response = state.dispatch(&get("/web/js/policy-owner.js"));
+    assert_eq!(response.status, 200);
+    assert_eq!(response.body, fixtures::WEB_POLICY_OWNER);
+    assert!(
+        response.headers.iter().any(
+            |(name, value)| name == "Content-Type" && value == "text/javascript; charset=utf-8"
+        )
+    );
 }
 
 #[test]
