@@ -474,6 +474,8 @@ async function run() {
 
     await policyPage.locator('#policy-owner-run-id').fill(policyForeignRunId);
     await policyPage.locator('#policy-owner-refresh').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-message').textContent.includes('Access denied'));
     assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), true);
     assert.equal(await policyPage.locator('#policy-owner-active').textContent(), '');
     assert.equal(await policyPage.locator('#policy-owner-history').textContent(), '');
