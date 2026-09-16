@@ -3,3 +3,4 @@
 .context-console/
 /phase1-preflight-current/
 /tools/browser-audit/node_modules/
+tools/provider-policy-production-fixture/target/

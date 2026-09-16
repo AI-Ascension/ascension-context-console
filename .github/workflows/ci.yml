@@ -86,3 +86,102 @@ jobs:
           path: ${{ runner.temp }}/context-browser-audit
           if-no-files-found: error
           retention-days: 14
+
+  production-policy-browser:
+    name: Production served policy browser journey
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Check out Console
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read immutable production test pins
+        id: owner
+        run: |
+          jq -e '.repository == "AI-Ascension/sts2-harness" and
+            (.revision | test("^[0-9a-f]{40}$")) and
+            .gateway_repository == "AI-Ascension/sts2-gateway" and
+            (.gateway_revision | test("^[0-9a-f]{40}$")) and
+            .mcp_repository == "AI-Ascension/sts2-mcp-server" and
+            (.mcp_revision | test("^[0-9a-f]{40}$"))' contracts/live-owner-browser.lock.json > /dev/null
+          echo "revision=$(jq -r .revision contracts/live-owner-browser.lock.json)" >> "$GITHUB_OUTPUT"
+          echo "gateway_revision=$(jq -r .gateway_revision contracts/live-owner-browser.lock.json)" >> "$GITHUB_OUTPUT"
+          echo "mcp_revision=$(jq -r .mcp_revision contracts/live-owner-browser.lock.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out pinned Harness owner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AI-Ascension/sts2-harness
+          ref: ${{ steps.owner.outputs.revision }}
+          path: harness
+          persist-credentials: false
+
+      - name: Check out pinned Gateway
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AI-Ascension/sts2-gateway
+          ref: ${{ steps.owner.outputs.gateway_revision }}
+          path: gateway
+          persist-credentials: false
+
+      - name: Check out pinned MCP server
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AI-Ascension/sts2-mcp-server
+          ref: ${{ steps.owner.outputs.mcp_revision }}
+          path: mcp
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --no-self-update
+
+      - name: Install pinned Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.16.0'
+          cache: npm
+          cache-dependency-path: tools/browser-audit/package-lock.json
+
+      - name: Install Playwright and browser engines
+        working-directory: tools/browser-audit
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox webkit
+
+      - name: Build the Context Console demo host
+        run: cargo build --locked --jobs 2 --package context-service --bin context-console
+
+      - name: Build the pinned Harness production service
+        working-directory: harness
+        run: cargo build --locked --jobs 2 --bin sts2-harness-runtime
+
+      - name: Build the pinned Gateway process
+        working-directory: gateway
+        run: cargo build --locked --jobs 2 --bin sts2-gateway-runtime
+
+      - name: Build the pinned MCP process
+        working-directory: mcp
+        run: cargo build --locked --jobs 2 --bin sts2-mcp-server
+
+      - name: Build the policy journal fixture helper
+        working-directory: harness
+        run: cargo build --locked --jobs 2 --manifest-path ../tools/provider-policy-production-fixture/Cargo.toml
+
+      - name: Exercise Console against production served owner routes
+        working-directory: tools/browser-audit
+        env:
+          CONSOLE_POLICY_HARNESS_ROOT: ${{ github.workspace }}/harness
+          CONSOLE_POLICY_GATEWAY_ROOT: ${{ github.workspace }}/gateway
+          CONSOLE_POLICY_MCP_ROOT: ${{ github.workspace }}/mcp
+          CONSOLE_POLICY_FIXTURE_BINARY: ${{ github.workspace }}/tools/provider-policy-production-fixture/target/debug/console-provider-policy-production-fixture
+          CONSOLE_POLICY_HARNESS_RUNTIME_BINARY: ${{ github.workspace }}/harness/target/debug/sts2-harness-runtime
+          CONSOLE_POLICY_GATEWAY_BINARY: ${{ github.workspace }}/gateway/target/debug/sts2-gateway-runtime
+          CONSOLE_POLICY_MCP_BINARY: ${{ github.workspace }}/mcp/target/debug/sts2-mcp-server
+          CONTEXT_CONSOLE_BIN: ${{ github.workspace }}/target/debug/context-console
+        run: npm run audit:production-policy
