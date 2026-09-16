@@ -5,6 +5,10 @@ Read-only Playwright audit for the Context Console web surface. It starts the lo
 adversarial (markup injection), and manifest path-rejection flows. It writes screenshots and a
 JSON evidence file in a newly created temporary directory, or in the explicit
 `CONTEXT_BROWSER_AUDIT_OUT` directory. Historical `docs/evidence/` files are not overwritten.
+The saved-policy journey runs in a separate browser page against a strict synthetic contract
+fixture for the same-origin Harness routes. It checks the authenticated request shape, exact
+uploaded bytes, initial adoption, proposal approval and adoption. It does not establish that a
+deployment routes those paths to a live Harness owner.
 
 ## Usage
 

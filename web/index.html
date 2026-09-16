@@ -134,6 +134,70 @@
         <pre id="session-methods" class="preview-diff" tabindex="0">Methods unavailable.</pre>
       </section>
 
+      <section id="policy-owner-panel" class="panel" aria-labelledby="policy-owner-title">
+        <div class="section-heading">
+          <h2 id="policy-owner-title">Saved provider-session policies</h2>
+          <span id="policy-owner-badge" class="badge">owner connection required</span>
+        </div>
+        <p class="muted">This workflow-run owner stores the policy bytes and adoption history. Console shows redacted metadata. Policy changes do not start inference or game actions; approval and adoption are separate owner-checked commands.</p>
+        <form id="policy-owner-connect-form" class="memory-search">
+          <label for="policy-owner-run-id">Workflow run ID</label>
+          <input id="policy-owner-run-id" name="run_id" maxlength="128" autocomplete="off" placeholder="workflow.run.123" required>
+          <label for="policy-owner-token">Workflow owner bearer token</label>
+          <input id="policy-owner-token" name="token" type="password" maxlength="4096" autocomplete="off" required>
+          <div class="button-row">
+            <button id="policy-owner-refresh" type="submit">Load owner history</button>
+            <button id="policy-owner-clear" type="button">Clear credentials</button>
+          </div>
+        </form>
+        <p class="field-help">The token and approval references stay in this tab’s memory and are sent only in authenticated request headers or command bodies. Reads need <code>workflow:read</code>; changes need <code>workflow:control</code>; imports and target uploads also need <code>workflow:content:write</code>. Requests use same-origin <code>/v1/workflow-runs/…</code> routes only.</p>
+        <p id="policy-owner-message" class="callout" role="status">Connect to an authenticated workflow policy owner to load its current history.</p>
+        <div id="policy-owner-content" hidden>
+          <p id="policy-owner-revision" class="muted"></p>
+          <section aria-labelledby="policy-owner-active-title">
+            <h3 id="policy-owner-active-title">Current adopted policy</h3>
+            <div id="policy-owner-active" class="facts"></div>
+          </section>
+          <section aria-labelledby="policy-owner-import-title">
+            <h3 id="policy-owner-import-title">Import and initial adoption</h3>
+            <form id="policy-owner-import-form" class="memory-search">
+              <label for="policy-owner-import-file">Policy JSON file (maximum 1 MiB)</label>
+              <input id="policy-owner-import-file" type="file" accept="application/json,.json" required>
+              <button id="policy-owner-import" type="submit">Import exact file bytes</button>
+            </form>
+            <div class="button-row">
+              <label for="policy-owner-adopt-import">Imported policy</label>
+              <select id="policy-owner-adopt-import">
+                <option value="">Select an imported policy…</option>
+              </select>
+              <button id="policy-owner-adopt-import-button" type="button" disabled>Adopt imported policy</button>
+            </div>
+          </section>
+          <section aria-labelledby="policy-owner-propose-title">
+            <h3 id="policy-owner-propose-title">Propose a migration</h3>
+            <form id="policy-owner-propose-form" class="memory-search">
+              <label for="policy-owner-source">Saved source policy</label>
+              <select id="policy-owner-source" required>
+                <option value="">Select a source policy…</option>
+              </select>
+              <label for="policy-owner-proposal-id">Proposal ID</label>
+              <input id="policy-owner-proposal-id" maxlength="128" autocomplete="off" required>
+              <label for="policy-owner-target-file">Target policy JSON (maximum 1 MiB)</label>
+              <input id="policy-owner-target-file" type="file" accept="application/json,.json" required>
+              <button id="policy-owner-propose" type="submit">Create migration proposal</button>
+            </form>
+          </section>
+          <section aria-labelledby="policy-owner-history-title">
+            <h3 id="policy-owner-history-title">Redacted policy history</h3>
+            <ul id="policy-owner-history" class="plain-list"></ul>
+          </section>
+          <section aria-labelledby="policy-owner-proposals-title">
+            <h3 id="policy-owner-proposals-title">Migration approval and adoption</h3>
+            <ul id="policy-owner-proposals" class="plain-list"></ul>
+          </section>
+        </div>
+      </section>
+
       <section id="compaction-panel" class="panel" hidden aria-labelledby="compaction-title">
         <div class="section-heading">
           <h2 id="compaction-title">Compaction review</h2>
