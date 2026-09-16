@@ -38,6 +38,7 @@ import {
 let approvedContinuationPreviewId;
 let commandCounter = 0;
 let policyOwnerSession;
+let policyOwnerGeneration = 0;
 
 function scopeForControl() {
   return consoleState.controlState && consoleState.controlState.scope;
@@ -183,6 +184,21 @@ function clearPolicyOwnerDraftInputs() {
   });
 }
 
+function invalidatePolicyOwnerDisplay(badgeText, messageText) {
+  policyOwnerGeneration += 1;
+  policyOwnerSession = undefined;
+  document.querySelector("#policy-owner-content").hidden = true;
+  document.querySelector("#policy-owner-badge").textContent = badgeText;
+  const message = document.querySelector("#policy-owner-message");
+  message.dataset.state = "";
+  message.textContent = messageText;
+  clearPolicyOwnerDraftInputs();
+  document.querySelector("#policy-owner-active").replaceChildren();
+  document.querySelector("#policy-owner-history").replaceChildren();
+  document.querySelector("#policy-owner-proposals").replaceChildren();
+  document.querySelector("#policy-owner-revision").textContent = "";
+}
+
 function renderPolicyOwner(view) {
   const active = document.querySelector("#policy-owner-active");
   active.replaceChildren();
@@ -270,6 +286,7 @@ function renderPolicyOwner(view) {
 }
 
 async function refreshPolicyOwner(notice = "Current owner history loaded.") {
+  const generation = ++policyOwnerGeneration;
   const runId = document.querySelector("#policy-owner-run-id").value;
   const token = document.querySelector("#policy-owner-token").value;
   const content = document.querySelector("#policy-owner-content");
@@ -285,12 +302,14 @@ async function refreshPolicyOwner(notice = "Current owner history loaded.") {
   message.textContent = "Loading current policy-owner metadata…";
   try {
     const response = await getProviderSessionPolicy(runId, token);
+    if (generation !== policyOwnerGeneration) return;
     policyOwnerSession = { runId, token, view: response.value };
     renderPolicyOwner(response.value);
     content.hidden = false;
     badge.textContent = "authenticated owner";
     message.textContent = notice;
   } catch (error) {
+    if (generation !== policyOwnerGeneration) return;
     badge.textContent = "owner unavailable";
     message.dataset.state = "error";
     if (error instanceof PolicyOwnerError && error.status === 403) {
@@ -308,13 +327,16 @@ async function refreshPolicyOwner(notice = "Current owner history loaded.") {
 }
 
 async function performPolicyOwnerCommand(label, action) {
+  const generation = policyOwnerGeneration;
   const message = document.querySelector("#policy-owner-message");
   message.dataset.state = "";
   message.textContent = `${label} is being submitted with the current owner revision…`;
   try {
     const result = await action();
+    if (generation !== policyOwnerGeneration) return;
     await refreshPolicyOwner(`${label} recorded at owner revision ${result.revision}. Approval references were cleared; re-enter one before a later approval or adoption.`);
   } catch (error) {
+    if (generation !== policyOwnerGeneration) return;
     message.dataset.state = "error";
     if (error instanceof PolicyOwnerError && error.status === 403) {
       message.textContent = "Access denied. Check workflow:control and, for uploaded policy files, workflow:content:write.";
@@ -363,19 +385,21 @@ function wirePolicyOwner() {
     event.preventDefault();
     void refreshPolicyOwner();
   });
+  for (const selector of ["#policy-owner-run-id", "#policy-owner-token"]) {
+    document.querySelector(selector).addEventListener("input", () => {
+      invalidatePolicyOwnerDisplay(
+        "owner selection changed",
+        "Workflow run or owner token changed. Refresh to load the scoped policy history.",
+      );
+    });
+  }
   document.querySelector("#policy-owner-clear").addEventListener("click", () => {
     document.querySelector("#policy-owner-token").value = "";
     document.querySelector("#policy-owner-run-id").value = "";
-    document.querySelector("#policy-owner-content").hidden = true;
-    document.querySelector("#policy-owner-badge").textContent = "credentials cleared";
-    document.querySelector("#policy-owner-message").dataset.state = "";
-    document.querySelector("#policy-owner-message").textContent = "Owner credentials and visible policy selections were cleared from this tab.";
-    clearPolicyOwnerDraftInputs();
-    document.querySelector("#policy-owner-active").replaceChildren();
-    document.querySelector("#policy-owner-history").replaceChildren();
-    document.querySelector("#policy-owner-proposals").replaceChildren();
-    document.querySelector("#policy-owner-revision").textContent = "";
-    policyOwnerSession = undefined;
+    invalidatePolicyOwnerDisplay(
+      "credentials cleared",
+      "Owner credentials and visible policy selections were cleared from this tab.",
+    );
   });
   document.querySelector("#policy-owner-import-form").addEventListener("submit", (event) => {
     void submitPolicyOwnerImport(event);

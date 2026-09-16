@@ -248,8 +248,18 @@ async function run() {
     const policyPageErrors = [];
     const policyRunId = 'run.live.console-fixture';
     const policyForeignRunId = 'run.foreign.console-fixture';
+    const policyRaceOldRunId = 'run.race.old';
+    const policyRaceNewRunId = 'run.race.new';
+    const policyRaceClearRunId = 'run.race.clear';
     const policyToken = 'fixture-policy-owner-token';
     const foreignPolicyToken = 'fixture-foreign-policy-owner-token';
+    const policyRaceOldToken = 'fixture-policy-owner-old-token';
+    const policyRaceNewToken = 'fixture-policy-owner-new-token';
+    const policyRaceClearToken = 'fixture-policy-owner-clear-token';
+    let releaseOldRaceGet;
+    let releaseClearRaceGet;
+    const oldRaceGate = new Promise((resolve) => { releaseOldRaceGet = resolve; });
+    const clearRaceGate = new Promise((resolve) => { releaseClearRaceGet = resolve; });
     let approvalSecretCleared = false;
     let foreignRunDenied = false;
     let secondRunHistoryEmpty = false;
@@ -415,6 +425,28 @@ async function run() {
         game_effects: 0,
       });
     });
+    const raceView = (runId, revision) => ({
+      schema_version: 'ascension.provider-session.policy-owner-view.v1',
+      operation: 'current',
+      value: { run_id: runId, revision, active: null, history: [], proposals: [] },
+      effect_class: 'local_metadata_only',
+      inference_calls: 0,
+      game_effects: 0,
+    });
+    await policyPage.route(`${base}/v1/workflow-runs/${policyRaceOldRunId}/provider-session-policy**`, async (route) => {
+      assert.equal(route.request().headers().authorization, `Bearer ${policyRaceOldToken}`);
+      await oldRaceGate;
+      await respondJson(route, raceView(policyRaceOldRunId, 77));
+    });
+    await policyPage.route(`${base}/v1/workflow-runs/${policyRaceNewRunId}/provider-session-policy**`, async (route) => {
+      assert.equal(route.request().headers().authorization, `Bearer ${policyRaceNewToken}`);
+      return respondJson(route, raceView(policyRaceNewRunId, 55));
+    });
+    await policyPage.route(`${base}/v1/workflow-runs/${policyRaceClearRunId}/provider-session-policy**`, async (route) => {
+      assert.equal(route.request().headers().authorization, `Bearer ${policyRaceClearToken}`);
+      await clearRaceGate;
+      await respondJson(route, raceView(policyRaceClearRunId, 88));
+    });
     await policyPage.goto('/web/', { waitUntil: 'networkidle' });
     await policyPage.locator('#policy-owner-run-id').fill(policyRunId);
     await policyPage.locator('#policy-owner-token').fill(policyToken);
@@ -507,6 +539,52 @@ async function run() {
     assert.deepEqual(policyConsoleErrors.filter((error) => !/status of 403 \(Forbidden\)/.test(error)), []);
     assert.deepEqual(policyPageErrors, []);
     assert.equal(policyBrowserUrls.every((url) => !url.includes(policyToken) && !url.includes(foreignPolicyToken)), true);
+
+    await policyPage.locator('#policy-owner-run-id').fill(policyRaceOldRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyRaceOldToken);
+    const oldRequest = policyPage.waitForRequest((request) =>
+      new URL(request.url()).pathname === `/v1/workflow-runs/${policyRaceOldRunId}/provider-session-policy`);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await oldRequest;
+    await policyPage.locator('#policy-owner-run-id').fill(policyRaceNewRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyRaceNewToken);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await policyPage.waitForFunction(() =>
+      document.querySelector('#policy-owner-revision').textContent.includes(`${policyRaceNewRunId} · owner revision 55`));
+    const oldResponse = policyPage.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/v1/workflow-runs/${policyRaceOldRunId}/provider-session-policy`);
+    releaseOldRaceGet();
+    await oldResponse;
+    await policyPage.waitForTimeout(25);
+    assert.match(await policyPage.locator('#policy-owner-revision').textContent(), /run\.race\.new · owner revision 55/);
+    assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), false);
+
+    await policyPage.locator('#policy-owner-run-id').fill(policyRaceClearRunId);
+    await policyPage.locator('#policy-owner-token').fill(policyRaceClearToken);
+    const clearRequest = policyPage.waitForRequest((request) =>
+      new URL(request.url()).pathname === `/v1/workflow-runs/${policyRaceClearRunId}/provider-session-policy`);
+    await policyPage.locator('#policy-owner-refresh').click();
+    await clearRequest;
+    const clearResponse = policyPage.waitForResponse((response) =>
+      new URL(response.url()).pathname === `/v1/workflow-runs/${policyRaceClearRunId}/provider-session-policy`);
+    await policyPage.locator('#policy-owner-clear').click();
+    releaseClearRaceGet();
+    await clearResponse;
+    await policyPage.waitForTimeout(25);
+    assert.equal(await policyPage.locator('#policy-owner-token').inputValue(), '');
+    assert.equal(await policyPage.locator('#policy-owner-run-id').inputValue(), '');
+    assert.equal(await policyPage.locator('#policy-owner-content').isHidden(), true);
+    assert.equal(await policyPage.locator('#policy-owner-revision').textContent(), '');
+    assert.match(await policyPage.locator('#policy-owner-message').textContent(), /cleared from this tab/);
+
+    assert.equal(policyBrowserUrls.every((url) => ![
+      policyToken,
+      foreignPolicyToken,
+      policyRaceOldToken,
+      policyRaceNewToken,
+      policyRaceClearToken,
+    ].some((token) => url.includes(token))), true);
+    assert.deepEqual(policyPageErrors, []);
     const policyStorage = await policyPage.evaluate(async () => ({
       localStorageEntries: localStorage.length,
       sessionStorageEntries: sessionStorage.length,
