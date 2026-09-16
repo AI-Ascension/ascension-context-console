@@ -549,8 +549,10 @@ async function run() {
     await policyPage.locator('#policy-owner-run-id').fill(policyRaceNewRunId);
     await policyPage.locator('#policy-owner-token').fill(policyRaceNewToken);
     await policyPage.locator('#policy-owner-refresh').click();
-    await policyPage.waitForFunction(() =>
-      document.querySelector('#policy-owner-revision').textContent.includes(`${policyRaceNewRunId} · owner revision 55`));
+    await policyPage.waitForFunction(
+      (runId) => document.querySelector('#policy-owner-revision').textContent.includes(`${runId} · owner revision 55`),
+      policyRaceNewRunId,
+    );
     const oldResponse = policyPage.waitForResponse((response) =>
       new URL(response.url()).pathname === `/v1/workflow-runs/${policyRaceOldRunId}/provider-session-policy`);
     releaseOldRaceGet();
