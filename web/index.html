@@ -226,14 +226,14 @@
             <h3 id="context-owner-limits-title">Effective limits</h3>
             <div id="context-owner-limits" class="facts"></div>
           </section>
-          <section aria-labelledby="context-owner-recovery-title">
-            <h3 id="context-owner-recovery-title">Historical receipt recovery</h3>
-            <p class="muted">A receipt lookup is read-only evidence after an owner restart. It does not re-run a command or recreate a binding.</p>
-            <textarea id="context-owner-recovery-command" rows="7" spellcheck="false" aria-label="Typed receipt lookup command" placeholder='{"schema_version":"ascension.context-control.owner-command.v1","kind":"commit","idempotency_key":"known-command","expected_control_version":1,"expected_revision_id":"revision.1","expected_boundary":{}}'></textarea>
-            <button id="context-owner-recover" type="button">Recover receipt</button>
-            <pre id="context-owner-receipt" class="preview-diff" tabindex="0" aria-live="polite">No historical receipt recovered.</pre>
-          </section>
         </div>
+        <section aria-labelledby="context-owner-recovery-title">
+          <h3 id="context-owner-recovery-title">Historical receipt recovery</h3>
+          <p class="muted">A receipt lookup is read-only evidence after an owner restart. It does not re-run a command or recreate a binding.</p>
+          <textarea id="context-owner-recovery-command" rows="7" spellcheck="false" aria-label="Typed receipt lookup command" placeholder='{"pause":{"idempotency_key":"known-command","expected_control_version":0}}'></textarea>
+          <button id="context-owner-recover" type="button">Recover receipt</button>
+          <pre id="context-owner-receipt" class="preview-diff" tabindex="0" aria-live="polite">No historical receipt recovered.</pre>
+        </section>
       </section>
 
       <section id="compaction-panel" class="panel" hidden aria-labelledby="compaction-title">

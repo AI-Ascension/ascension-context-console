@@ -28,7 +28,7 @@ function boundary(runId = "run-live-1") {
     model_revision: "model-1",
     configuration_sha256: digest,
     output_schema_sha256: digest,
-    controller_epoch: 0,
+    controller_epoch: 1,
     gate_epoch: 0,
     control_version: 0,
   };
@@ -47,7 +47,7 @@ function pauseReceipt(runId = "run-live-1", command = "pause") {
     effect: "pause_requested",
     control_version: 0,
     plan_epoch: 0,
-    controller_epoch: 0,
+    controller_epoch: 1,
     gate_epoch: 0,
     boundary: boundary(runId),
     revision_id: null,

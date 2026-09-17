@@ -81,10 +81,10 @@ function validateBoundary(boundary) {
     ["configuration_sha256", "Boundary configuration digest"],
     ["output_schema_sha256", "Boundary output-schema digest"],
   ]) digest(boundary[key], label);
-  for (const [key, label] of [
-    ["generation", "Boundary generation"], ["controller_epoch", "Boundary controller epoch"],
-    ["gate_epoch", "Boundary gate epoch"], ["control_version", "Boundary control version"],
-  ]) nonNegative(boundary[key], label);
+  nonNegative(boundary.generation, "Boundary generation");
+  positive(boundary.controller_epoch, "Boundary controller epoch");
+  nonNegative(boundary.gate_epoch, "Boundary gate epoch");
+  nonNegative(boundary.control_version, "Boundary control version");
 }
 
 function validateBinding(binding, runId) {
