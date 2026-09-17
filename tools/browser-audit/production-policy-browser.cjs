@@ -586,11 +586,15 @@ async function auditBrowser(browserType, name) {
         failureCompletedResolve();
       }
     });
+    const isReceiptRequest = (request) =>
+      request.method() === "POST"
+      && new URL(request.url()).pathname.endsWith("/context-control-receipts/lookup");
+    const successRequestFinished = page.waitForEvent("requestfinished", { predicate: isReceiptRequest });
     await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
     await successStarted;
     await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
     successReleaseResolve();
-    await successCompleted;
+    await Promise.all([successCompleted, successRequestFinished]);
     await page.waitForTimeout(0);
     assert.equal(
       (await page.locator("#context-owner-receipt").textContent()).trim(),
@@ -598,11 +602,12 @@ async function auditBrowser(browserType, name) {
       "a delayed receipt success must not repopulate after the run selection changes",
     );
     await page.getByLabel("Workflow run ID").fill(fixture.run_id);
+    const failedRequest = page.waitForEvent("requestfailed", { predicate: isReceiptRequest });
     await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
     await failureStarted;
     await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
     failureReleaseResolve();
-    await failureCompleted;
+    await Promise.all([failureCompleted, failedRequest]);
     await page.waitForTimeout(0);
     assert.equal(
       (await page.locator("#context-owner-receipt").textContent()).trim(),
