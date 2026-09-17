@@ -242,15 +242,14 @@ async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
       association: association.value,
       limits: limits.value,
       receipt: adopted.value,
-      command: {
-        kind: "commit",
+      command: { commit: {
         idempotency_key: adoptionCommand.idempotency_key,
         expected_control_version: adoptionCommand.expected_control_version,
         expected_revision_id: adoptionCommand.expected_revision_id,
         expected_boundary: adoptionCommand.expected_boundary,
         preview_manifest_digest: fixture.context_source_digest,
         approved_manifest_digest: fixture.context_source_digest,
-      },
+      } },
     };
   }, {
     fixture,
@@ -549,18 +548,10 @@ async function auditBrowser(browserType, name) {
     assert.equal(await page.locator("#policy-owner-history li").count(), 3);
     await page.getByRole("button", { name: "Refresh current owner", exact: true }).click();
     await waitForText(page, "#context-owner-message", /Could not load the current owner|unavailable/);
-    assert.equal(await page.locator("#context-owner-content").isHidden(), true, "restart must clear the stale current association");
-    const recovered = await page.evaluate(async ({ runId, token, command }) => {
-      const response = await fetch(`/v1/workflow-runs/${encodeURIComponent(runId)}/context-control-receipts/lookup`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(command),
-        cache: "no-store",
-      });
-      return { status: response.status, value: await response.json() };
-    }, { runId: fixture.run_id, token: ownerToken, command: contextOwnerResult.command });
-    assert.equal(recovered.status, 200, "durable receipt lookup must survive owner restart");
-    assert.deepEqual(recovered.value, contextOwnerResult.receipt);
+    assert.equal(await page.locator("#context-owner-association").textContent(), "", "restart must clear the stale current association");
+    await page.getByLabel("Typed receipt lookup command", { exact: true }).fill(JSON.stringify(contextOwnerResult.command));
+    await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
+    await waitForText(page, "#context-owner-receipt", new RegExp(contextOwnerResult.receipt.command_id));
     assert.ok(
       contextRequests.some((entry) => entry.pathname.endsWith("/context-owner-association")),
       "Console must read the actual current context-owner association route",
@@ -568,6 +559,10 @@ async function auditBrowser(browserType, name) {
     assert.ok(
       contextRequests.some((entry) => entry.pathname.endsWith("/context-owner-effective-limits")),
       "Console must read the actual effective-limits route",
+    );
+    assert.ok(
+      contextRequests.some((entry) => entry.method === "POST" && entry.pathname.endsWith("/context-control-receipts/lookup")),
+      "Console must recover the durable receipt through the actual typed lookup route",
     );
 
     const policyCalls = ownerRequests.filter((entry) => entry.pathname.includes("/provider-session-policy"));

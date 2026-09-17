@@ -42,6 +42,12 @@ function positive(value, label) {
   }
 }
 
+function nonNegative(value, label) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new ContextOwnerError(`${label} is invalid`, 502, "invalid_context_owner_response");
+  }
+}
+
 function boolean(value, label) {
   if (typeof value !== "boolean") {
     throw new ContextOwnerError(`${label} is invalid`, 502, "invalid_context_owner_response");
@@ -78,7 +84,7 @@ function validateBoundary(boundary) {
   for (const [key, label] of [
     ["generation", "Boundary generation"], ["controller_epoch", "Boundary controller epoch"],
     ["gate_epoch", "Boundary gate epoch"], ["control_version", "Boundary control version"],
-  ]) positive(boundary[key], label);
+  ]) nonNegative(boundary[key], label);
 }
 
 function validateBinding(binding, runId) {
@@ -89,6 +95,7 @@ function validateBinding(binding, runId) {
     "node_execution_id", "boundary", "lease_epoch", "snapshot_id", "approved_revision_id",
     "plan_epoch", "grants", "continuity",
   ], "Context owner binding");
+  validateBoundary(binding.boundary);
   if (binding.schema_version !== "ascension.context-control.owner-binding.v1"
     || binding.state !== "available" || binding.workflow_run_id !== runId
     || binding.boundary.run_id !== runId) {
@@ -106,7 +113,6 @@ function validateBinding(binding, runId) {
   positive(binding.plan_epoch, "Binding plan epoch");
   digest(binding.binding_digest, "Binding digest");
   digest(binding.definition_digest, "Definition digest");
-  validateBoundary(binding.boundary);
   object(binding.grants, ["metadata_read", "content_read", "edit", "control"], "Binding grants");
   object(binding.continuity, [
     "survives_controller_restart", "receipt_recovery", "provider_session_continuity",
@@ -160,7 +166,14 @@ function validateReceipt(receipt, command) {
     "controller_epoch", "gate_epoch", "boundary", "revision_id", "preview_manifest_digest",
     "approved_manifest_digest",
   ], "Context control receipt");
-  if (receipt.schema_version !== RECEIPT_SCHEMA || receipt.idempotency_key !== command.idempotency_key) {
+  const commandVariant = ["pause", "commit", "resume"].find((kind) =>
+    command && Object.keys(command).length === 1 && Object.prototype.hasOwnProperty.call(command, kind));
+  const commandValue = commandVariant ? command[commandVariant] : undefined;
+  if (!commandValue || typeof commandValue !== "object"
+    || typeof commandValue.idempotency_key !== "string") {
+    throw new ContextOwnerError("Enter one tagged context control command", 400, "context_control_command_required");
+  }
+  if (receipt.schema_version !== RECEIPT_SCHEMA || receipt.idempotency_key !== commandValue.idempotency_key) {
     throw new ContextOwnerError("Recovered receipt does not match the requested command", 409, "context_control_receipt_mismatch");
   }
   for (const [key, label] of [
@@ -177,6 +190,34 @@ function validateReceipt(receipt, command) {
   return receipt;
 }
 
+async function boundedResponseText(response) {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new ContextOwnerError("Context owner response exceeds the local byte bound", 502, "context_owner_response_too_large");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 async function ownerRequest(runId, token, suffix, options = {}) {
   validateInputs(runId, token);
   const response = await fetch(`/v1/workflow-runs/${encodeURIComponent(runId)}${suffix}`, {
@@ -189,10 +230,7 @@ async function ownerRequest(runId, token, suffix, options = {}) {
       ...(options.headers || {}),
     },
   });
-  const text = await response.text();
-  if (new TextEncoder().encode(text).length > MAX_RESPONSE_BYTES) {
-    throw new ContextOwnerError("Context owner response exceeds the local byte bound", 502, "context_owner_response_too_large");
-  }
+  const text = await boundedResponseText(response);
   let body;
   try { body = text ? JSON.parse(text) : undefined; } catch {
     throw new ContextOwnerError("Context owner returned invalid JSON", response.status || 502, "invalid_context_owner_response");
@@ -217,7 +255,11 @@ export async function getContextOwnerEffectiveLimits(runId, token) {
 }
 
 export async function recoverContextControlReceipt(runId, token, command) {
-  if (!command || typeof command !== "object" || typeof command.idempotency_key !== "string") {
+  if (!command || typeof command !== "object" || Array.isArray(command)
+    || Object.keys(command).length !== 1
+    || !["pause", "commit", "resume"].includes(Object.keys(command)[0])
+    || !command[Object.keys(command)[0]]
+    || typeof command[Object.keys(command)[0]].idempotency_key !== "string") {
     throw new ContextOwnerError("Enter a typed receipt lookup command", 400, "context_control_command_required");
   }
   const response = await ownerRequest(runId, token, "/context-control-receipts/lookup", {

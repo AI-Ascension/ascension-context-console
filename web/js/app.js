@@ -46,6 +46,7 @@ let commandCounter = 0;
 let policyOwnerSession;
 let policyOwnerGeneration = 0;
 let contextOwnerSession;
+let contextOwnerSelection;
 let contextOwnerGeneration = 0;
 
 function scopeForControl() {
@@ -483,6 +484,7 @@ function renderContextOwner(association, limits) {
 async function refreshContextOwner(notice = "Current owner association and effective limits loaded.") {
   const runId = document.querySelector("#context-owner-run-id").value;
   const token = document.querySelector("#context-owner-token").value;
+  contextOwnerSelection = { runId, token };
   clearContextOwnerDisplay("loading owner", "Clearing stale owner data and reading the current Harness association…");
   const generation = contextOwnerGeneration;
   try {
@@ -512,6 +514,9 @@ async function refreshContextOwner(notice = "Current owner association and effec
     const message = document.querySelector("#context-owner-message");
     message.dataset.state = "error";
     document.querySelector("#context-owner-badge").textContent = "owner unavailable";
+    if (contextOwnerSelection?.runId === runId && contextOwnerSelection?.token === token) {
+      document.querySelector("#context-owner-content").hidden = false;
+    }
     message.textContent = error instanceof ContextOwnerError && error.status === 403
       ? "Access denied. The owner token needs the scoped workflow read grant."
       : error instanceof ContextOwnerError && error.status === 409
@@ -523,15 +528,20 @@ async function refreshContextOwner(notice = "Current owner association and effec
 }
 
 async function recoverContextOwnerReceipt() {
-  if (!contextOwnerSession) return;
+  const selection = contextOwnerSelection;
+  if (!selection?.runId || !selection.token) return;
+  const generation = contextOwnerGeneration;
   const output = document.querySelector("#context-owner-receipt");
   try {
     const command = JSON.parse(document.querySelector("#context-owner-recovery-command").value);
     const receipt = await recoverContextControlReceipt(
-      contextOwnerSession.runId,
-      contextOwnerSession.token,
+      selection.runId,
+      selection.token,
       command,
     );
+    if (generation !== contextOwnerGeneration
+      || contextOwnerSelection?.runId !== selection.runId
+      || contextOwnerSelection?.token !== selection.token) return;
     output.textContent = JSON.stringify(receipt, null, 2);
   } catch (error) {
     output.textContent = error instanceof ContextOwnerError ? error.message : "Receipt recovery failed.";
@@ -545,6 +555,10 @@ function wireContextOwner() {
   });
   for (const selector of ["#context-owner-run-id", "#context-owner-token"]) {
     document.querySelector(selector).addEventListener("input", () => {
+      contextOwnerSelection = {
+        runId: document.querySelector("#context-owner-run-id").value,
+        token: document.querySelector("#context-owner-token").value,
+      };
       clearContextOwnerDisplay(
         "owner selection changed",
         "Workflow run or owner token changed. Refresh to read the new current association.",
@@ -554,6 +568,7 @@ function wireContextOwner() {
   document.querySelector("#context-owner-clear").addEventListener("click", () => {
     document.querySelector("#context-owner-run-id").value = "";
     document.querySelector("#context-owner-token").value = "";
+    contextOwnerSelection = undefined;
     clearContextOwnerDisplay("credentials cleared", "Owner credentials and current association data were cleared from this tab.");
   });
   document.querySelector("#context-owner-recover").addEventListener("click", () => {
