@@ -279,7 +279,7 @@ async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
   assert.equal(result.catalog_binding_id, "console-served-context-owner.decide.v1");
   assert.equal(result.association.binding.workflow_run_id, fixture.run_id);
   assert.equal(result.association.binding.binding_id, result.limits.binding_id);
-  assert.equal(result.receipt.idempotency_key, result.command.idempotency_key);
+  assert.equal(result.receipt.idempotency_key, result.command.commit.idempotency_key);
 
   await page.getByLabel("Workflow run ID", { exact: true }).last().fill(fixture.run_id);
   await page.getByLabel("Workflow owner bearer token", { exact: true }).last().fill(ownerToken);
