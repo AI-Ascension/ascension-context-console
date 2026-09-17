@@ -175,7 +175,7 @@ async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
         command_id: "console-context-owner-observe",
         run_id: fixture.run_id,
         expected_revision: status.value.run.run_revision,
-        actor_scope: "profile:served",
+        actor_scope: "profile:console-live",
         kind: "step",
         parameters: {},
       }),
