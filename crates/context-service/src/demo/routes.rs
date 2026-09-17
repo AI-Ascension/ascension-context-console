@@ -75,6 +75,11 @@ impl DemoState {
                 "text/javascript; charset=utf-8",
                 fixtures::WEB_POLICY_OWNER.to_vec(),
             ),
+            "/web/js/context-owner.js" => static_response(
+                200,
+                "text/javascript; charset=utf-8",
+                fixtures::WEB_CONTEXT_OWNER.to_vec(),
+            ),
             "/web/js/render.js" => static_response(
                 200,
                 "text/javascript; charset=utf-8",
