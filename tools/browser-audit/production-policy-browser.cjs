@@ -281,8 +281,8 @@ async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
   assert.equal(result.association.binding.binding_id, result.limits.binding_id);
   assert.equal(result.receipt.idempotency_key, result.command.commit.idempotency_key);
 
-  await page.getByLabel("Workflow run ID", { exact: true }).last().fill(fixture.run_id);
-  await page.getByLabel("Workflow owner bearer token", { exact: true }).last().fill(ownerToken);
+  await page.locator("#context-owner-run-id").fill(fixture.run_id);
+  await page.locator("#context-owner-token").fill(ownerToken);
   await page.getByRole("button", { name: "Refresh current owner", exact: true }).click();
   await waitForText(page, "#context-owner-association", new RegExp(fixture.run_id));
   await waitForText(page, "#context-owner-limits", /Maximum items|Items/);
@@ -406,8 +406,8 @@ async function auditBrowser(browserType, name) {
     await authNegativeChecks(page, fixture.run_id);
     const contextOwnerResult = await resolveContextOwnerAndRecoverReceipt(page, stack, fixture);
 
-    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
-    await page.getByLabel("Workflow owner bearer token").fill(ownerToken);
+    await page.locator("#policy-owner-run-id").fill(fixture.run_id);
+    await page.locator("#policy-owner-token").fill(ownerToken);
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-revision", /owner revision 3/);
     const panel = page.locator("#policy-owner-panel");
@@ -521,21 +521,21 @@ async function auditBrowser(browserType, name) {
       "the stale-CAS check must submit a distinct valid policy body with the stale revision",
     );
 
-    await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
+    await page.locator("#policy-owner-run-id").fill("run.live.foreign-owner");
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-message", /Could not load|not found|unavailable/i);
     assert.equal(await page.locator("#policy-owner-content").isHidden(), true);
-    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
+    await page.locator("#policy-owner-run-id").fill(fixture.run_id);
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-revision", /owner revision 7/);
     await waitForText(page, "#policy-owner-active", new RegExp(targetSha));
 
     await page.getByRole("button", { name: "Clear credentials", exact: true }).click();
-    assert.equal(await page.getByLabel("Workflow owner bearer token").inputValue(), "");
-    assert.equal(await page.getByLabel("Workflow run ID").inputValue(), "");
+    assert.equal(await page.locator("#policy-owner-token").inputValue(), "");
+    assert.equal(await page.locator("#policy-owner-run-id").inputValue(), "");
     assert.equal(await page.locator("#policy-owner-content").isHidden(), true);
-    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
-    await page.getByLabel("Workflow owner bearer token").fill(ownerToken);
+    await page.locator("#policy-owner-run-id").fill(fixture.run_id);
+    await page.locator("#policy-owner-token").fill(ownerToken);
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-revision", /owner revision 7/);
 
@@ -612,7 +612,7 @@ async function auditBrowser(browserType, name) {
     const successRequestFinished = page.waitForEvent("requestfinished", { predicate: isReceiptRequest });
     await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
     await successStarted;
-    await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
+    await page.locator("#context-owner-run-id").fill("run.live.foreign-owner");
     successReleaseResolve();
     await Promise.all([successCompleted, successRequestFinished]);
     await page.waitForTimeout(0);
@@ -621,11 +621,11 @@ async function auditBrowser(browserType, name) {
       "No historical receipt recovered.",
       "a delayed receipt success must not repopulate after the run selection changes",
     );
-    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
+    await page.locator("#context-owner-run-id").fill(fixture.run_id);
     const failedRequest = page.waitForEvent("requestfailed", { predicate: isReceiptRequest });
     await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
     await failureStarted;
-    await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
+    await page.locator("#context-owner-run-id").fill("run.live.foreign-owner");
     failureReleaseResolve();
     await Promise.all([failureCompleted, failedRequest]);
     await page.waitForTimeout(0);
