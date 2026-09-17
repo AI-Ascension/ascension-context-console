@@ -150,6 +150,148 @@ async function submitAdmission(page, baseUrl, fixture) {
   assert.equal(result.runId, fixture.run_id);
 }
 
+async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
+  const result = await page.evaluate(async ({ fixture, token, source }) => {
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    };
+    const json = async (path, options = {}) => {
+      const response = await fetch(path, {
+        ...options,
+        headers: { ...headers, ...(options.headers || {}) },
+        cache: "no-store",
+      });
+      const value = await response.json();
+      return { response, value };
+    };
+    const status = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}`);
+    if (!status.response.ok) return { phase: "status", status: status.response.status };
+    const step = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}/commands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: "ascension.management/v1",
+        command_id: "console-context-owner-observe",
+        run_id: fixture.run_id,
+        expected_revision: status.value.run.run_revision,
+        actor_scope: "profile:console-live",
+        kind: "step",
+        parameters: {},
+      }),
+    });
+    if (!step.response.ok) return { phase: "step", status: step.response.status, value: step.value };
+    const current = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}`);
+    if (current.value.run?.cursor?.node_id !== "decide") {
+      return { phase: "cursor", status: current.response.status, value: current.value };
+    }
+    const catalog = await json("/v1/context-bindings");
+    const descriptor = catalog.value.descriptors?.find((candidate) =>
+      candidate.context_ref === "context.live.v1" && candidate.node_kinds?.includes("decide"));
+    if (!descriptor) {
+      return {
+        phase: "catalog",
+        status: catalog.response.status,
+        value: {
+          schema_version: catalog.value?.schema_version ?? null,
+          owner_id: catalog.value?.owner_id ?? null,
+          descriptors: Array.isArray(catalog.value?.descriptors)
+            ? catalog.value.descriptors.map((candidate) => ({
+              context_ref: candidate.context_ref ?? null,
+              node_kinds: candidate.node_kinds ?? null,
+            }))
+            : null,
+          error: catalog.value?.error ?? null,
+        },
+      };
+    }
+    const cursor = current.value.run.cursor;
+    const bindingRequest = {
+      workflow_run_id: fixture.run_id,
+      definition_digest: current.value.run.definition_digest,
+      instance_id: fixture.instance_id,
+      graph_id: cursor.graph_id,
+      node_id: cursor.node_id,
+      node_execution_id: cursor.node_execution_id,
+      node_kind: "decide",
+      context_ref: "context.live.v1",
+      binding_id: descriptor.binding_id,
+      binding_version: descriptor.version,
+      binding_digest: descriptor.digest,
+    };
+    const bound = await json("/v1/context-bindings/bind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bindingRequest),
+    });
+    if (!bound.response.ok) return { phase: "bind", status: bound.response.status, value: bound.value };
+    const association = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}/context-owner-association`);
+    const limits = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}/context-owner-effective-limits`);
+    if (!association.response.ok || !limits.response.ok) {
+      return { phase: "owner-read", status: association.response.status, value: association.value };
+    }
+    const upload = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}/context-sources/strategy`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: "ascension.context-owner.context-source-upload.v1",
+        document: source,
+      }),
+    });
+    if (!upload.response.ok) return { phase: "upload", status: upload.response.status, value: upload.value };
+    const sourceStatus = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}/context-owner-source-status`);
+    const adoptionCommand = {
+      schema_version: "ascension.context-owner.context-source-adoption.v1",
+      idempotency_key: "console-context-owner-receipt.1",
+      expected_control_version: sourceStatus.value.boundary.control_version,
+      expected_revision_id: sourceStatus.value.active_revision_id,
+      expected_boundary: sourceStatus.value.boundary,
+    };
+    const adopted = await json(`/v1/workflow-runs/${encodeURIComponent(fixture.run_id)}/context-sources/strategy/adopt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(adoptionCommand),
+    });
+    if (!adopted.response.ok) return { phase: "adopt", status: adopted.response.status, value: adopted.value };
+    return {
+      phase: "ready",
+      catalog_owner_id: catalog.value.owner_id,
+      catalog_binding_id: descriptor.binding_id,
+      association: association.value,
+      limits: limits.value,
+      receipt: adopted.value,
+      command: { commit: {
+        idempotency_key: adoptionCommand.idempotency_key,
+        expected_control_version: adoptionCommand.expected_control_version,
+        expected_revision_id: adoptionCommand.expected_revision_id,
+        expected_boundary: adoptionCommand.expected_boundary,
+        preview_manifest_digest: fixture.context_source_digest,
+        approved_manifest_digest: fixture.context_source_digest,
+      } },
+    };
+  }, {
+    fixture,
+    token: ownerToken,
+    source: stack.contextSourceDocument,
+  });
+  assert.equal(result.phase, "ready", `context owner journey failed at ${result.phase}: ${JSON.stringify(result.value)}`);
+  assert.equal(result.catalog_owner_id, "console-served-context-owner");
+  assert.equal(result.catalog_binding_id, "console-served-context-owner.decide.v1");
+  assert.equal(result.association.binding.workflow_run_id, fixture.run_id);
+  assert.equal(result.association.binding.binding_id, result.limits.binding_id);
+  assert.equal(result.receipt.idempotency_key, result.command.commit.idempotency_key);
+
+  await page.locator("#context-owner-run-id").fill(fixture.run_id);
+  await page.locator("#context-owner-token").fill(ownerToken);
+  await page.getByRole("button", { name: "Refresh current owner", exact: true }).click();
+  await waitForText(page, "#context-owner-association", new RegExp(fixture.run_id));
+  await waitForText(page, "#context-owner-limits", /Maximum items|Items/);
+  await page.getByLabel("Typed receipt lookup command", { exact: true }).fill(JSON.stringify(result.command));
+  await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
+  await waitForText(page, "#context-owner-receipt", new RegExp(result.receipt.command_id));
+  return result;
+}
+
 async function authNegativeChecks(page, runId) {
   const checks = await page.evaluate(async ({ runId, token }) => {
     const pathFor = (id) =>
@@ -225,6 +367,7 @@ async function auditBrowser(browserType, name) {
     });
     const page = await context.newPage();
     const ownerRequests = [];
+    const contextRequests = [];
     page.on("request", (request) => {
       const url = new URL(request.url());
       if (url.pathname.includes("/provider-session-policy")) {
@@ -236,6 +379,11 @@ async function auditBrowser(browserType, name) {
           headers: request.headers(),
           url: request.url(),
         });
+      }
+      if (url.pathname.includes("/context-owner-association")
+        || url.pathname.includes("/context-owner-effective-limits")
+        || url.pathname.includes("/context-control-receipts/lookup")) {
+        contextRequests.push({ method: request.method(), pathname: url.pathname, url: request.url() });
       }
     });
     const pageErrors = [];
@@ -256,9 +404,10 @@ async function auditBrowser(browserType, name) {
     assert.equal(fixture.expected_revision, 3);
     await submitAdmission(page, stack.baseUrl, fixture);
     await authNegativeChecks(page, fixture.run_id);
+    const contextOwnerResult = await resolveContextOwnerAndRecoverReceipt(page, stack, fixture);
 
-    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
-    await page.getByLabel("Workflow owner bearer token").fill(ownerToken);
+    await page.locator("#policy-owner-run-id").fill(fixture.run_id);
+    await page.locator("#policy-owner-token").fill(ownerToken);
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-revision", /owner revision 3/);
     const panel = page.locator("#policy-owner-panel");
@@ -372,21 +521,21 @@ async function auditBrowser(browserType, name) {
       "the stale-CAS check must submit a distinct valid policy body with the stale revision",
     );
 
-    await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
+    await page.locator("#policy-owner-run-id").fill("run.live.foreign-owner");
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-message", /Could not load|not found|unavailable/i);
     assert.equal(await page.locator("#policy-owner-content").isHidden(), true);
-    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
+    await page.locator("#policy-owner-run-id").fill(fixture.run_id);
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-revision", /owner revision 7/);
     await waitForText(page, "#policy-owner-active", new RegExp(targetSha));
 
     await page.getByRole("button", { name: "Clear credentials", exact: true }).click();
-    assert.equal(await page.getByLabel("Workflow owner bearer token").inputValue(), "");
-    assert.equal(await page.getByLabel("Workflow run ID").inputValue(), "");
+    assert.equal(await page.locator("#policy-owner-token").inputValue(), "");
+    assert.equal(await page.locator("#policy-owner-run-id").inputValue(), "");
     assert.equal(await page.locator("#policy-owner-content").isHidden(), true);
-    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
-    await page.getByLabel("Workflow owner bearer token").fill(ownerToken);
+    await page.locator("#policy-owner-run-id").fill(fixture.run_id);
+    await page.locator("#policy-owner-token").fill(ownerToken);
     await page.getByRole("button", { name: "Load owner history", exact: true }).click();
     await waitForText(page, "#policy-owner-revision", /owner revision 7/);
 
@@ -417,6 +566,87 @@ async function auditBrowser(browserType, name) {
     await waitForText(page, "#policy-owner-revision", /owner revision 7/);
     await waitForText(page, "#policy-owner-active", new RegExp(targetSha));
     assert.equal(await page.locator("#policy-owner-history li").count(), 3);
+    await page.getByRole("button", { name: "Refresh current owner", exact: true }).click();
+    await waitForText(page, "#context-owner-message", /Could not load the current owner|unavailable/);
+    assert.equal(await page.locator("#context-owner-association").textContent(), "", "restart must clear the stale current association");
+    await page.getByLabel("Typed receipt lookup command", { exact: true }).fill(JSON.stringify(contextOwnerResult.command));
+    await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
+    await waitForText(page, "#context-owner-receipt", new RegExp(contextOwnerResult.receipt.command_id));
+    assert.deepEqual(
+      JSON.parse(await page.locator("#context-owner-receipt").textContent()),
+      contextOwnerResult.receipt,
+      "Console must render the exact durable receipt recovered after restart",
+    );
+
+    let successStartedResolve;
+    const successStarted = new Promise((resolve) => { successStartedResolve = resolve; });
+    let successReleaseResolve;
+    const successRelease = new Promise((resolve) => { successReleaseResolve = resolve; });
+    let successCompletedResolve;
+    const successCompleted = new Promise((resolve) => { successCompletedResolve = resolve; });
+    let failureStartedResolve;
+    const failureStarted = new Promise((resolve) => { failureStartedResolve = resolve; });
+    let failureReleaseResolve;
+    const failureRelease = new Promise((resolve) => { failureReleaseResolve = resolve; });
+    let failureCompletedResolve;
+    const failureCompleted = new Promise((resolve) => { failureCompletedResolve = resolve; });
+    let recoveryAttempt = 0;
+    await page.route("**/context-control-receipts/lookup", async (route) => {
+      recoveryAttempt += 1;
+      if (recoveryAttempt === 1) {
+        successStartedResolve();
+        const response = await route.fetch();
+        await successRelease;
+        await route.fulfill({ response });
+        successCompletedResolve();
+      } else {
+        failureStartedResolve();
+        await failureRelease;
+        await route.abort("failed");
+        failureCompletedResolve();
+      }
+    });
+    const isReceiptRequest = (request) =>
+      request.method() === "POST"
+      && new URL(request.url()).pathname.endsWith("/context-control-receipts/lookup");
+    const successRequestFinished = page.waitForEvent("requestfinished", { predicate: isReceiptRequest });
+    await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
+    await successStarted;
+    await page.locator("#context-owner-run-id").fill("run.live.foreign-owner");
+    successReleaseResolve();
+    await Promise.all([successCompleted, successRequestFinished]);
+    await page.waitForTimeout(0);
+    assert.equal(
+      (await page.locator("#context-owner-receipt").textContent()).trim(),
+      "No historical receipt recovered.",
+      "a delayed receipt success must not repopulate after the run selection changes",
+    );
+    await page.locator("#context-owner-run-id").fill(fixture.run_id);
+    const failedRequest = page.waitForEvent("requestfailed", { predicate: isReceiptRequest });
+    await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
+    await failureStarted;
+    await page.locator("#context-owner-run-id").fill("run.live.foreign-owner");
+    failureReleaseResolve();
+    await Promise.all([failureCompleted, failedRequest]);
+    await page.waitForTimeout(0);
+    assert.equal(
+      (await page.locator("#context-owner-receipt").textContent()).trim(),
+      "No historical receipt recovered.",
+      "a delayed receipt error must not overwrite the cleared selection",
+    );
+    await page.unroute("**/context-control-receipts/lookup");
+    assert.ok(
+      contextRequests.some((entry) => entry.pathname.endsWith("/context-owner-association")),
+      "Console must read the actual current context-owner association route",
+    );
+    assert.ok(
+      contextRequests.some((entry) => entry.pathname.endsWith("/context-owner-effective-limits")),
+      "Console must read the actual effective-limits route",
+    );
+    assert.ok(
+      contextRequests.some((entry) => entry.method === "POST" && entry.pathname.endsWith("/context-control-receipts/lookup")),
+      "Console must recover the durable receipt through the actual typed lookup route",
+    );
 
     const policyCalls = ownerRequests.filter((entry) => entry.pathname.includes("/provider-session-policy"));
     assert.ok(policyCalls.some((entry) => entry.method === "GET"), "Console must read the actual current owner route");

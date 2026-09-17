@@ -7,6 +7,10 @@ const net = require("node:net");
 const path = require("node:path");
 const { execFileSync, spawn, spawnSync } = require("node:child_process");
 
+function digest(bytes) {
+  return crypto.createHash("sha256").update(bytes).digest("hex");
+}
+
 const appRoot = path.resolve(__dirname, "../..");
 const lock = JSON.parse(fs.readFileSync(path.join(appRoot, "contracts/live-owner-browser.lock.json"), "utf8"));
 const token = "console-live-ci-token";
@@ -169,6 +173,35 @@ function providerConfigFromFixture(info) {
   return JSON.stringify(info.provider_policy_config);
 }
 
+function contextSourceFixture() {
+  const bytes = Buffer.from("served retained strategy");
+  const itemDigest = digest(bytes);
+  const document = {
+    draft: {
+      schema: "ascension.context-control.draft.v1",
+      draft_id: "served-draft",
+      version: 1,
+      base_revision_id: "context.revision.1",
+      selected_items: [{ item_id: "served-strategy", version: 1, sha256: itemDigest }],
+      pinned_item_ids: [],
+      notes: [],
+      objective: null,
+      author_ref: "operator",
+    },
+    items: {
+      "served-strategy:1": {
+        reference: { item_id: "served-strategy", version: 1, sha256: itemDigest },
+        kind: "strategy",
+        bytes: [...bytes],
+        protected: false,
+        expires_at: 4_000_000_000,
+      },
+    },
+  };
+  const sourceBytes = Buffer.from(JSON.stringify(document));
+  return { document, digest: digest(sourceBytes), sourceBytes };
+}
+
 function bootstrapFixture() {
   const definitionPath = path.join(harnessRoot, "conformance/workflow-v1/valid-strict.json");
   const sourcePath = path.join(fixtureRoot, "migration-source.json");
@@ -209,6 +242,8 @@ function serviceEnv() {
         max_objective_bytes: 512,
         max_control_events: 64,
       },
+      render_required: true,
+      sources: [{ source_id: "strategy", version: 1, digest: fixtureInfo.context_source_digest }],
     }),
     STS2_SERVED_CONTEXT_OWNER_KEY: contextKey,
     STS2_EXECUTION_STORE_PATH: path.join(fixtureRoot, "execution.sqlite3"),
@@ -607,6 +642,7 @@ function startProxy() {
         request_id: fixtureInfo.request_id,
         instance_id: fixtureInfo.instance_id,
         definition_digest: fixtureInfo.definition_digest,
+        context_source_digest: fixtureInfo.context_source_digest,
         expected_revision: fixtureInfo.baseline_revision,
         synthetic_mod_requests: modRequests.length,
         synthetic_mod_effects: syntheticModEffectCount(),
@@ -623,8 +659,11 @@ function startProxy() {
       }
       return;
     }
-    const isWorkflow = request.url?.startsWith("/v1/workflow-targets")
-      || request.url?.startsWith("/v1/workflow-runs");
+    const path = request.url?.split("?")[0];
+    const isWorkflow = path?.startsWith("/v1/workflow-targets")
+      || path === "/v1/context-bindings"
+      || path === "/v1/context-bindings/bind"
+      || path?.startsWith("/v1/workflow-runs");
     proxyRequest(request, response, isWorkflow ? ownerPort : demoPort);
   });
   return new Promise((resolve, reject) => {
@@ -773,7 +812,14 @@ async function startProductionPolicyStackInner() {
   if (closing) throw new Error("production fixture startup was interrupted");
   modPort = await freePort(allocatedPorts);
   if (closing) throw new Error("production fixture startup was interrupted");
-  fixtureInfo = bootstrapFixture();
+  fixtureInfo = { ...bootstrapFixture(), ...(() => {
+    const source = contextSourceFixture();
+    return {
+      context_source_document: source.document,
+      context_source_bytes: source.sourceBytes,
+      context_source_digest: source.digest,
+    };
+  })() };
   const bridgePath = path.join(fixtureRoot, "bounded-exo-bridge.sh");
   bridgeCounterPath = path.join(fixtureRoot, "provider-bridge-invocations.log");
   fs.writeFileSync(
@@ -820,6 +866,8 @@ async function startProductionPolicyStackInner() {
     fixtureControlHeaders: { authorization: `Bearer ${fixtureControlToken}` },
     sourcePolicyBytes: fs.readFileSync(fixtureInfo.source_path),
     targetPolicyBytes: fs.readFileSync(fixtureInfo.target_path),
+    contextSourceDocument: fixtureInfo.context_source_document,
+    contextSourceDigest: fixtureInfo.context_source_digest,
     close: closeCurrentStack,
   };
 }

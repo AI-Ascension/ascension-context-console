@@ -25,4 +25,5 @@ pub(super) const WEB_APP: &[u8] = include_bytes!("../../../../web/js/app.js");
 pub(super) const WEB_API: &[u8] = include_bytes!("../../../../web/js/api.js");
 pub(super) const WEB_BUNDLE: &[u8] = include_bytes!("../../../../web/js/bundle.js");
 pub(super) const WEB_POLICY_OWNER: &[u8] = include_bytes!("../../../../web/js/policy-owner.js");
+pub(super) const WEB_CONTEXT_OWNER: &[u8] = include_bytes!("../../../../web/js/context-owner.js");
 pub(super) const WEB_RENDER: &[u8] = include_bytes!("../../../../web/js/render.js");

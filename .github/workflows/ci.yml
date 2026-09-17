@@ -153,6 +153,9 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium firefox webkit
+      - name: Run typed context-owner client regressions
+        working-directory: tools/browser-audit
+        run: npm run test:context-owner
 
       - name: Build the Context Console demo host
         run: cargo build --locked --jobs 2 --package context-service --bin context-console
