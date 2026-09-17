@@ -660,6 +660,7 @@ function startProxy() {
       return;
     }
     const isWorkflow = request.url?.startsWith("/v1/workflow-targets")
+      || request.url?.startsWith("/v1/context-bindings")
       || request.url?.startsWith("/v1/workflow-runs");
     proxyRequest(request, response, isWorkflow ? ownerPort : demoPort);
   });

@@ -188,7 +188,23 @@ async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
     const catalog = await json("/v1/context-bindings");
     const descriptor = catalog.value.descriptors?.find((candidate) =>
       candidate.context_ref === "context.live.v1" && candidate.node_kinds?.includes("decide"));
-    if (!descriptor) return { phase: "catalog", status: 502 };
+    if (!descriptor) {
+      return {
+        phase: "catalog",
+        status: catalog.response.status,
+        value: {
+          schema_version: catalog.value?.schema_version ?? null,
+          owner_id: catalog.value?.owner_id ?? null,
+          descriptors: Array.isArray(catalog.value?.descriptors)
+            ? catalog.value.descriptors.map((candidate) => ({
+              context_ref: candidate.context_ref ?? null,
+              node_kinds: candidate.node_kinds ?? null,
+            }))
+            : null,
+          error: catalog.value?.error ?? null,
+        },
+      };
+    }
     const cursor = current.value.run.cursor;
     const bindingRequest = {
       workflow_run_id: fixture.run_id,
@@ -239,6 +255,8 @@ async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
     if (!adopted.response.ok) return { phase: "adopt", status: adopted.response.status, value: adopted.value };
     return {
       phase: "ready",
+      catalog_owner_id: catalog.value.owner_id,
+      catalog_binding_id: descriptor.binding_id,
       association: association.value,
       limits: limits.value,
       receipt: adopted.value,
@@ -257,6 +275,8 @@ async function resolveContextOwnerAndRecoverReceipt(page, stack, fixture) {
     source: stack.contextSourceDocument,
   });
   assert.equal(result.phase, "ready", `context owner journey failed at ${result.phase}: ${JSON.stringify(result.value)}`);
+  assert.equal(result.catalog_owner_id, "console-served-context-owner");
+  assert.equal(result.catalog_binding_id, "console-served-context-owner.decide.v1");
   assert.equal(result.association.binding.workflow_run_id, fixture.run_id);
   assert.equal(result.association.binding.binding_id, result.limits.binding_id);
   assert.equal(result.receipt.idempotency_key, result.command.idempotency_key);
