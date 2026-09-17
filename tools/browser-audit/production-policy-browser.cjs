@@ -552,6 +552,52 @@ async function auditBrowser(browserType, name) {
     await page.getByLabel("Typed receipt lookup command", { exact: true }).fill(JSON.stringify(contextOwnerResult.command));
     await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
     await waitForText(page, "#context-owner-receipt", new RegExp(contextOwnerResult.receipt.command_id));
+    assert.deepEqual(
+      JSON.parse(await page.locator("#context-owner-receipt").textContent()),
+      contextOwnerResult.receipt,
+      "Console must render the exact durable receipt recovered after restart",
+    );
+
+    let delayedRecovery;
+    const delayedRecoveryStarted = new Promise((resolve) => { delayedRecovery = resolve; });
+    let recoveryAttempt = 0;
+    await page.route("**/context-control-receipts/lookup", async (route) => {
+      recoveryAttempt += 1;
+      delayedRecovery();
+      if (recoveryAttempt === 1) {
+        const response = await route.fetch();
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await route.fulfill({ response });
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await route.abort("failed");
+      }
+    });
+    await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
+    await delayedRecoveryStarted;
+    await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
+    await page.waitForTimeout(400);
+    assert.equal(
+      (await page.locator("#context-owner-receipt").textContent()).trim(),
+      "No historical receipt recovered.",
+      "a delayed receipt success must not repopulate after the run selection changes",
+    );
+    await page.getByLabel("Workflow run ID").fill(fixture.run_id);
+    let delayedFailure;
+    const delayedFailureStarted = new Promise((resolve) => { delayedFailure = resolve; });
+    const originalDelayedRecovery = delayedRecovery;
+    delayedRecovery = delayedFailure;
+    await page.getByRole("button", { name: "Recover receipt", exact: true }).click();
+    await delayedFailureStarted;
+    await page.getByLabel("Workflow run ID").fill("run.live.foreign-owner");
+    await page.waitForTimeout(400);
+    assert.equal(
+      (await page.locator("#context-owner-receipt").textContent()).trim(),
+      "No historical receipt recovered.",
+      "a delayed receipt error must not overwrite the cleared selection",
+    );
+    delayedRecovery = originalDelayedRecovery;
+    await page.unroute("**/context-control-receipts/lookup");
     assert.ok(
       contextRequests.some((entry) => entry.pathname.endsWith("/context-owner-association")),
       "Console must read the actual current context-owner association route",
