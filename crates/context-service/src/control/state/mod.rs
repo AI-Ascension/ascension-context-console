@@ -5,12 +5,16 @@ use super::types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+mod debug_redaction;
+#[cfg(test)]
+mod debug_redaction_tests;
+
+#[derive(Clone, Serialize, Deserialize)]
 struct DraftRecord {
     draft: Draft,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct PreviewRecord {
     preview: Preview,
     material: Option<PreparedMaterial>,
@@ -19,7 +23,7 @@ struct PreviewRecord {
 
 /// Harness-facing control authority used by the synthetic console and by tests.  The target
 /// adapter can inspect this state, but only this object changes pause, revision and plan epochs.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ControlPlane {
     scope: Scope,
     enabled: bool,

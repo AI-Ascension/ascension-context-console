@@ -460,6 +460,9 @@ pub struct SessionBindingView {
     pub profile_sha256: String,
     pub owner_epoch: u64,
     pub session_epoch: u64,
+    // Public and non-sensitive: `run_id`/`dependency_count` are omitted from the wire form only
+    // because `scope.run_id` and `dependency_ids` already carry them. Unlike `ControlPlane`, these
+    // fields are readable by any caller, so the derived `Debug` discloses nothing new and is kept.
     #[serde(skip)]
     pub run_id: String,
     pub state: String,

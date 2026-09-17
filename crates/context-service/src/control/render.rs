@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 
 const OUTPUT_SCHEMA: &[u8] = br#"{"type":"object","properties":{"action_ids":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"string"}},"rationale":{"type":"string","maxLength":512}},"required":["action_ids","rationale"],"additionalProperties":false}"#;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct PreparedMaterial {
     pub input: Vec<u8>,
     pub schema: Vec<u8>,
