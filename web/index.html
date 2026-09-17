@@ -198,6 +198,44 @@
         </div>
       </section>
 
+      <section id="context-owner-panel" class="panel" aria-labelledby="context-owner-title">
+        <div class="section-heading">
+          <h2 id="context-owner-title">Current context owner</h2>
+          <span id="context-owner-badge" class="badge">owner connection required</span>
+        </div>
+        <p class="muted">This is the authoritative owner binding for the selected workflow run. It is a current association, not a historical grant. Historical control receipts are recovered separately and never restore a current binding.</p>
+        <form id="context-owner-connect-form" class="memory-search">
+          <label for="context-owner-run-id">Workflow run ID</label>
+          <input id="context-owner-run-id" name="run_id" maxlength="128" autocomplete="off" placeholder="workflow.run.123" required>
+          <label for="context-owner-token">Workflow owner bearer token</label>
+          <input id="context-owner-token" name="token" type="password" maxlength="4096" autocomplete="off" required>
+          <div class="button-row">
+            <button id="context-owner-refresh" type="submit">Refresh current owner</button>
+            <button id="context-owner-clear" type="button">Clear owner data</button>
+          </div>
+        </form>
+        <p class="field-help">Reads use the authenticated Harness <code>context-owner-association</code> and <code>context-owner-effective-limits</code> routes. Values are cleared before every refresh and whenever the run or token changes.</p>
+        <p id="context-owner-message" class="callout" role="status">Connect to an authenticated workflow owner to read its current association.</p>
+        <div id="context-owner-content" hidden>
+          <p id="context-owner-revision" class="muted"></p>
+          <section aria-labelledby="context-owner-association-title">
+            <h3 id="context-owner-association-title">Current binding</h3>
+            <div id="context-owner-association" class="facts"></div>
+          </section>
+          <section aria-labelledby="context-owner-limits-title">
+            <h3 id="context-owner-limits-title">Effective limits</h3>
+            <div id="context-owner-limits" class="facts"></div>
+          </section>
+          <section aria-labelledby="context-owner-recovery-title">
+            <h3 id="context-owner-recovery-title">Historical receipt recovery</h3>
+            <p class="muted">A receipt lookup is read-only evidence after an owner restart. It does not re-run a command or recreate a binding.</p>
+            <textarea id="context-owner-recovery-command" rows="7" spellcheck="false" aria-label="Typed receipt lookup command" placeholder='{"schema_version":"ascension.context-control.owner-command.v1","kind":"commit","idempotency_key":"known-command","expected_control_version":1,"expected_revision_id":"revision.1","expected_boundary":{}}'></textarea>
+            <button id="context-owner-recover" type="button">Recover receipt</button>
+            <pre id="context-owner-receipt" class="preview-diff" tabindex="0" aria-live="polite">No historical receipt recovered.</pre>
+          </section>
+        </div>
+      </section>
+
       <section id="compaction-panel" class="panel" hidden aria-labelledby="compaction-title">
         <div class="section-heading">
           <h2 id="compaction-title">Compaction review</h2>

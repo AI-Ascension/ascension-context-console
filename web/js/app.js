@@ -21,6 +21,12 @@ import {
   proposeProviderSessionPolicy,
 } from "./policy-owner.js";
 import {
+  ContextOwnerError,
+  getContextOwnerAssociation,
+  getContextOwnerEffectiveLimits,
+  recoverContextControlReceipt,
+} from "./context-owner.js";
+import {
   consoleState,
   invalidatePreview,
   itemKey,
@@ -39,6 +45,8 @@ let approvedContinuationPreviewId;
 let commandCounter = 0;
 let policyOwnerSession;
 let policyOwnerGeneration = 0;
+let contextOwnerSession;
+let contextOwnerGeneration = 0;
 
 function scopeForControl() {
   return consoleState.controlState && consoleState.controlState.scope;
@@ -419,6 +427,140 @@ function wirePolicyOwner() {
   });
 }
 
+function clearContextOwnerDisplay(badgeText, messageText) {
+  contextOwnerGeneration += 1;
+  contextOwnerSession = undefined;
+  document.querySelector("#context-owner-content").hidden = true;
+  document.querySelector("#context-owner-badge").textContent = badgeText;
+  const message = document.querySelector("#context-owner-message");
+  message.dataset.state = "";
+  message.textContent = messageText;
+  document.querySelector("#context-owner-association").replaceChildren();
+  document.querySelector("#context-owner-limits").replaceChildren();
+  document.querySelector("#context-owner-revision").textContent = "";
+  document.querySelector("#context-owner-receipt").textContent = "No historical receipt recovered.";
+}
+
+function addContextFact(parent, label, value) {
+  const row = document.createElement("div");
+  const term = document.createElement("dt");
+  const detail = document.createElement("dd");
+  term.textContent = label;
+  detail.textContent = value;
+  row.append(term, detail);
+  parent.append(row);
+}
+
+function renderContextOwner(association, limits) {
+  const binding = association.binding;
+  const associationNode = document.querySelector("#context-owner-association");
+  associationNode.replaceChildren();
+  for (const [label, value] of [
+    ["Owner", `${binding.owner_id}@${binding.owner_version}`],
+    ["Invocation", binding.invocation_id],
+    ["Binding", `${binding.binding_id}@${binding.binding_version}`],
+    ["Context", `${binding.context_ref} · ${binding.node_kind}`],
+    ["Cursor", `${binding.graph_id}/${binding.node_id}/${binding.node_execution_id}`],
+    ["Binding state", `${binding.state} · lease ${binding.lease_epoch} · plan ${binding.plan_epoch}`],
+    ["Grants", Object.entries(binding.grants).filter(([, enabled]) => enabled).map(([name]) => name).join(", ") || "none"],
+    ["Continuity", binding.continuity.survives_controller_restart ? "survives controller restart" : "restart continuity unavailable"],
+  ]) addContextFact(associationNode, label, value);
+
+  const limitsNode = document.querySelector("#context-owner-limits");
+  limitsNode.replaceChildren();
+  for (const [label, value] of [
+    ["Owner", `${limits.owner_id}@${limits.owner_version}`],
+    ["Catalog digest", limits.catalog_digest],
+    ["Adapter/model", `${limits.adapter_revision} · ${limits.model_revision}`],
+    ["Items", limits.effective_limits.max_items],
+    ["Notes", limits.effective_limits.max_notes],
+    ["Context bytes", limits.effective_limits.max_context_bytes],
+    ["Objective bytes", limits.effective_limits.max_objective_bytes],
+    ["Control events", limits.effective_limits.max_control_events],
+  ]) addContextFact(limitsNode, label, String(value));
+}
+
+async function refreshContextOwner(notice = "Current owner association and effective limits loaded.") {
+  const runId = document.querySelector("#context-owner-run-id").value;
+  const token = document.querySelector("#context-owner-token").value;
+  clearContextOwnerDisplay("loading owner", "Clearing stale owner data and reading the current Harness association…");
+  const generation = contextOwnerGeneration;
+  try {
+    const [association, limits] = await Promise.all([
+      getContextOwnerAssociation(runId, token),
+      getContextOwnerEffectiveLimits(runId, token),
+    ]);
+    if (generation !== contextOwnerGeneration) return;
+    if (association.binding.binding_id !== limits.binding_id
+      || association.binding.binding_digest !== limits.binding_digest
+      || association.binding.owner_id !== limits.owner_id
+      || association.binding.owner_version !== limits.owner_version
+      || association.binding.binding_version !== limits.binding_version
+      || association.binding.context_ref !== limits.context_ref
+      || association.binding.node_kind !== limits.node_kind
+      || association.binding.boundary.adapter_revision !== limits.adapter_revision
+      || association.binding.boundary.model_revision !== limits.model_revision) {
+      throw new ContextOwnerError("Owner association and effective limits identify different bindings", 409, "context_owner_identity_mismatch");
+    }
+    contextOwnerSession = { runId, token, association, limits };
+    renderContextOwner(association, limits);
+    document.querySelector("#context-owner-content").hidden = false;
+    document.querySelector("#context-owner-badge").textContent = "authenticated current owner";
+    document.querySelector("#context-owner-message").textContent = notice;
+  } catch (error) {
+    if (generation !== contextOwnerGeneration) return;
+    const message = document.querySelector("#context-owner-message");
+    message.dataset.state = "error";
+    document.querySelector("#context-owner-badge").textContent = "owner unavailable";
+    message.textContent = error instanceof ContextOwnerError && error.status === 403
+      ? "Access denied. The owner token needs the scoped workflow read grant."
+      : error instanceof ContextOwnerError && error.status === 409
+        ? "The current owner identity changed or is unavailable. Refresh the selected run."
+        : error instanceof ContextOwnerError && error.status === 400
+          ? error.message
+          : "Could not load the current owner. No historical grant or local fixture was substituted.";
+  }
+}
+
+async function recoverContextOwnerReceipt() {
+  if (!contextOwnerSession) return;
+  const output = document.querySelector("#context-owner-receipt");
+  try {
+    const command = JSON.parse(document.querySelector("#context-owner-recovery-command").value);
+    const receipt = await recoverContextControlReceipt(
+      contextOwnerSession.runId,
+      contextOwnerSession.token,
+      command,
+    );
+    output.textContent = JSON.stringify(receipt, null, 2);
+  } catch (error) {
+    output.textContent = error instanceof ContextOwnerError ? error.message : "Receipt recovery failed.";
+  }
+}
+
+function wireContextOwner() {
+  document.querySelector("#context-owner-connect-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    void refreshContextOwner();
+  });
+  for (const selector of ["#context-owner-run-id", "#context-owner-token"]) {
+    document.querySelector(selector).addEventListener("input", () => {
+      clearContextOwnerDisplay(
+        "owner selection changed",
+        "Workflow run or owner token changed. Refresh to read the new current association.",
+      );
+    });
+  }
+  document.querySelector("#context-owner-clear").addEventListener("click", () => {
+    document.querySelector("#context-owner-run-id").value = "";
+    document.querySelector("#context-owner-token").value = "";
+    clearContextOwnerDisplay("credentials cleared", "Owner credentials and current association data were cleared from this tab.");
+  });
+  document.querySelector("#context-owner-recover").addEventListener("click", () => {
+    void recoverContextOwnerReceipt();
+  });
+}
+
 async function refreshControl() {
   const [capabilities, stateValue, items, revisions] = await Promise.all([
     controlJson("/capabilities"),
@@ -592,6 +734,7 @@ async function loadFixture() {
 }
 
 wirePolicyOwner();
+wireContextOwner();
 loadFixture().catch((error) => {
   showError(error instanceof Error ? error.message : "bundle could not be read");
 });
