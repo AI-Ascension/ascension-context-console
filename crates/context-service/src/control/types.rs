@@ -395,7 +395,7 @@ pub struct Capabilities {
 
 /// Private registry entry used by the renderer.  Its text never appears in control errors or
 /// telemetry; callers receive it only through an authenticated eligible-item projection.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ItemRecord {
     pub item: ItemRef,
     pub kind: String,
