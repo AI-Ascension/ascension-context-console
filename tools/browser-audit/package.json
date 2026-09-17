@@ -9,7 +9,8 @@
   },
   "scripts": {
     "audit": "node integrated_browser_audit.cjs",
-    "audit:production-policy": "node production-policy-browser.cjs"
+    "audit:production-policy": "node production-policy-browser.cjs",
+    "test:context-owner": "node --test context-owner-client.test.cjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"

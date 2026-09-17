@@ -48,6 +48,7 @@ let policyOwnerGeneration = 0;
 let contextOwnerSession;
 let contextOwnerSelection;
 let contextOwnerGeneration = 0;
+let contextOwnerReceiptRequest = 0;
 
 function scopeForControl() {
   return consoleState.controlState && consoleState.controlState.scope;
@@ -430,6 +431,7 @@ function wirePolicyOwner() {
 
 function clearContextOwnerDisplay(badgeText, messageText) {
   contextOwnerGeneration += 1;
+  contextOwnerReceiptRequest += 1;
   contextOwnerSession = undefined;
   document.querySelector("#context-owner-content").hidden = true;
   document.querySelector("#context-owner-badge").textContent = badgeText;
@@ -531,7 +533,12 @@ async function recoverContextOwnerReceipt() {
   const selection = contextOwnerSelection;
   if (!selection?.runId || !selection.token) return;
   const generation = contextOwnerGeneration;
+  const request = ++contextOwnerReceiptRequest;
   const output = document.querySelector("#context-owner-receipt");
+  const stillSelected = () => request === contextOwnerReceiptRequest
+    && generation === contextOwnerGeneration
+    && contextOwnerSelection?.runId === selection.runId
+    && contextOwnerSelection?.token === selection.token;
   try {
     const command = JSON.parse(document.querySelector("#context-owner-recovery-command").value);
     const receipt = await recoverContextControlReceipt(
@@ -539,11 +546,10 @@ async function recoverContextOwnerReceipt() {
       selection.token,
       command,
     );
-    if (generation !== contextOwnerGeneration
-      || contextOwnerSelection?.runId !== selection.runId
-      || contextOwnerSelection?.token !== selection.token) return;
+    if (!stillSelected()) return;
     output.textContent = JSON.stringify(receipt, null, 2);
   } catch (error) {
+    if (!stillSelected()) return;
     output.textContent = error instanceof ContextOwnerError ? error.message : "Receipt recovery failed.";
   }
 }

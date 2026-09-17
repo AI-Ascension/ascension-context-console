@@ -159,21 +159,51 @@ function validateLimits(response, _runId) {
   return response;
 }
 
-function validateReceipt(receipt, command) {
+function validateCommand(command) {
+  if (!command || typeof command !== "object" || Array.isArray(command)
+    || Object.keys(command).length !== 1) {
+    throw new ContextOwnerError("Enter one tagged context control command", 400, "context_control_command_required");
+  }
+  const kind = Object.keys(command)[0];
+  if (!["pause", "commit", "resume"].includes(kind)) {
+    throw new ContextOwnerError("Enter one tagged context control command", 400, "context_control_command_required");
+  }
+  const fields = {
+    pause: ["idempotency_key", "expected_control_version"],
+    commit: [
+      "idempotency_key", "expected_control_version", "expected_revision_id",
+      "expected_boundary", "preview_manifest_digest", "approved_manifest_digest",
+    ],
+    resume: ["idempotency_key", "expected_control_version", "expected_boundary"],
+  }[kind];
+  const value = command[kind];
+  object(value, fields, `${kind} context control command`);
+  identifier(value.idempotency_key, "Command idempotency key");
+  nonNegative(value.expected_control_version, "Command expected control version");
+  if (kind === "commit") {
+    identifier(value.expected_revision_id, "Command expected revision ID");
+    validateBoundary(value.expected_boundary);
+    digest(value.preview_manifest_digest, "Command preview manifest digest");
+    digest(value.approved_manifest_digest, "Command approved manifest digest");
+  } else if (kind === "resume") {
+    validateBoundary(value.expected_boundary);
+  }
+  return { kind, value };
+}
+
+function validateReceipt(receipt, command, runId) {
   object(receipt, [
     "schema_version", "owner_id", "invocation_id", "binding_id", "binding_digest", "command",
     "command_id", "idempotency_key", "effect", "control_version", "plan_epoch",
     "controller_epoch", "gate_epoch", "boundary", "revision_id", "preview_manifest_digest",
     "approved_manifest_digest",
   ], "Context control receipt");
-  const commandVariant = ["pause", "commit", "resume"].find((kind) =>
-    command && Object.keys(command).length === 1 && Object.prototype.hasOwnProperty.call(command, kind));
-  const commandValue = commandVariant ? command[commandVariant] : undefined;
-  if (!commandValue || typeof commandValue !== "object"
-    || typeof commandValue.idempotency_key !== "string") {
-    throw new ContextOwnerError("Enter one tagged context control command", 400, "context_control_command_required");
-  }
-  if (receipt.schema_version !== RECEIPT_SCHEMA || receipt.idempotency_key !== commandValue.idempotency_key) {
+  const { kind, value: commandValue } = validateCommand(command);
+  validateBoundary(receipt.boundary);
+  if (receipt.schema_version !== RECEIPT_SCHEMA
+    || receipt.command !== kind
+    || receipt.idempotency_key !== commandValue.idempotency_key
+    || receipt.boundary.run_id !== runId) {
     throw new ContextOwnerError("Recovered receipt does not match the requested command", 409, "context_control_receipt_mismatch");
   }
   for (const [key, label] of [
@@ -185,8 +215,24 @@ function validateReceipt(receipt, command) {
   for (const [key, label] of [
     ["control_version", "Receipt control version"], ["plan_epoch", "Receipt plan epoch"],
     ["controller_epoch", "Receipt controller epoch"], ["gate_epoch", "Receipt gate epoch"],
-  ]) positive(receipt[key], label);
-  validateBoundary(receipt.boundary);
+  ]) nonNegative(receipt[key], label);
+  if (kind === "commit") {
+    if (receipt.revision_id === null || receipt.preview_manifest_digest === null
+      || receipt.approved_manifest_digest === null) {
+      throw new ContextOwnerError("Commit receipt is missing revision identity", 409, "context_control_receipt_mismatch");
+    }
+    identifier(receipt.revision_id, "Receipt revision ID");
+    digest(receipt.preview_manifest_digest, "Receipt preview manifest digest");
+    digest(receipt.approved_manifest_digest, "Receipt approved manifest digest");
+    if (receipt.preview_manifest_digest !== commandValue.preview_manifest_digest
+      || receipt.approved_manifest_digest !== commandValue.approved_manifest_digest) {
+      throw new ContextOwnerError("Recovered receipt does not match the requested command", 409, "context_control_receipt_mismatch");
+    }
+  } else if (receipt.revision_id !== null
+    || receipt.preview_manifest_digest !== null
+    || receipt.approved_manifest_digest !== null) {
+    throw new ContextOwnerError("Non-commit receipt carries commit identity", 409, "context_control_receipt_mismatch");
+  }
   return receipt;
 }
 
@@ -255,17 +301,11 @@ export async function getContextOwnerEffectiveLimits(runId, token) {
 }
 
 export async function recoverContextControlReceipt(runId, token, command) {
-  if (!command || typeof command !== "object" || Array.isArray(command)
-    || Object.keys(command).length !== 1
-    || !["pause", "commit", "resume"].includes(Object.keys(command)[0])
-    || !command[Object.keys(command)[0]]
-    || typeof command[Object.keys(command)[0]].idempotency_key !== "string") {
-    throw new ContextOwnerError("Enter a typed receipt lookup command", 400, "context_control_command_required");
-  }
+  validateCommand(command);
   const response = await ownerRequest(runId, token, "/context-control-receipts/lookup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(command),
   });
-  return validateReceipt(response, command);
+  return validateReceipt(response, command, runId);
 }
