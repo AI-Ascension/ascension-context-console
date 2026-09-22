@@ -20,6 +20,11 @@ private vault and the CLI/API/demo boundary:
   `durable_schema.rs` and `durable_types.rs`.
 - `harness_facade.rs` - non-demo typed harness-owner port/client, scoped grants, same-origin
   transport adapter, redacted projections, and stable owner outcomes.
+- `provider_session/` - the Phase 4 provider-session fixture route and its client projection:
+  `mod.rs` (constants, types and wiring), `capabilities.rs` (advertised capability reading and
+  its fixtures), `route.rs` (constructors, accessors, admission and local dispatch),
+  `service.rs` (attached dispatch, candidate mutation and plan/operation acceptance) and
+  `support.rs` (validation, canonicalisation and digest helpers).
 - `demo/` - the provider-free offline demonstration server.
 - `src/bin/context-console/` - the `health|demo|integrated-demo|inspect` CLI.
 - `src/bin/integrated-demo/` - the additive integrated demonstration binary.
