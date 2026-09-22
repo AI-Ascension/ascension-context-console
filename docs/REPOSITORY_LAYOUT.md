@@ -33,6 +33,13 @@ Its Phase 1 crate-level integration tests live in `crates/context-service/tests/
 integration tests remain in the repository-root `tests/` directory and are wired as explicit
 `[[test]]` targets in `crates/context-service/Cargo.toml`.
 
+The largest of those targets, `tests/phase2_control.rs`, keeps its entry point — shared imports,
+schema constants and fixtures — and splices four cohesive scenario groups from
+`tests/phase2_control/` (`draft_validation.rs`, `preview.rs`, `recovery.rs`, `fencing.rs`) with
+`include!` rather than declaring them as submodules. Splicing keeps every scenario in the entry
+point's module, so the discovered test names are unchanged; a submodule would add a path segment
+and rename all of them.
+
 `contract-artifact/context-inspection-v1` is the pinned schema copy. `fixtures/` contains original
 synthetic records. `web/` is a small static read-only frontend: `index.html`, `css/styles.css`, and
 the `js/` modules (`app.js`, `api.js`, `bundle.js`, `render.js`). `tools/repo-policy` provides the
