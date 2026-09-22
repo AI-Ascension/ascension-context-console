@@ -14,6 +14,10 @@ private vault and the CLI/API/demo boundary:
 - `capture/` - the off/metadata/memory/private capture sink contract.
 - `private_store/` - the approved, authenticated encrypted vault.
 - `telemetry/` - bounded capture accounting.
+- `control/` - the gated control plane for management commands: `state/` (the `mod.rs`
+  facade plus `models.rs`, `records.rs`, `drafting.rs`, `lifecycle.rs` and `time.rs`),
+  `render.rs`, `types.rs`, and the durable journal modules `durable.rs`, `durable_ops.rs`,
+  `durable_schema.rs` and `durable_types.rs`.
 - `harness_facade.rs` - non-demo typed harness-owner port/client, scoped grants, same-origin
   transport adapter, redacted projections, and stable owner outcomes.
 - `demo/` - the provider-free offline demonstration server.
