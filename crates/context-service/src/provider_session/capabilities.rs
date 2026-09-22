@@ -3,6 +3,12 @@
 use super::support::*;
 use super::*;
 
+/// Dual reader: a valid `v1` payload still reads, and a `v3` payload reads with effective limits.
+///
+/// # Errors
+///
+/// Returns [`SessionCapabilitiesReadError::UnknownSchema`] for an unrecognized schema and
+/// [`SessionCapabilitiesReadError::Malformed`] for a payload that does not match the named version.
 pub fn read_advertised_session_capabilities(
     bytes: &[u8],
 ) -> Result<AdvertisedSessionCapabilities, SessionCapabilitiesReadError> {
