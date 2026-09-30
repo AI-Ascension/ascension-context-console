@@ -360,8 +360,19 @@ fn rollback_consumer_pin_stays_pending_and_adoption_cannot_bypass_authentication
         let mut synthetic_aligned = current.clone();
         synthetic_aligned.adoption = Adoption::Aligned;
         for entry in &mut synthetic_aligned.surfaces {
-            entry.advertised_capability_schema =
-                Some(format!("ascension.{}.capabilities.v3", entry.surface));
+            // The two surfaces are not on the same schema revision: context-memory is still
+            // `v3`, while provider-session moved to `v4` when the producer renamed `evidence`
+            // to `provenance` (sts2-harness#755). A `v3` provider-session entry cannot admit a
+            // v4 record.
+            let revision = if entry.surface == "provider-session" {
+                "v4"
+            } else {
+                "v3"
+            };
+            entry.advertised_capability_schema = Some(format!(
+                "ascension.{}.capabilities.{revision}",
+                entry.surface
+            ));
             entry.effective_limits_advertised = true;
         }
         assert_eq!(

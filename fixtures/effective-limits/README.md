@@ -1,14 +1,14 @@
 # Pinned producer conformance vectors
 
 `producer.json` is original synthetic data emitted by the actual `sts2-harness` library at
-`f8015e52ccb530e60d722283ef2b063da372169b`. The consumer-owned generator is
+`27f1d4219e98999df4903615a57236e4747ae932`. The consumer-owned generator is
 [`tools/effective-limit-fixtures`](../../tools/effective-limit-fixtures). Its exact Git dependency
 and separate lockfile make regeneration independent of sibling working trees. No producer
 implementation is copied into this repository, and the Console product has no harness dependency.
 
-Fixture SHA-256: `ffed02d25dae8404145234bea2f8dd6f0a671f415a4ae68c7c388d8ac709e363`.
+Fixture SHA-256: `3c2d78f163683cb1cc2b079cd003332889facec2fad708560a93b9679a8af0cf`.
 Generator lockfile SHA-256:
-`b79a4c48f59a4927f9b56623812e4f227b355ce264fa8df96b2eb9b1f096b47e`.
+`fd1d7c33d586d3cf54f550a219b64dfd87f4d4c46468d72e6bd570b5fa0cae5c`.
 
 The six vectors cover memory and provider sessions at default, restricted and disabled settings.
 Restricted memory starts with `MemoryCorpus::with_limits(scope, 16, 4096)`; the generator also
@@ -50,16 +50,15 @@ with these records and separately configured trust descriptors. Studio v3 adopti
 harness-owned authoritative pin-matrix update remain merge gates. These vectors establish
 producer-library synthetic conformance only; see [ADR 0021](../../docs/decisions/0021-owner-capability-sidecar.md).
 
-## Session vectors are still `v3` (issue #780)
+## Session vectors are `v4`; memory vectors are still `v3`
 
-These vectors are emitted by the producer library at `f8015e52`, which still advertises the
-`ascension.provider-session.capabilities.v3` descriptor, so the session cases carry `v3` bytes and
-the `v3` `binding.policy_schema_sha256`. The console's own copied provider-session contract is now
-`v4`, so a `v4` descriptor must carry the `v4` policy digest and the `v3` vectors no longer satisfy
-`validate_descriptor()` once lifted. That is correct fail-closed behaviour and is why the four
-session-fixture tests in `crates/context-service/tests/capability_routes.rs` are `#[ignore]`d.
+The generator pins `sts2-harness` at a `v4` producer revision, so the session cases carry
+`ascension.provider-session.capabilities.v4` bytes and the matching `v4`
+`binding.policy_schema_sha256`. The context-memory surface was not part of the rename and its
+vectors remain `ascension.context-memory.capabilities.v3`; the two surfaces are deliberately not on
+the same schema revision, and `console_consumer_pin_for` reflects that.
 
-Regenerating at a `v4` producer revision means repinning the `sts2-harness` Git dependency in
-`tools/effective-limit-fixtures/Cargo.toml` and re-locking, which this repository's AGENTS.md
-reserves to root. The fixture bytes must not be hand-edited to match: the digests are
-self-authenticating and `inputs::equal_fixture` compares producer output byte for byte.
+The fixture bytes are never hand-edited to match. The digests are self-authenticating and
+`inputs::equal_fixture` compares producer output byte for byte, so the only way to move the vectors
+is to repin the generator's `sts2-harness` Git dependency, re-lock, and re-run it. That repin is
+root-owned under this repository's `AGENTS.md`.

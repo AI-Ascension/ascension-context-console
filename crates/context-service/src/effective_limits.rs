@@ -27,7 +27,7 @@ pub const EFFECTIVE_LIMIT_RECORD_SCHEMA: &str = "ascension.harness.effective-lim
 pub const CONSUMER_REPOSITORY: &str = "AI-Ascension/ascension-context-console";
 
 /// Harness producer revision whose copied artifacts are pinned by this repository.
-pub const PRODUCER_REVISION: &str = "f8015e52ccb530e60d722283ef2b063da372169b";
+pub const PRODUCER_REVISION: &str = "27f1d4219e98999df4903615a57236e4747ae932";
 
 /// How a published ceiling relates to the portable policy-schema ceiling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -378,8 +378,8 @@ pub struct ConsumerPin {
     pub surfaces: Vec<ConsumerSurface>,
 }
 
-/// The console's default v3 consumer disclosure. The authoritative harness matrix is maintained
-/// separately with the merged consumer/CI pins; this does not update it.
+/// The console's default aligned consumer disclosure. The authoritative harness matrix is
+/// maintained separately with the merged consumer/CI pins; this does not update it.
 #[must_use]
 pub fn console_consumer_pin() -> ConsumerPin {
     console_consumer_pin_for(crate::CapabilityVersion::V3)
@@ -390,6 +390,12 @@ pub fn console_consumer_pin() -> ConsumerPin {
 pub fn console_consumer_pin_for(version: crate::CapabilityVersion) -> ConsumerPin {
     let aligned = version == crate::CapabilityVersion::V3;
     let suffix = if aligned { "v3" } else { "v1" };
+    // The context-memory surface is still `v3`, but provider-session moved to `v4` when the
+    // producer renamed `evidence` to `provenance` (sts2-harness#755). `CapabilityVersion::V3` is
+    // the aligned *selector*, not a per-surface literal, so the provider-session entry must
+    // advertise the schema the producer now actually emits. A `v3` entry here makes every v4
+    // record fail admission as `FieldNotAdvertised`.
+    let session_schema = if aligned { "v4" } else { "v1" };
     ConsumerPin {
         repository: CONSUMER_REPOSITORY.to_owned(),
         producer_revision: PRODUCER_REVISION.to_owned(),
@@ -409,7 +415,7 @@ pub fn console_consumer_pin_for(version: crate::CapabilityVersion) -> ConsumerPi
             ConsumerSurface {
                 surface: "provider-session".to_owned(),
                 advertised_capability_schema: Some(format!(
-                    "ascension.provider-session.capabilities.{suffix}"
+                    "ascension.provider-session.capabilities.{session_schema}"
                 )),
                 effective_limits_advertised: aligned,
             },
