@@ -35,6 +35,13 @@ pub const SESSION_API_SCHEMA: &str = "ascension.provider-session.api-result.v1";
 /// contract sets `additionalProperties: false`, a `v3` payload carrying `evidence` does not decode
 /// as a `v4` descriptor, so the superseded `v3` shape is still read explicitly below.
 pub const SESSION_CAPABILITIES_SCHEMA: &str = "ascension.provider-session.capabilities.v4";
+/// The owner revision the `v4` capability contract pins. `capabilities.schema.json` declares
+/// `owner_revision` as a `const`, so a descriptor built against `v4` carries exactly this string
+/// and `validate_descriptor` must require the same value (sts2-harness#755).
+pub const SESSION_CAPABILITIES_OWNER_REVISION: &str = "harness-provider-session-v4";
+/// The owner revision the superseded `v3` contract pinned. Retained so a not-yet-migrated peer
+/// can be recognised as the version it actually is instead of being read as a tampered `v4`.
+pub const SESSION_CAPABILITIES_OWNER_REVISION_V3: &str = "harness-provider-session-v3";
 /// The superseded `v3` contract, still readable so a peer that has not cut over is refused with a
 /// typed error rather than a decode failure. `v3` carried the field `v4` calls `provenance` under
 /// the name `evidence`.

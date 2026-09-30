@@ -664,7 +664,9 @@ mod tests {
         );
 
         let mut other_revision = trusted.clone();
-        other_revision.owner_revision = "harness-provider-session-v3".to_owned();
+        // `v3` is the superseded pinned revision, not the current one: a record carrying it must
+        // no longer authenticate, which is exactly what this negative case asserts.
+        other_revision.owner_revision = crate::SESSION_CAPABILITIES_OWNER_REVISION_V3.to_owned();
         assert_eq!(
             other_revision.authenticate(&trusted),
             Err(UnavailableReason::ProfileMismatch)

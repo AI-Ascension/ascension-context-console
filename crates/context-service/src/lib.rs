@@ -75,12 +75,12 @@ pub use private_store::{
     EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,
 };
 pub use provider_session::{
-    AdvertisedSessionCapabilities, ProviderSessionRoute, SESSION_CAPABILITIES_SCHEMA,
-    SESSION_CAPABILITIES_SCHEMA_V1, SESSION_CAPABILITIES_SCHEMA_V3, SessionApiError, SessionBinding,
-    SessionBindingView, SessionCapabilitiesReadError, SessionCapabilitiesV1,
+    AdvertisedSessionCapabilities, ProviderSessionRoute, SESSION_CAPABILITIES_OWNER_REVISION,
+    SESSION_CAPABILITIES_OWNER_REVISION_V3, SESSION_CAPABILITIES_SCHEMA,
+    SESSION_CAPABILITIES_SCHEMA_V1, SESSION_CAPABILITIES_SCHEMA_V3, SessionApiError,
+    SessionBinding, SessionBindingView, SessionCapabilitiesReadError, SessionCapabilitiesV1,
     SessionCapabilitiesV3, SessionCapabilitiesView, SessionEffectiveLimits, SessionHardeningView,
-    SessionOperationView, SessionRouteMode, SessionScopeView,
-    read_advertised_session_capabilities,
+    SessionOperationView, SessionRouteMode, SessionScopeView, read_advertised_session_capabilities,
 };
 pub use read_api::{
     ApiError, HttpRequest, HttpResponse, MAX_HTTP_BODY_BYTES, MAX_HTTP_REQUEST_BYTES, ReadApi,

@@ -25,14 +25,17 @@ Producer: `AI-Ascension/sts2-harness`, `origin/main` revision
 
 | Artifact | sha256 |
 |---|---|
-| `contracts/provider-session/policy.schema.json` | `48d6dc1c75504983c3d5e6a1152c0447874eeb512e45b276ab440962e52781a5` |
-| `contracts/provider-session/capabilities.schema.json` | `de1348ec7434703722b00a2ddb4bcef7cec02b3788ff14af018cf7b7efaf21f0` |
+| `contracts/provider-session/policy.schema.json` | `85d5f36900e10fa1e60c918e6c1fc4fbdbd9432093a65738b2098de142136234` |
+| `contracts/provider-session/capabilities.schema.json` | `accec38f7a6bb58fd485bf74a8a2ed7aca354fd80b2eff3dae8363a30dae96c9` |
 
-The coordinated cutover serves `ascension.provider-session.capabilities.v3` with validated payload
-digests, `effective_limits` and `binding`. Attached presentation requires an actual producer
-record sidecar and independent owner/scope/profile configuration. Both v1/v3 readers remain;
-explicit `CapabilityVersion::V1` rollback omits executable limits and reports a pending consumer
-pin. See [ADR 0021](../../docs/decisions/0021-owner-capability-sidecar.md).
+The coordinated cutover serves `ascension.provider-session.capabilities.v4` with validated payload
+digests, `effective_limits` and `binding`. `v4` renames the qualification field `evidence` to
+`provenance`; it records how a build was qualified and is **not** an admission control
+(sts2-harness#755). Attached presentation requires an actual producer record sidecar and
+independent owner/scope/profile configuration. v1/v3/v4 readers remain, so a peer that has not cut
+over is refused with a typed error rather than a decode failure; explicit
+`CapabilityVersion::V1` rollback omits executable limits and reports a pending consumer pin. See
+[ADR 0021](../../docs/decisions/0021-owner-capability-sidecar.md).
 
 The `encrypted_state` widening does **not** relax this repository's private-retention guard:
 private retention still requires an accepted policy exception and authenticated encryption

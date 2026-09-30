@@ -239,7 +239,7 @@ pub(super) fn fixture_session_effective_limits() -> SessionEffectiveLimits {
 pub(super) fn fixture_session_binding() -> SessionBinding {
     SessionBinding {
         owner: "sts2-harness".to_owned(),
-        owner_revision: "harness-provider-session-v3".to_owned(),
+        owner_revision: crate::SESSION_CAPABILITIES_OWNER_REVISION.to_owned(),
         policy_schema_sha256: contract_pins::SESSION_POLICY_SCHEMA_SHA256.to_owned(),
         model_revision: "fixture-peer-1".to_owned(),
         adapter_revision: "codex-app-server-fixture-v1".to_owned(),
