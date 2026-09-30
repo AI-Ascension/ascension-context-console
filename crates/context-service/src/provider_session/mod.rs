@@ -30,7 +30,15 @@ pub use capabilities::read_advertised_session_capabilities;
 pub const SESSION_API_SCHEMA: &str = "ascension.provider-session.api-result.v1";
 /// Advertised capability schema. The `v3` contract additionally requires the `effective_limits`
 /// and `binding` objects. The `v1` payload shape remains readable through the dual reader.
-pub const SESSION_CAPABILITIES_SCHEMA: &str = "ascension.provider-session.capabilities.v3";
+/// The current provider-session capability schema. `v4` renames `evidence` to `provenance` and
+/// documents that it is provenance, not an admission control (sts2-harness#755). Because the
+/// contract sets `additionalProperties: false`, a `v3` payload carrying `evidence` does not decode
+/// as a `v4` descriptor, so the superseded `v3` shape is still read explicitly below.
+pub const SESSION_CAPABILITIES_SCHEMA: &str = "ascension.provider-session.capabilities.v4";
+/// The superseded `v3` contract, still readable so a peer that has not cut over is refused with a
+/// typed error rather than a decode failure. `v3` carried the field `v4` calls `provenance` under
+/// the name `evidence`.
+pub const SESSION_CAPABILITIES_SCHEMA_V3: &str = "ascension.provider-session.capabilities.v3";
 /// Legacy capability schema preserved for dual reading during migration.
 pub const SESSION_CAPABILITIES_SCHEMA_V1: &str = "ascension.provider-session.capabilities.v1";
 const MAX_BODY_BYTES: usize = 16 * 1024;
@@ -142,6 +150,12 @@ pub struct SessionBinding {
 }
 
 /// Advertised `v3` provider-session capability descriptor.
+/// The current `v4` provider-session capability descriptor.
+///
+/// `provenance` records how the build behind a descriptor was qualified. It is NOT an admission
+/// control: the owner runtime does not consult it, every value is equally admissible, and the
+/// variants are not an ordered tier. It is named accordingly so a reader is not invited to compare
+/// it against a floor that does not exist. Refs sts2-harness#755.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionCapabilitiesView {
@@ -151,7 +165,7 @@ pub struct SessionCapabilitiesView {
     pub native_version: String,
     pub native_binary_sha256: String,
     pub native_schema_sha256: String,
-    pub evidence: String,
+    pub provenance: String,
     pub transport: String,
     pub enabled_methods: Vec<String>,
     pub hardening: SessionHardeningView,
@@ -183,11 +197,64 @@ pub struct SessionCapabilitiesV1 {
     pub raw_rpc: bool,
 }
 
-/// Result of the provider-session dual reader.
+/// The superseded `v3` provider-session capability descriptor, still readable through the
+/// tri-version reader. It is byte-identical to `v4` except that the qualification field is named
+/// `evidence` rather than `provenance`; the owner runtime never treated it as an admission control
+/// at either version, so nothing about the value's meaning changes across the rename.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionCapabilitiesV3 {
+    pub schema: String,
+    pub profile_id: String,
+    pub profile_sha256: String,
+    pub native_version: String,
+    pub native_binary_sha256: String,
+    pub native_schema_sha256: String,
+    pub evidence: String,
+    pub transport: String,
+    pub enabled_methods: Vec<String>,
+    pub hardening: SessionHardeningView,
+    pub effective_limits: SessionEffectiveLimits,
+    pub binding: SessionBinding,
+    pub strict_executable: bool,
+    pub experimental_api: bool,
+    pub unknown_methods: String,
+    pub raw_rpc: bool,
+}
+
+impl SessionCapabilitiesV3 {
+    /// Lift a `v3` descriptor to the current `v4` shape. This is a pure rename of the
+    /// qualification field: `evidence` becomes `provenance`, with no change to its value or to any
+    /// admission decision, because the owner runtime never read it.
+    #[must_use]
+    pub fn to_v4(self) -> SessionCapabilitiesView {
+        SessionCapabilitiesView {
+            schema: SESSION_CAPABILITIES_SCHEMA.to_owned(),
+            profile_id: self.profile_id,
+            profile_sha256: self.profile_sha256,
+            native_version: self.native_version,
+            native_binary_sha256: self.native_binary_sha256,
+            native_schema_sha256: self.native_schema_sha256,
+            provenance: self.evidence,
+            transport: self.transport,
+            enabled_methods: self.enabled_methods,
+            hardening: self.hardening,
+            effective_limits: self.effective_limits,
+            binding: self.binding,
+            strict_executable: self.strict_executable,
+            experimental_api: self.experimental_api,
+            unknown_methods: self.unknown_methods,
+            raw_rpc: self.raw_rpc,
+        }
+    }
+}
+
+/// Result of the provider-session reader.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AdvertisedSessionCapabilities {
     V1(Box<SessionCapabilitiesV1>),
-    V3(Box<SessionCapabilitiesView>),
+    V3(Box<SessionCapabilitiesV3>),
+    V4(Box<SessionCapabilitiesView>),
 }
 
 impl AdvertisedSessionCapabilities {
@@ -196,6 +263,18 @@ impl AdvertisedSessionCapabilities {
         match self {
             Self::V1(capabilities) => &capabilities.schema,
             Self::V3(capabilities) => &capabilities.schema,
+            Self::V4(capabilities) => &capabilities.schema,
+        }
+    }
+
+    /// The current `v4` view of whatever was advertised. A `v3` payload is lifted across the
+    /// rename; a `v1` payload has no effective limits to lift and returns `None`.
+    #[must_use]
+    pub fn to_v4(&self) -> Option<SessionCapabilitiesView> {
+        match self {
+            Self::V1(_) => None,
+            Self::V3(capabilities) => Some(capabilities.clone().to_v4()),
+            Self::V4(capabilities) => Some((**capabilities).clone()),
         }
     }
 
@@ -204,6 +283,7 @@ impl AdvertisedSessionCapabilities {
         match self {
             Self::V1(_) => None,
             Self::V3(capabilities) => Some(&capabilities.effective_limits),
+            Self::V4(capabilities) => Some(&capabilities.effective_limits),
         }
     }
 }

@@ -149,7 +149,7 @@ impl SessionCapabilityTrust {
             .as_ref()
             .ok_or(UnavailableReason::FieldNotAdvertised)?;
         let bytes = serde_json::to_vec(value).map_err(|_| UnavailableReason::DescriptorTampered)?;
-        let AdvertisedSessionCapabilities::V3(descriptor) =
+        let AdvertisedSessionCapabilities::V4(descriptor) =
             read_advertised_session_capabilities(&bytes)
                 .map_err(|_| UnavailableReason::DescriptorTampered)?
         else {
@@ -272,7 +272,15 @@ fn legacy_projection(operation: OwnerOperation, value: &Value) -> Result<Value, 
             .map_err(|_| UnavailableReason::DescriptorTampered)?
         {
             AdvertisedSessionCapabilities::V1(descriptor) => serde_json::to_value(descriptor),
-            AdvertisedSessionCapabilities::V3(descriptor) => {
+            AdvertisedSessionCapabilities::V3(_) => {
+                // A `v3` advertisement cannot be re-served as the legacy `v1` shape: the two
+                // differ in more than the qualification field's name, and synthesising a `v1`
+                // payload from it would drop the effective limits the owner actually published.
+                Err(serde::de::Error::custom(
+                    "a v3 provider-session advertisement is not a v1 rollback target",
+                ))
+            }
+            AdvertisedSessionCapabilities::V4(descriptor) => {
                 descriptor.validate_descriptor()?;
                 serde_json::to_value(descriptor.to_v1())
             }

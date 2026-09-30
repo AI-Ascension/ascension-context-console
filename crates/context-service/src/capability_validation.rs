@@ -146,7 +146,7 @@ impl SessionCapabilitiesView {
             .into_iter()
             .all(|value| hash(value))
             || !matches!(
-                self.evidence.as_str(),
+                self.provenance.as_str(),
                 "schema_only" | "compiled_peer" | "native_binary_fake_upstream" | "live_provider"
             )
             || self.transport != "owned_stdio"

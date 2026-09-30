@@ -31,8 +31,17 @@ impl Descriptor {
             },
             "session" => {
                 match read_advertised_session_capabilities(&bytes).expect("session reader") {
-                    AdvertisedSessionCapabilities::V3(value) => Self::Session(value),
-                    _ => panic!("producer fixture must advertise v3"),
+                    AdvertisedSessionCapabilities::V4(value) => Self::Session(value),
+                    // The golden fixture is regenerated as part of the v4 cutover. Accepting the
+                    // superseded `v3` shape here as well is what lets this test keep proving the
+                    // admission contract across the rename instead of only after it: a `v3`
+                    // payload lifts to the same v4 view, so both must admit identically.
+                    AdvertisedSessionCapabilities::V3(value) => {
+                        Self::Session(Box::new(value.to_v4()))
+                    }
+                    AdvertisedSessionCapabilities::V1(_) => {
+                        panic!("producer fixture must advertise a schema with effective limits")
+                    }
                 }
             }
             _ => panic!("unknown test surface"),
