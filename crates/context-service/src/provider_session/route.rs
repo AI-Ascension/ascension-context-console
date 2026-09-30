@@ -17,7 +17,7 @@ impl ProviderSessionRoute {
                 native_version: "fixture-peer-1".to_owned(),
                 native_binary_sha256: sha256_hex("compiled-fake-native-peer"),
                 native_schema_sha256: sha256_hex("codex-app-server-jsonrpc.v2"),
-                evidence: "compiled_peer".to_owned(),
+                provenance: "compiled_peer".to_owned(),
                 transport: "owned_stdio".to_owned(),
                 enabled_methods: vec![
                     "initialize".to_owned(),

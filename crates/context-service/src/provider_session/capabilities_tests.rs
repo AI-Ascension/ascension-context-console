@@ -45,7 +45,7 @@ fn v3_target_capability_advertises_effective_limits_and_binding() {
     assert_eq!(value["binding"]["owner"], "sts2-harness");
     assert_eq!(
         value["binding"]["owner_revision"],
-        "harness-provider-session-v3"
+        SESSION_CAPABILITIES_OWNER_REVISION
     );
     assert_eq!(
         value["binding"]["descriptor_sha256"],
@@ -80,6 +80,11 @@ fn dual_reader_reads_legacy_and_current_payloads() {
     let object = legacy.as_object_mut().expect("object");
     object.remove("effective_limits");
     object.remove("binding");
+    // The `v1` descriptor predates the rename, so it names the qualification field `evidence`.
+    // Renaming it here rather than leaving the v4 name in place is what makes this a real `v1`
+    // read: the reader must still accept the old field name, not just the old schema string.
+    let provenance = object.remove("provenance").expect("v4 qualification field");
+    object.insert("evidence".to_owned(), provenance);
     object.insert(
         "schema".to_owned(),
         Value::String(SESSION_CAPABILITIES_SCHEMA_V1.to_owned()),
@@ -92,6 +97,59 @@ fn dual_reader_reads_legacy_and_current_payloads() {
     assert_eq!(
         read_advertised_session_capabilities(b"not json"),
         Err(SessionCapabilitiesReadError::Malformed)
+    );
+}
+
+/// A peer that has not yet adopted `v4` still advertises `v3`, which names the qualification
+/// field `evidence`. Because the contract sets `additionalProperties: false`, that payload does not
+/// decode as `v4`; without an explicit `v3` arm it would be reported as `Malformed` rather than
+/// understood. This asserts the arm exists and that lifting it is a pure rename: every other
+/// field, and the descriptor digest, are carried across unchanged.
+#[test]
+fn a_not_yet_migrated_v3_peer_is_read_and_lifted_across_the_rename() {
+    let route = ProviderSessionRoute::fixture("operator");
+    let v4 = route.target_capabilities_v3();
+
+    let mut value = serde_json::to_value(v4.clone()).expect("v4 value");
+    let object = value.as_object_mut().expect("object");
+    object.insert(
+        "schema".to_owned(),
+        Value::String(SESSION_CAPABILITIES_SCHEMA_V3.to_owned()),
+    );
+    let binding = serde_json::to_value(v4.binding.clone()).expect("binding");
+    let mut binding = binding;
+    binding["owner_revision"] = Value::String(SESSION_CAPABILITIES_OWNER_REVISION_V3.to_owned());
+    object.insert("binding".to_owned(), binding);
+    let provenance = object.remove("provenance").expect("v4 qualification field");
+    object.insert("evidence".to_owned(), provenance);
+
+    let bytes = serde_json::to_vec(&value).expect("v3 bytes");
+    let read = read_advertised_session_capabilities(&bytes).expect("v3 reads");
+    assert_eq!(read.schema(), SESSION_CAPABILITIES_SCHEMA_V3);
+    assert_eq!(
+        read.effective_limits()
+            .expect("v3 limits")
+            .max_completed_turns,
+        128,
+        "a v3 peer still publishes the executable ceiling"
+    );
+
+    let lifted = read.to_v4().expect("v3 lifts to v4");
+    assert_eq!(lifted.schema, SESSION_CAPABILITIES_SCHEMA);
+    assert_eq!(
+        lifted.provenance, v4.provenance,
+        "the value is carried across"
+    );
+    assert_eq!(lifted.profile_id, v4.profile_id);
+    assert_eq!(lifted.enabled_methods, v4.enabled_methods);
+    // The only binding field that may differ is the pinned owner revision: a genuine `v3` peer
+    // advertises `harness-provider-session-v3`, and that difference is precisely what makes it a
+    // `v3` peer. Everything else, including the descriptor digest, must cross unchanged.
+    let mut expected = v4.binding.clone();
+    expected.owner_revision = SESSION_CAPABILITIES_OWNER_REVISION_V3.to_owned();
+    assert_eq!(
+        lifted.binding, expected,
+        "the rename must not disturb the binding or its digest"
     );
 }
 

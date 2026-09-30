@@ -31,8 +31,17 @@ impl Descriptor {
             },
             "session" => {
                 match read_advertised_session_capabilities(&bytes).expect("session reader") {
-                    AdvertisedSessionCapabilities::V3(value) => Self::Session(value),
-                    _ => panic!("producer fixture must advertise v3"),
+                    AdvertisedSessionCapabilities::V4(value) => Self::Session(value),
+                    // The golden fixture is regenerated as part of the v4 cutover. Accepting the
+                    // superseded `v3` shape here as well is what lets this test keep proving the
+                    // admission contract across the rename instead of only after it: a `v3`
+                    // payload lifts to the same v4 view, so both must admit identically.
+                    AdvertisedSessionCapabilities::V3(value) => {
+                        Self::Session(Box::new(value.to_v4()))
+                    }
+                    AdvertisedSessionCapabilities::V1(_) => {
+                        panic!("producer fixture must advertise a schema with effective limits")
+                    }
                 }
             }
             _ => panic!("unknown test surface"),
@@ -326,8 +335,17 @@ fn rollback_consumer_pin_stays_pending_and_adoption_cannot_bypass_authentication
         let mut synthetic_aligned = current.clone();
         synthetic_aligned.adoption = Adoption::Aligned;
         for entry in &mut synthetic_aligned.surfaces {
-            entry.advertised_capability_schema =
-                Some(format!("ascension.{}.capabilities.v3", entry.surface));
+            // The advertised schema has to be the one the record actually carries, because that is
+            // what admission compares against. Formatting it from a `v3` suffix re-asserted the
+            // pre-rename token for the provider-session surface, whose record is now v4, so this
+            // synthetic pin was refused as `FieldNotAdvertised` before the ceiling was ever read —
+            // which is the case this block exists to exercise. Take each surface's own constant.
+            entry.advertised_capability_schema = Some(match entry.surface.as_str() {
+                "provider-session" => {
+                    context_service::provider_session::SESSION_CAPABILITIES_SCHEMA.to_owned()
+                }
+                _ => context_service::MEMORY_CAPABILITIES_SCHEMA.to_owned(),
+            });
             entry.effective_limits_advertised = true;
         }
         assert_eq!(

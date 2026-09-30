@@ -3,7 +3,13 @@
 use super::support::*;
 use super::*;
 
-/// Dual reader: a valid `v1` payload still reads, and a `v3` payload reads with effective limits.
+/// Tri-version reader: a valid `v1` payload still reads, a superseded `v3` payload still reads
+/// with effective limits, and the current `v4` payload reads with effective limits.
+///
+/// `v3` and `v4` are the same shape apart from the qualification field's name (`evidence` versus
+/// `provenance`, sts2-harness#755), so both are decoded and the caller lifts as needed. Reading
+/// `v3` explicitly matters because the contract sets `additionalProperties: false`: without this
+/// arm a not-yet-migrated peer would be reported as `Malformed` instead of being understood.
 ///
 /// # Errors
 ///
@@ -22,6 +28,11 @@ pub fn read_advertised_session_capabilities(
         }
         Some(SESSION_CAPABILITIES_SCHEMA) => {
             serde_json::from_value::<SessionCapabilitiesView>(value)
+                .map(|capabilities| AdvertisedSessionCapabilities::V4(Box::new(capabilities)))
+                .map_err(|_| SessionCapabilitiesReadError::Malformed)
+        }
+        Some(SESSION_CAPABILITIES_SCHEMA_V3) => {
+            serde_json::from_value::<SessionCapabilitiesV3>(value)
                 .map(|capabilities| AdvertisedSessionCapabilities::V3(Box::new(capabilities)))
                 .map_err(|_| SessionCapabilitiesReadError::Malformed)
         }
@@ -45,7 +56,7 @@ impl SessionCapabilitiesView {
             native_version: self.native_version.clone(),
             native_binary_sha256: self.native_binary_sha256.clone(),
             native_schema_sha256: self.native_schema_sha256.clone(),
-            evidence: self.evidence.clone(),
+            evidence: self.provenance.clone(),
             transport: self.transport.clone(),
             enabled_methods: self.enabled_methods.clone(),
             hardening: self.hardening.clone(),
@@ -228,7 +239,7 @@ pub(super) fn fixture_session_effective_limits() -> SessionEffectiveLimits {
 pub(super) fn fixture_session_binding() -> SessionBinding {
     SessionBinding {
         owner: "sts2-harness".to_owned(),
-        owner_revision: "harness-provider-session-v3".to_owned(),
+        owner_revision: crate::SESSION_CAPABILITIES_OWNER_REVISION.to_owned(),
         policy_schema_sha256: contract_pins::SESSION_POLICY_SCHEMA_SHA256.to_owned(),
         model_revision: "fixture-peer-1".to_owned(),
         adapter_revision: "codex-app-server-fixture-v1".to_owned(),

@@ -146,7 +146,7 @@ impl SessionCapabilitiesView {
             .into_iter()
             .all(|value| hash(value))
             || !matches!(
-                self.evidence.as_str(),
+                self.provenance.as_str(),
                 "schema_only" | "compiled_peer" | "native_binary_fake_upstream" | "live_provider"
             )
             || self.transport != "owned_stdio"
@@ -171,7 +171,7 @@ impl SessionCapabilitiesView {
             || self.raw_rpc
             || self.effective_limits.policy_schema != "ascension.provider-session.policy.v1"
             || binding.owner != "sts2-harness"
-            || binding.owner_revision != "harness-provider-session-v3"
+            || binding.owner_revision != crate::SESSION_CAPABILITIES_OWNER_REVISION
             || binding.model_revision != self.native_version
             || binding.adapter_revision != self.profile_id
             || binding.adapter_revision_sha256 != self.profile_sha256

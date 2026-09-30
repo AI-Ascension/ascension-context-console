@@ -27,7 +27,12 @@ pub const EFFECTIVE_LIMIT_RECORD_SCHEMA: &str = "ascension.harness.effective-lim
 pub const CONSUMER_REPOSITORY: &str = "AI-Ascension/ascension-context-console";
 
 /// Harness producer revision whose copied artifacts are pinned by this repository.
-pub const PRODUCER_REVISION: &str = "f8015e52ccb530e60d722283ef2b063da372169b";
+///
+/// Derived from the `fixtures/effective-limits/producer.json` this repository pins, rather than
+/// repeated as a literal. The pin and the fixture are two views of one fact, so a literal here
+/// could drift from the bytes it describes and no local gate would notice; a mismatch is now a
+/// compile error instead.
+pub const PRODUCER_REVISION: &str = env!("CONSOLE_FIXTURE_PRODUCER_REVISION");
 
 /// How a published ceiling relates to the portable policy-schema ceiling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -389,7 +394,6 @@ pub fn console_consumer_pin() -> ConsumerPin {
 #[must_use]
 pub fn console_consumer_pin_for(version: crate::CapabilityVersion) -> ConsumerPin {
     let aligned = version == crate::CapabilityVersion::V3;
-    let suffix = if aligned { "v3" } else { "v1" };
     ConsumerPin {
         repository: CONSUMER_REPOSITORY.to_owned(),
         producer_revision: PRODUCER_REVISION.to_owned(),
@@ -401,16 +405,26 @@ pub fn console_consumer_pin_for(version: crate::CapabilityVersion) -> ConsumerPi
         surfaces: vec![
             ConsumerSurface {
                 surface: "context-memory".to_owned(),
-                advertised_capability_schema: Some(format!(
-                    "ascension.context-memory.capabilities.{suffix}"
-                )),
+                advertised_capability_schema: Some(if aligned {
+                    crate::MEMORY_CAPABILITIES_SCHEMA.to_owned()
+                } else {
+                    crate::MEMORY_CAPABILITIES_SCHEMA_V1.to_owned()
+                }),
                 effective_limits_advertised: aligned,
             },
             ConsumerSurface {
                 surface: "provider-session".to_owned(),
-                advertised_capability_schema: Some(format!(
-                    "ascension.provider-session.capabilities.{suffix}"
-                )),
+                // The advertised schema has to be the one the record actually carries, which is
+                // what `admit_consumer` compares against. Deriving it from the presentation
+                // version instead is what broke the v4 cutover: presenting v3 while the pinned
+                // record is v4 fails the match as `FieldNotAdvertised` before any ceiling is read.
+                // The session surface moved to v4, the memory surface did not, so each takes its
+                // own constant rather than a shared suffix.
+                advertised_capability_schema: Some(if aligned {
+                    crate::provider_session::SESSION_CAPABILITIES_SCHEMA.to_owned()
+                } else {
+                    crate::provider_session::SESSION_CAPABILITIES_SCHEMA_V1.to_owned()
+                }),
                 effective_limits_advertised: aligned,
             },
         ],
@@ -484,10 +498,10 @@ pub mod contract_pins {
         "2b980bbdcdd886398c1e590303b82afee174e4569164e79b210ab35f6669bd22";
     /// SHA-256 of the copied provider-session policy schema.
     pub const SESSION_POLICY_SCHEMA_SHA256: &str =
-        "48d6dc1c75504983c3d5e6a1152c0447874eeb512e45b276ab440962e52781a5";
+        "85d5f36900e10fa1e60c918e6c1fc4fbdbd9432093a65738b2098de142136234";
     /// SHA-256 of the copied provider-session capabilities schema (the descriptor digest).
     pub const SESSION_CAPABILITIES_SCHEMA_SHA256: &str =
-        "de1348ec7434703722b00a2ddb4bcef7cec02b3788ff14af018cf7b7efaf21f0";
+        "accec38f7a6bb58fd485bf74a8a2ed7aca354fd80b2eff3dae8363a30dae96c9";
 }
 
 #[cfg(test)]
@@ -664,7 +678,9 @@ mod tests {
         );
 
         let mut other_revision = trusted.clone();
-        other_revision.owner_revision = "harness-provider-session-v3".to_owned();
+        // `v3` is the superseded pinned revision, not the current one: a record carrying it must
+        // no longer authenticate, which is exactly what this negative case asserts.
+        other_revision.owner_revision = crate::SESSION_CAPABILITIES_OWNER_REVISION_V3.to_owned();
         assert_eq!(
             other_revision.authenticate(&trusted),
             Err(UnavailableReason::ProfileMismatch)
