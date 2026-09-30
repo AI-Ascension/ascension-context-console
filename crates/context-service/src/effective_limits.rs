@@ -27,7 +27,12 @@ pub const EFFECTIVE_LIMIT_RECORD_SCHEMA: &str = "ascension.harness.effective-lim
 pub const CONSUMER_REPOSITORY: &str = "AI-Ascension/ascension-context-console";
 
 /// Harness producer revision whose copied artifacts are pinned by this repository.
-pub const PRODUCER_REVISION: &str = "f8015e52ccb530e60d722283ef2b063da372169b";
+///
+/// Derived from the `fixtures/effective-limits/producer.json` this repository pins, rather than
+/// repeated as a literal. The pin and the fixture are two views of one fact, so a literal here
+/// could drift from the bytes it describes and no local gate would notice; a mismatch is now a
+/// compile error instead.
+pub const PRODUCER_REVISION: &str = env!("CONSOLE_FIXTURE_PRODUCER_REVISION");
 
 /// How a published ceiling relates to the portable policy-schema ceiling.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -389,7 +394,6 @@ pub fn console_consumer_pin() -> ConsumerPin {
 #[must_use]
 pub fn console_consumer_pin_for(version: crate::CapabilityVersion) -> ConsumerPin {
     let aligned = version == crate::CapabilityVersion::V3;
-    let suffix = if aligned { "v3" } else { "v1" };
     ConsumerPin {
         repository: CONSUMER_REPOSITORY.to_owned(),
         producer_revision: PRODUCER_REVISION.to_owned(),
@@ -401,16 +405,26 @@ pub fn console_consumer_pin_for(version: crate::CapabilityVersion) -> ConsumerPi
         surfaces: vec![
             ConsumerSurface {
                 surface: "context-memory".to_owned(),
-                advertised_capability_schema: Some(format!(
-                    "ascension.context-memory.capabilities.{suffix}"
-                )),
+                advertised_capability_schema: Some(if aligned {
+                    crate::MEMORY_CAPABILITIES_SCHEMA.to_owned()
+                } else {
+                    crate::MEMORY_CAPABILITIES_SCHEMA_V1.to_owned()
+                }),
                 effective_limits_advertised: aligned,
             },
             ConsumerSurface {
                 surface: "provider-session".to_owned(),
-                advertised_capability_schema: Some(format!(
-                    "ascension.provider-session.capabilities.{suffix}"
-                )),
+                // The advertised schema has to be the one the record actually carries, which is
+                // what `admit_consumer` compares against. Deriving it from the presentation
+                // version instead is what broke the v4 cutover: presenting v3 while the pinned
+                // record is v4 fails the match as `FieldNotAdvertised` before any ceiling is read.
+                // The session surface moved to v4, the memory surface did not, so each takes its
+                // own constant rather than a shared suffix.
+                advertised_capability_schema: Some(if aligned {
+                    crate::provider_session::SESSION_CAPABILITIES_SCHEMA.to_owned()
+                } else {
+                    crate::provider_session::SESSION_CAPABILITIES_SCHEMA_V1.to_owned()
+                }),
                 effective_limits_advertised: aligned,
             },
         ],

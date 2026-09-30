@@ -10,7 +10,7 @@ license = "MIT"
 [workspace]
 
 [dependencies]
-sts2-harness = { git = "https://github.com/AI-Ascension/sts2-harness", rev = "f8015e52ccb530e60d722283ef2b063da372169b" }
+sts2-harness = { git = "https://github.com/AI-Ascension/sts2-harness", rev = "27f1d4219e98999df4903615a57236e4747ae932" }
 serde_json = "=1.0.151"
 
 [lints.rust]

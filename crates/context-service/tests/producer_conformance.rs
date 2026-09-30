@@ -335,8 +335,17 @@ fn rollback_consumer_pin_stays_pending_and_adoption_cannot_bypass_authentication
         let mut synthetic_aligned = current.clone();
         synthetic_aligned.adoption = Adoption::Aligned;
         for entry in &mut synthetic_aligned.surfaces {
-            entry.advertised_capability_schema =
-                Some(format!("ascension.{}.capabilities.v3", entry.surface));
+            // The advertised schema has to be the one the record actually carries, because that is
+            // what admission compares against. Formatting it from a `v3` suffix re-asserted the
+            // pre-rename token for the provider-session surface, whose record is now v4, so this
+            // synthetic pin was refused as `FieldNotAdvertised` before the ceiling was ever read —
+            // which is the case this block exists to exercise. Take each surface's own constant.
+            entry.advertised_capability_schema = Some(match entry.surface.as_str() {
+                "provider-session" => {
+                    context_service::provider_session::SESSION_CAPABILITIES_SCHEMA.to_owned()
+                }
+                _ => context_service::MEMORY_CAPABILITIES_SCHEMA.to_owned(),
+            });
             entry.effective_limits_advertised = true;
         }
         assert_eq!(
