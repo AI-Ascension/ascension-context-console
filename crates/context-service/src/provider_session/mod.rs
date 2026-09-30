@@ -28,11 +28,19 @@ mod support;
 pub use capabilities::read_advertised_session_capabilities;
 
 pub const SESSION_API_SCHEMA: &str = "ascension.provider-session.api-result.v1";
-/// Advertised capability schema. The `v3` contract additionally requires the `effective_limits`
-/// and `binding` objects. The `v1` payload shape remains readable through the dual reader.
-pub const SESSION_CAPABILITIES_SCHEMA: &str = "ascension.provider-session.capabilities.v3";
+/// Advertised capability schema. The `v4` contract additionally requires the `effective_limits`
+/// and `binding` objects, and renames the `v3` `evidence` field to `provenance`. The `v1` payload
+/// shape remains readable through the dual reader, and so does `v3` (ADR 0020 decision 4).
+pub const SESSION_CAPABILITIES_SCHEMA: &str = "ascension.provider-session.capabilities.v4";
 /// Legacy capability schema preserved for dual reading during migration.
 pub const SESSION_CAPABILITIES_SCHEMA_V1: &str = "ascension.provider-session.capabilities.v1";
+/// The `v3` capability schema, still readable. `v3` is `v4` with `provenance` named `evidence`
+/// and `binding.owner_revision` const `harness-provider-session-v3`.
+pub const SESSION_CAPABILITIES_SCHEMA_V3: &str = "ascension.provider-session.capabilities.v3";
+/// The `v4` `binding.owner_revision` const pinned by the capabilities contract.
+pub const SESSION_OWNER_REVISION_V4: &str = "harness-provider-session-v4";
+/// The `v3` `binding.owner_revision` const, still read for legacy `v3` descriptors.
+pub const SESSION_OWNER_REVISION_V3: &str = "harness-provider-session-v3";
 const MAX_BODY_BYTES: usize = 16 * 1024;
 const MAX_BINDINGS: usize = 128;
 const MAX_OPERATIONS: usize = 512;
@@ -141,10 +149,37 @@ pub struct SessionBinding {
     pub descriptor_sha256: String,
 }
 
-/// Advertised `v3` provider-session capability descriptor.
+/// Advertised `v4` provider-session capability descriptor.
+///
+/// `v4` is `v3` with the `evidence` field renamed to `provenance` (the producer records how a
+/// build was qualified; it is not an admission control) and `binding.owner_revision` const
+/// `harness-provider-session-v4`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionCapabilitiesView {
+    pub schema: String,
+    pub profile_id: String,
+    pub profile_sha256: String,
+    pub native_version: String,
+    pub native_binary_sha256: String,
+    pub native_schema_sha256: String,
+    pub provenance: String,
+    pub transport: String,
+    pub enabled_methods: Vec<String>,
+    pub hardening: SessionHardeningView,
+    pub effective_limits: SessionEffectiveLimits,
+    pub binding: SessionBinding,
+    pub strict_executable: bool,
+    pub experimental_api: bool,
+    pub unknown_methods: String,
+    pub raw_rpc: bool,
+}
+
+/// The `v3` provider-session capability descriptor, still readable through the dual reader.
+/// `v3` is byte-compatible with `v4` except that the qualifier field is named `evidence`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SessionCapabilitiesV3 {
     pub schema: String,
     pub profile_id: String,
     pub profile_sha256: String,
@@ -187,7 +222,8 @@ pub struct SessionCapabilitiesV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AdvertisedSessionCapabilities {
     V1(Box<SessionCapabilitiesV1>),
-    V3(Box<SessionCapabilitiesView>),
+    V3(Box<SessionCapabilitiesV3>),
+    V4(Box<SessionCapabilitiesView>),
 }
 
 impl AdvertisedSessionCapabilities {
@@ -196,6 +232,7 @@ impl AdvertisedSessionCapabilities {
         match self {
             Self::V1(capabilities) => &capabilities.schema,
             Self::V3(capabilities) => &capabilities.schema,
+            Self::V4(capabilities) => &capabilities.schema,
         }
     }
 
@@ -204,6 +241,7 @@ impl AdvertisedSessionCapabilities {
         match self {
             Self::V1(_) => None,
             Self::V3(capabilities) => Some(&capabilities.effective_limits),
+            Self::V4(capabilities) => Some(&capabilities.effective_limits),
         }
     }
 }

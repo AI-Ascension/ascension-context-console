@@ -7,7 +7,8 @@ use crate::effective_limits::{UnavailableReason, admit_consumer, console_consume
 use crate::owner::{OwnerOperation, OwnerOutcome, OwnerReply, OwnerScope};
 use crate::{
     AdvertisedMemoryCapabilities, AdvertisedSessionCapabilities, CapabilityVersion,
-    MemoryCapabilities, SessionCapabilitiesView, read_advertised_memory_capabilities,
+    MemoryCapabilities, SESSION_CAPABILITIES_SCHEMA_V1, SessionCapabilitiesV1,
+    SessionCapabilitiesView, read_advertised_memory_capabilities,
     read_advertised_session_capabilities,
 };
 use serde_json::Value;
@@ -149,11 +150,21 @@ impl SessionCapabilityTrust {
             .as_ref()
             .ok_or(UnavailableReason::FieldNotAdvertised)?;
         let bytes = serde_json::to_vec(value).map_err(|_| UnavailableReason::DescriptorTampered)?;
-        let AdvertisedSessionCapabilities::V3(descriptor) =
-            read_advertised_session_capabilities(&bytes)
-                .map_err(|_| UnavailableReason::DescriptorTampered)?
-        else {
-            return Err(UnavailableReason::ConsumerPinNotAdopted);
+        // The pinned producer revision still emits the `v3` descriptor, and an owner may keep doing
+        // so until it adopts `v4`. Both arms are admitted here: a `v4` reply is used as published,
+        // and a `v3` reply is lifted through the documented one-way `v3` -> `v4` conversion, which
+        // renames the qualifier, moves the pinned `owner_revision` const and recomputes the
+        // descriptor digest. Anything older or unknown is still refused.
+        let descriptor = match read_advertised_session_capabilities(&bytes)
+            .map_err(|_| UnavailableReason::DescriptorTampered)?
+        {
+            AdvertisedSessionCapabilities::V4(descriptor) => *descriptor,
+            AdvertisedSessionCapabilities::V3(descriptor) => descriptor
+                .to_v4()
+                .map_err(|_| UnavailableReason::DescriptorTampered)?,
+            AdvertisedSessionCapabilities::V1(_) => {
+                return Err(UnavailableReason::ConsumerPinNotAdopted);
+            }
         };
         for row in descriptor.effective_limit_record().rows {
             admit_consumer(
@@ -166,7 +177,7 @@ impl SessionCapabilityTrust {
             )?;
         }
         descriptor.validate_descriptor()?;
-        if *descriptor != self.descriptor {
+        if descriptor != self.descriptor {
             return Err(UnavailableReason::DescriptorStale);
         }
         reply.value = Some(
@@ -273,6 +284,24 @@ fn legacy_projection(operation: OwnerOperation, value: &Value) -> Result<Value, 
         {
             AdvertisedSessionCapabilities::V1(descriptor) => serde_json::to_value(descriptor),
             AdvertisedSessionCapabilities::V3(descriptor) => {
+                serde_json::to_value(SessionCapabilitiesV1 {
+                    schema: SESSION_CAPABILITIES_SCHEMA_V1.to_owned(),
+                    profile_id: descriptor.profile_id,
+                    profile_sha256: descriptor.profile_sha256,
+                    native_version: descriptor.native_version,
+                    native_binary_sha256: descriptor.native_binary_sha256,
+                    native_schema_sha256: descriptor.native_schema_sha256,
+                    evidence: descriptor.evidence,
+                    transport: descriptor.transport,
+                    enabled_methods: descriptor.enabled_methods,
+                    hardening: descriptor.hardening,
+                    strict_executable: descriptor.strict_executable,
+                    experimental_api: descriptor.experimental_api,
+                    unknown_methods: descriptor.unknown_methods,
+                    raw_rpc: descriptor.raw_rpc,
+                })
+            }
+            AdvertisedSessionCapabilities::V4(descriptor) => {
                 descriptor.validate_descriptor()?;
                 serde_json::to_value(descriptor.to_v1())
             }

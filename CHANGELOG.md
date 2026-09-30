@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Adopted the provider-session `v4` capability contract (`Refs #780`). The producer renamed the
+  descriptor's qualifier field `evidence` to `provenance` and moved the `binding.owner_revision`
+  const to `harness-provider-session-v4`; both copied artifacts were overwritten with the producer
+  bytes from `sts2-harness@27f1d4219e98999df4903615a57236e4747ae932` and their in-repo digests
+  repinned. The console now reads `v1`, `v3` and `v4`, keeping the dual reader ADR 0020 decision 4
+  requires during migration, and a still-valid `v3` owner reply is admitted through a documented
+  one-way `v3` -> `v4` lift that recomputes the descriptor digest. The rename is wire-visible under
+  `additionalProperties: false` and is covered by tests that prove a `v3`-shaped payload is refused
+  as `v4`, that `v3` is still readable, and that `v3` and `v4` derive the same effective-limit
+  record. The pinned golden fixture is still emitted by the `v3` producer revision, so the four
+  session-fixture route tests are explicitly `#[ignore]`d pending a root-owned generator repin;
+  no producer-owned digest was re-pinned to make a stale fixture validate.
+
 - Read the `Check documentation links` step's verdict from the log instead of `cargo`'s exit code.
   A renamed, removed or mistyped `rustdoc::` deny is not a hard failure: rustdoc reports an inert
   `warning[E0602]: unknown lint` and exits 0, so the step could pass while denying a lint it still

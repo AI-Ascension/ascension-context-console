@@ -17,7 +17,7 @@ impl ProviderSessionRoute {
                 native_version: "fixture-peer-1".to_owned(),
                 native_binary_sha256: sha256_hex("compiled-fake-native-peer"),
                 native_schema_sha256: sha256_hex("codex-app-server-jsonrpc.v2"),
-                evidence: "compiled_peer".to_owned(),
+                provenance: "compiled_peer".to_owned(),
                 transport: "owned_stdio".to_owned(),
                 enabled_methods: vec![
                     "initialize".to_owned(),
@@ -209,19 +209,19 @@ impl ProviderSessionRoute {
         crate::effective_limits::console_consumer_pin_for(self.capability_version)
     }
 
-    /// The local v3 descriptor. Attached routes obtain and authenticate an actual owner reply.
+    /// The local v4 descriptor. Attached routes obtain and authenticate an actual owner reply.
     #[must_use]
     pub fn capabilities(&self) -> SessionCapabilitiesView {
         self.capabilities.clone()
     }
 
-    /// The local synthetic v3 descriptor, validated before the served route presents it.
+    /// The local synthetic v4 descriptor, validated before the served route presents it.
     #[must_use]
-    pub fn target_capabilities_v3(&self) -> &SessionCapabilitiesView {
+    pub fn target_capabilities(&self) -> &SessionCapabilitiesView {
         &self.capabilities
     }
 
-    /// Derivation of the trusted effective-limit record from the `v3` target capability descriptor.
+    /// Derivation of the trusted effective-limit record from the `v4` target capability descriptor.
     #[must_use]
     pub fn effective_limit_record(&self) -> EffectiveLimitRecord {
         self.capabilities.effective_limit_record()

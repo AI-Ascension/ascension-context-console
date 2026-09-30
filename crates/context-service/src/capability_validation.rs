@@ -9,6 +9,12 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 /// Explicit advertisement choice. V1 rollback omits executable-limit disclosure.
+///
+/// `V3` is the *current/aligned* selector shared by both surfaces, not a per-surface schema
+/// version: the context-memory descriptor is `ascension.context-memory.capabilities.v3` and the
+/// provider-session descriptor it selects is `ascension.provider-session.capabilities.v4`. The
+/// provider-session surface moved to `v4` when the producer renamed `evidence` to `provenance`;
+/// `v3` provider-session reading is retained separately by the dual reader.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CapabilityVersion {
     V1,
@@ -146,7 +152,7 @@ impl SessionCapabilitiesView {
             .into_iter()
             .all(|value| hash(value))
             || !matches!(
-                self.evidence.as_str(),
+                self.provenance.as_str(),
                 "schema_only" | "compiled_peer" | "native_binary_fake_upstream" | "live_provider"
             )
             || self.transport != "owned_stdio"
@@ -171,7 +177,7 @@ impl SessionCapabilitiesView {
             || self.raw_rpc
             || self.effective_limits.policy_schema != "ascension.provider-session.policy.v1"
             || binding.owner != "sts2-harness"
-            || binding.owner_revision != "harness-provider-session-v3"
+            || binding.owner_revision != crate::provider_session::SESSION_OWNER_REVISION_V4
             || binding.model_revision != self.native_version
             || binding.adapter_revision != self.profile_id
             || binding.adapter_revision_sha256 != self.profile_sha256

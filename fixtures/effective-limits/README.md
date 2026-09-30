@@ -49,3 +49,17 @@ omits effective-limit claims. `capability_routes` exercises the actual attached 
 with these records and separately configured trust descriptors. Studio v3 adoption and the
 harness-owned authoritative pin-matrix update remain merge gates. These vectors establish
 producer-library synthetic conformance only; see [ADR 0021](../../docs/decisions/0021-owner-capability-sidecar.md).
+
+## Session vectors are still `v3` (issue #780)
+
+These vectors are emitted by the producer library at `f8015e52`, which still advertises the
+`ascension.provider-session.capabilities.v3` descriptor, so the session cases carry `v3` bytes and
+the `v3` `binding.policy_schema_sha256`. The console's own copied provider-session contract is now
+`v4`, so a `v4` descriptor must carry the `v4` policy digest and the `v3` vectors no longer satisfy
+`validate_descriptor()` once lifted. That is correct fail-closed behaviour and is why the four
+session-fixture tests in `crates/context-service/tests/capability_routes.rs` are `#[ignore]`d.
+
+Regenerating at a `v4` producer revision means repinning the `sts2-harness` Git dependency in
+`tools/effective-limit-fixtures/Cargo.toml` and re-locking, which this repository's AGENTS.md
+reserves to root. The fixture bytes must not be hand-edited to match: the digests are
+self-authenticating and `inputs::equal_fixture` compares producer output byte for byte.

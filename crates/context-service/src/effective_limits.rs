@@ -484,10 +484,10 @@ pub mod contract_pins {
         "2b980bbdcdd886398c1e590303b82afee174e4569164e79b210ab35f6669bd22";
     /// SHA-256 of the copied provider-session policy schema.
     pub const SESSION_POLICY_SCHEMA_SHA256: &str =
-        "48d6dc1c75504983c3d5e6a1152c0447874eeb512e45b276ab440962e52781a5";
+        "85d5f36900e10fa1e60c918e6c1fc4fbdbd9432093a65738b2098de142136234";
     /// SHA-256 of the copied provider-session capabilities schema (the descriptor digest).
     pub const SESSION_CAPABILITIES_SCHEMA_SHA256: &str =
-        "de1348ec7434703722b00a2ddb4bcef7cec02b3788ff14af018cf7b7efaf21f0";
+        "accec38f7a6bb58fd485bf74a8a2ed7aca354fd80b2eff3dae8363a30dae96c9";
 }
 
 #[cfg(test)]
@@ -664,7 +664,7 @@ mod tests {
         );
 
         let mut other_revision = trusted.clone();
-        other_revision.owner_revision = "harness-provider-session-v3".to_owned();
+        other_revision.owner_revision = crate::SESSION_OWNER_REVISION_V3.to_owned();
         assert_eq!(
             other_revision.authenticate(&trusted),
             Err(UnavailableReason::ProfileMismatch)

@@ -8,7 +8,7 @@ use context_service::effective_limits::{
 };
 use context_service::{
     AdvertisedMemoryCapabilities, AdvertisedSessionCapabilities, MemoryCapabilities,
-    SessionCapabilitiesView, read_advertised_memory_capabilities,
+    SessionCapabilitiesV3, SessionCapabilitiesView, read_advertised_memory_capabilities,
     read_advertised_session_capabilities,
 };
 use serde_json::Value;
@@ -18,7 +18,16 @@ const FIXTURE: &str = include_str!("../../../fixtures/effective-limits/producer.
 
 enum Descriptor {
     Memory(Box<MemoryCapabilities>),
-    Session(Box<SessionCapabilitiesView>),
+    Session(SessionVersion),
+}
+
+/// The session descriptor as the pinned fixture actually carries it. The fixture is emitted by the
+/// producer library at [`PRODUCER_REVISION`]; whichever session schema that revision advertises is
+/// what these vectors prove. Both the `v3` and `v4` shapes expose the same derivation and admission
+/// surface, so the conformance assertions are identical either way.
+enum SessionVersion {
+    V3(Box<SessionCapabilitiesV3>),
+    V4(Box<SessionCapabilitiesView>),
 }
 
 impl Descriptor {
@@ -31,8 +40,13 @@ impl Descriptor {
             },
             "session" => {
                 match read_advertised_session_capabilities(&bytes).expect("session reader") {
-                    AdvertisedSessionCapabilities::V3(value) => Self::Session(value),
-                    _ => panic!("producer fixture must advertise v3"),
+                    AdvertisedSessionCapabilities::V3(value) => {
+                        Self::Session(SessionVersion::V3(value))
+                    }
+                    AdvertisedSessionCapabilities::V4(value) => {
+                        Self::Session(SessionVersion::V4(value))
+                    }
+                    _ => panic!("producer fixture must advertise a session capability version"),
                 }
             }
             _ => panic!("unknown test surface"),
@@ -43,7 +57,8 @@ impl Descriptor {
         // Derived from the separately pinned descriptor, never from the record under test.
         match self {
             Self::Memory(value) => value.effective_limit_record(),
-            Self::Session(value) => value.effective_limit_record(),
+            Self::Session(SessionVersion::V3(value)) => value.effective_limit_record(),
+            Self::Session(SessionVersion::V4(value)) => value.effective_limit_record(),
         }
     }
 
@@ -55,7 +70,12 @@ impl Descriptor {
     ) -> Result<(), UnavailableReason> {
         match self {
             Self::Memory(descriptor) => descriptor.admit_authorized_record(record, field, value),
-            Self::Session(descriptor) => descriptor.admit_authorized_record(record, field, value),
+            Self::Session(SessionVersion::V3(descriptor)) => {
+                descriptor.admit_authorized_record(record, field, value)
+            }
+            Self::Session(SessionVersion::V4(descriptor)) => {
+                descriptor.admit_authorized_record(record, field, value)
+            }
         }
     }
 }
@@ -263,7 +283,21 @@ fn exact_producer_payload_digests_survive_consumer_reading_and_v1_remains_readab
                     serde_json::to_vec(&descriptor).expect("unsigned memory"),
                 )
             }
-            Descriptor::Session(mut descriptor) => {
+            Descriptor::Session(SessionVersion::V3(mut descriptor)) => {
+                let v1 = descriptor.to_v1();
+                let read =
+                    read_advertised_session_capabilities(&serde_json::to_vec(&v1).expect("v1"))
+                        .expect("v1 reader");
+                assert!(matches!(read, AdvertisedSessionCapabilities::V1(_)));
+                assert!(read.effective_limits().is_none());
+                let expected = descriptor.binding.descriptor_sha256.clone();
+                descriptor.binding.descriptor_sha256.clear();
+                (
+                    expected,
+                    serde_json::to_vec(&descriptor).expect("unsigned session"),
+                )
+            }
+            Descriptor::Session(SessionVersion::V4(mut descriptor)) => {
                 let v1 = descriptor.to_v1();
                 let read =
                     read_advertised_session_capabilities(&serde_json::to_vec(&v1).expect("v1"))
