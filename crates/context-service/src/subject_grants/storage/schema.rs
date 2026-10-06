@@ -33,7 +33,9 @@ const LOOKUP_COLUMNS: &[&str] = &[
     "permission",
 ];
 
-pub(super) fn validate_existing_schema(connection: &Connection) -> Result<bool, SubjectGrantError> {
+pub(in crate::subject_grants) fn validate_existing_schema(
+    connection: &Connection,
+) -> Result<bool, SubjectGrantError> {
     let mut statement = connection
         .prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema ORDER BY type, name")
         .map_err(|_| SubjectGrantError::StoreUnavailable)?;
@@ -164,7 +166,9 @@ fn validate_existing_rows(connection: &Connection) -> Result<(), SubjectGrantErr
     Ok(())
 }
 
-pub(super) fn create_schema(transaction: &Transaction<'_>) -> Result<(), SubjectGrantError> {
+pub(in crate::subject_grants) fn create_schema(
+    transaction: &Transaction<'_>,
+) -> Result<(), SubjectGrantError> {
     transaction
         .execute_batch(CREATE_TABLE_SQL)
         .and_then(|()| transaction.execute_batch(CREATE_INDEX_SQL))
