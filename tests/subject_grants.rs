@@ -7,8 +7,8 @@ mod support;
 
 use context_service::{
     AuthenticatedIngress, AuthenticatedIngressConfig, AuthenticatedIngressError, FacadePermission,
-    HarnessBackedContextService, SqliteSubjectGrantStore, SubjectGrantError, SubjectGrantSpec,
-    SubjectGrantStore, VerifiedPrincipal, VerifiedPrincipalClaims,
+    HarnessBackedContextService, SqliteSubjectGrantStore, SubjectGrantError, SubjectGrantStore,
+    VerifiedPrincipal, VerifiedPrincipalClaims,
 };
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -173,7 +173,6 @@ fn independent_handles_serialize_a_reservation_against_revocation() {
     );
     let request = http_request(&grant_scope);
     let facade_config = facade(grant_scope.clone());
-    let worker_gate = gate.clone();
     let worker = std::thread::spawn(move || {
         let mut resolver = support::CredentialResolver {
             calls: Arc::new(AtomicUsize::new(0)),
