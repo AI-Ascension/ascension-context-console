@@ -60,3 +60,11 @@ path = "../../tests/owner_delegation.rs"
 [[test]]
 name = "harness_facade"
 path = "../../tests/harness_facade.rs"
+
+[[test]]
+name = "subject_grants"
+path = "../../tests/subject_grants.rs"
+
+[[test]]
+name = "verified_ingress"
+path = "../../tests/verified_ingress.rs"

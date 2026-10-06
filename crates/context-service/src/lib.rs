@@ -8,6 +8,7 @@
 //! primitives for end-to-end review.
 
 mod association;
+mod authenticated_ingress;
 mod capability_admission;
 mod capability_validation;
 mod capture;
@@ -20,13 +21,20 @@ mod http;
 mod memory;
 mod owner;
 mod private_store;
+mod protected_owner_credentials;
 pub mod provider_session;
 mod read_api;
 mod store;
+mod subject_grants;
 mod telemetry;
 
 pub use association::{
     AssociationResolutionError, ResolvedWorkflowContext, resolve_workflow_context_association,
+};
+pub use authenticated_ingress::{
+    AuthenticatedIngress, AuthenticatedIngressConfig, AuthenticatedIngressError,
+    MAX_PRINCIPAL_CLAIM_BYTES, PrincipalVerificationError, PrincipalVerifier, VerifiedPrincipal,
+    VerifiedPrincipalClaims,
 };
 pub use capability_admission::{MemoryCapabilityTrust, SessionCapabilityTrust};
 pub use capability_validation::CapabilityVersion;
@@ -74,6 +82,10 @@ pub use owner::{
 pub use private_store::{
     EncryptedContentMetadata, PolicyApproval, PrivateScope, PrivateStoreError, PrivateVault,
 };
+pub use protected_owner_credentials::{
+    CredentialResolutionError, OwnerCredentialDescriptor, ProtectedOwnerCredentialResolver,
+    ResolvedOwnerCredential,
+};
 pub use provider_session::{
     AdvertisedSessionCapabilities, ProviderSessionRoute, SESSION_CAPABILITIES_OWNER_REVISION,
     SESSION_CAPABILITIES_OWNER_REVISION_V3, SESSION_CAPABILITIES_SCHEMA,
@@ -89,6 +101,10 @@ pub use store::{
     CapturePrivilege, CompareResult, ComponentSummary, EventPage, IngestError, MAX_COMPARE_BYTES,
     MAX_CONTENT_BYTES, MAX_CONTENT_REFS, MAX_EVENTS, MAX_MANIFEST_BYTES, MAX_SNAPSHOTS, ReadError,
     ReadGrant, SnapshotSummary, Store, StoreConfig,
+};
+pub use subject_grants::{
+    AdmittedSubjectGrant, MAX_SUBJECT_GRANTS, SqliteSubjectGrantStore, SubjectGrantError,
+    SubjectGrantSpec, SubjectGrantStore,
 };
 pub use telemetry::{
     CaptureTelemetry, MemoryTelemetry, NoopTelemetry, TelemetryError, TelemetryExporter,
