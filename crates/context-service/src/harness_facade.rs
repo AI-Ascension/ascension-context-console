@@ -325,6 +325,7 @@ pub struct FacadeRequest {
     origin: Option<String>,
     csrf_token: Option<Vec<u8>>,
     now: u64,
+    trusted: Option<crate::authenticated_ingress::TrustedRequestAuthorization>,
 }
 
 impl std::fmt::Debug for FacadeRequest {
@@ -360,6 +361,7 @@ impl FacadeRequest {
             origin,
             csrf_token: csrf_token.map(|value| value.as_ref().to_vec()),
             now,
+            trusted: None,
         }
     }
 
@@ -378,6 +380,25 @@ impl FacadeRequest {
             origin,
             csrf_token,
             now,
+            trusted: None,
+        }
+    }
+
+    pub(crate) fn new_trusted(
+        host: String,
+        origin: Option<String>,
+        csrf_token: Option<Vec<u8>>,
+        now: u64,
+        trusted: crate::authenticated_ingress::TrustedRequestAuthorization,
+    ) -> Self {
+        Self {
+            token: Vec::new(),
+            principal: trusted.subject().to_owned(),
+            host,
+            origin,
+            csrf_token,
+            now,
+            trusted: Some(trusted),
         }
     }
 
@@ -808,14 +829,27 @@ pub trait HarnessOwnerPort {
 #[derive(Clone, Debug)]
 pub struct HarnessOwnerClient<O> {
     owner: O,
-    auth_reference: ProtectedAuthReference,
+    default_auth_reference: Option<ProtectedAuthReference>,
+    request_auth_reference: Option<ProtectedAuthReference>,
+    trusted_only: bool,
 }
 
 impl<O> HarnessOwnerClient<O> {
     pub fn new(owner: O, auth_reference: ProtectedAuthReference) -> Self {
         Self {
             owner,
-            auth_reference,
+            default_auth_reference: Some(auth_reference),
+            request_auth_reference: None,
+            trusted_only: false,
+        }
+    }
+
+    fn without_default_reference(owner: O) -> Self {
+        Self {
+            owner,
+            default_auth_reference: None,
+            request_auth_reference: None,
+            trusted_only: true,
         }
     }
 
@@ -828,13 +862,30 @@ impl<O> HarnessOwnerClient<O> {
     }
 
     pub fn auth_reference(&self) -> &ProtectedAuthReference {
-        &self.auth_reference
+        self.default_auth_reference
+            .as_ref()
+            .expect("public legacy clients have a default owner reference")
     }
 
-    fn call<R>(&mut self, operation: impl FnOnce(&mut O, &ProtectedAuthReference) -> R) -> R {
+    fn set_request_reference(&mut self, reference: Option<&ProtectedAuthReference>) {
+        self.request_auth_reference = reference.cloned();
+    }
+
+    fn call<R>(
+        &mut self,
+        operation: impl FnOnce(&mut O, &ProtectedAuthReference) -> Result<R, OwnerError>,
+    ) -> Result<R, OwnerError> {
         // Clone only the opaque identifier so the owner and auth borrows stay disjoint.  This
         // value never contains a credential.
-        let auth = self.auth_reference.clone();
+        let reference = if self.trusted_only {
+            self.request_auth_reference.as_ref()
+        } else {
+            self.request_auth_reference
+                .as_ref()
+                .or(self.default_auth_reference.as_ref())
+        }
+        .ok_or(OwnerError::Denied)?;
+        let auth = reference.clone();
         operation(&mut self.owner, &auth)
     }
 }
@@ -1175,6 +1226,8 @@ pub struct HarnessBackedContextService<O> {
     owner_capabilities: Option<ControlCapabilities>,
     owner_capability_error: Option<OwnerError>,
     index: ReferenceIndex,
+    trusted_ingress_only: bool,
+    last_trusted_request: Option<std::sync::Weak<()>>,
 }
 
 /// Request shape for a deterministic exploratory or held-boundary preview.
@@ -1205,10 +1258,31 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             owner_capabilities: None,
             owner_capability_error: None,
             index: ReferenceIndex::default(),
+            trusted_ingress_only: false,
+            last_trusted_request: None,
         };
         service.load_owner_capabilities();
         service.refresh_reference_index();
         Ok(service)
+    }
+
+    /// Compose a trusted-ingress-only service without a fixed reference or constructor-time owner
+    /// I/O. The first owner call happens only after an authenticated, granted request installs its
+    /// independently resolved per-request reference.
+    pub fn new_trusted(owner: O, config: HarnessFacadeConfig) -> FacadeResult<Self> {
+        config
+            .validate()
+            .map_err(|_| FacadeError::invalid("facade_config_invalid"))?;
+        Ok(Self {
+            client: HarnessOwnerClient::without_default_reference(owner),
+            grants: GrantRegistry::default(),
+            config,
+            owner_capabilities: None,
+            owner_capability_error: None,
+            index: ReferenceIndex::default(),
+            trusted_ingress_only: true,
+            last_trusted_request: None,
+        })
     }
 
     pub fn config(&self) -> &HarnessFacadeConfig {
@@ -1499,24 +1573,36 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
         let capabilities = self.owner_capabilities.clone().ok_or_else(|| {
             FacadeError::owner(self.owner_capability_error.unwrap_or(OwnerError::Unknown))
         })?;
+        let trusted_ingress = request.trusted.is_some();
         let mut owner_supported = capabilities
             .supported_operations
             .iter()
             .filter(|operation| known_owner_operation(operation))
             .cloned()
             .collect::<Vec<_>>();
+        if trusted_ingress {
+            owner_supported
+                .retain(|operation| OWNER_READ_CAPABILITIES.contains(&operation.as_str()));
+        }
         owner_supported.sort();
         owner_supported.dedup();
-        let mut forwarded = if capabilities.enabled {
-            OWNER_READ_CAPABILITIES
-                .iter()
-                .chain(OWNER_CONTROL_CAPABILITIES)
-                .filter(|operation| owner_supports_list(&owner_supported, operation))
-                .map(|operation| (*operation).to_owned())
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
+        let mut forwarded = Vec::new();
+        if capabilities.enabled {
+            forwarded.extend(
+                OWNER_READ_CAPABILITIES
+                    .iter()
+                    .filter(|operation| owner_supports_list(&owner_supported, operation))
+                    .map(|operation| (*operation).to_owned()),
+            );
+            if !trusted_ingress {
+                forwarded.extend(
+                    OWNER_CONTROL_CAPABILITIES
+                        .iter()
+                        .filter(|operation| owner_supports_list(&owner_supported, operation))
+                        .map(|operation| (*operation).to_owned()),
+                );
+            }
+        }
         forwarded.sort();
         forwarded.dedup();
         let result = FacadeCapabilities {
@@ -1526,15 +1612,20 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
             owner_enabled: capabilities.enabled,
             owner_supported_operations: owner_supported,
             forwarded_operations: forwarded,
-            grant_permissions: self
-                .grants
-                .permissions_for(&self.config.scope, request.now())
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
+            grant_permissions: request.trusted.as_ref().map_or_else(
+                || {
+                    self.grants
+                        .permissions_for(&self.config.scope, request.now())
+                        .into_iter()
+                        .map(str::to_owned)
+                        .collect()
+                },
+                |trusted| trusted.permission_names(&self.config.scope, request.now()),
+            ),
             retention_mode: self.config.retention.mode,
             capture_default_off: self.config.retention.mode == RetentionMode::Off,
-            exact_application_preview: if capabilities.enabled
+            exact_application_preview: if !trusted_ingress
+                && capabilities.enabled
                 && owner_supports_list(&capabilities.supported_operations, "create_preview")
                 && capabilities.exact_application_preview == "supported"
             {
@@ -2021,7 +2112,7 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
     }
 
     fn authorize(
-        &self,
+        &mut self,
         request: &FacadeRequest,
         permission: FacadePermission,
         write: bool,
@@ -2059,6 +2150,50 @@ impl<O: HarnessOwnerPort> HarnessBackedContextService<O> {
                 return Err(FacadeError::denied("csrf_rejected"));
             }
         }
+        if self.trusted_ingress_only {
+            let Some(trusted) = request.trusted.as_ref() else {
+                return Err(FacadeError::denied("trusted_ingress_required"));
+            };
+            if trusted.subject() != request.principal()
+                || !trusted.permits(permission, &self.config.scope, request.now)
+            {
+                return Err(FacadeError::grant(permission, GrantError::NotFound));
+            }
+            if !matches!(
+                permission,
+                FacadePermission::MetadataRead | FacadePermission::ContentRead
+            ) {
+                // Owner mutation recovery is not integrated yet. Keep the trusted path
+                // read-only until exact encrypted request and owner-receipt handling exists.
+                return Err(FacadeError::owner(OwnerError::Unsupported));
+            }
+            self.client
+                .set_request_reference(Some(trusted.owner_reference()));
+            let same_request = self
+                .last_trusted_request
+                .as_ref()
+                .and_then(std::sync::Weak::upgrade)
+                .is_some_and(|previous| {
+                    std::sync::Arc::ptr_eq(&previous, trusted.request_identity())
+                });
+            if !same_request {
+                self.index = ReferenceIndex::default();
+                self.owner_capabilities = None;
+                self.owner_capability_error = None;
+                self.last_trusted_request =
+                    Some(std::sync::Arc::downgrade(trusted.request_identity()));
+                self.load_owner_capabilities();
+                self.refresh_reference_index();
+            }
+            if !trusted.permits(permission, &self.config.scope, request.now) {
+                return Err(FacadeError::grant(permission, GrantError::NotFound));
+            }
+            return Ok(());
+        }
+        if request.trusted.is_some() {
+            return Err(FacadeError::denied("legacy_ingress_only"));
+        }
+        self.client.set_request_reference(None);
         self.grants
             .authorize(&request.token, permission, &self.config.scope, request.now)
             .map_err(|error| FacadeError::grant(permission, error))
@@ -3055,7 +3190,7 @@ fn known_capability_operation(operation: &str) -> bool {
         )
 }
 
-fn valid_id(value: &str) -> bool {
+pub(crate) fn valid_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= MAX_FACADE_ID_BYTES
         && value.bytes().enumerate().all(|(index, byte)| {

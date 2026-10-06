@@ -2,16 +2,22 @@
 
 //! Process/composition coverage for the non-demo harness-owner facade.
 
-use context_service::{ControlCapabilities, GrantRegistry};
 use context_service::{
-    ControlCommand, ControlDraft as Draft, ControlEligibleItem as EligibleItem, ControlItemRef,
-    ControlOperation, ControlPatch, ControlPlane, ControlPreview as Preview,
-    ControlReceipt as Receipt, ControlRevision as Revision, ControlScope, ControlState,
+    AuthenticatedIngress, AuthenticatedIngressConfig, AuthenticatedIngressError, ControlCommand,
+    ControlDraft as Draft, ControlEligibleItem as EligibleItem, ControlItemRef, ControlOperation,
+    ControlPatch, ControlPlane, ControlPreview as Preview, ControlReceipt as Receipt,
+    ControlRevision as Revision, ControlScope, ControlState, CredentialResolutionError,
     FacadePermission, FacadeRequest, HarnessBackedContextService, HarnessFacadeConfig,
-    HarnessOwnerClient, HarnessOwnerPort, OwnerAuthorization, OwnerError, PreviewRequest,
-    ProtectedAuthReference, SecretDigest,
+    HarnessOwnerClient, HarnessOwnerPort, OwnerAuthorization, OwnerCredentialDescriptor,
+    OwnerError, PreviewRequest, PrincipalVerificationError, PrincipalVerifier,
+    ProtectedAuthReference, ProtectedOwnerCredentialResolver, ResolvedOwnerCredential,
+    SecretDigest, SqliteSubjectGrantStore, SubjectGrantSpec, VerifiedPrincipal,
+    VerifiedPrincipalClaims,
 };
+use context_service::{ControlCapabilities, GrantRegistry};
 use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 const HOST: &str = "console.test";
 const ORIGIN: &str = "https://console.test";
@@ -34,6 +40,7 @@ struct RecordingOwner {
     hostile_state_model: Option<String>,
     hostile_preview_base: Option<String>,
     oversized_items: bool,
+    capability_delay: Option<Duration>,
 }
 
 impl RecordingOwner {
@@ -50,6 +57,7 @@ impl RecordingOwner {
             hostile_state_model: None,
             hostile_preview_base: None,
             oversized_items: false,
+            capability_delay: None,
         }
     }
 
@@ -75,6 +83,11 @@ impl RecordingOwner {
         self
     }
 
+    fn with_capability_delay(mut self, delay: Duration) -> Self {
+        self.capability_delay = Some(delay);
+        self
+    }
+
     fn record(&mut self, operation: &str) {
         self.calls.push(operation.to_owned());
     }
@@ -91,6 +104,9 @@ impl HarnessOwnerPort for RecordingOwner {
         scope: &ControlScope,
     ) -> Result<ControlCapabilities, OwnerError> {
         self.record("capabilities");
+        if let Some(delay) = self.capability_delay.take() {
+            std::thread::sleep(delay);
+        }
         HarnessOwnerPort::capabilities(&mut self.inner, auth, scope)
     }
 
@@ -407,6 +423,146 @@ fn config(scope: ControlScope) -> HarnessFacadeConfig {
         Default::default(),
     )
     .expect("config")
+}
+
+const TRUSTED_ISSUER: &str = "https://console.example/issuer";
+const TRUSTED_AUDIENCE: &str = "context-console";
+const TRUSTED_SUBJECT: &str = "studio-user";
+
+struct FixedVerifier(VerifiedPrincipalClaims);
+
+impl PrincipalVerifier for FixedVerifier {
+    fn verify(
+        &mut self,
+        _bearer: &[u8],
+    ) -> Result<VerifiedPrincipalClaims, PrincipalVerificationError> {
+        Ok(self.0.clone())
+    }
+}
+
+struct FixedCredentialResolver {
+    descriptor: OwnerCredentialDescriptor,
+    calls: usize,
+}
+
+impl ProtectedOwnerCredentialResolver for FixedCredentialResolver {
+    fn resolve(
+        &mut self,
+        _principal: &VerifiedPrincipal,
+        _scope: &ControlScope,
+        _requested_harness_scopes: &[&'static str],
+        _now: u64,
+    ) -> Result<ResolvedOwnerCredential, CredentialResolutionError> {
+        self.calls += 1;
+        let reference = ProtectedAuthReference::new("protected-owner-reference")
+            .map_err(|_| CredentialResolutionError::Invalid)?;
+        Ok(ResolvedOwnerCredential::new(
+            reference,
+            self.descriptor.clone(),
+        ))
+    }
+}
+
+fn trusted_claims() -> VerifiedPrincipalClaims {
+    VerifiedPrincipalClaims {
+        issuer: TRUSTED_ISSUER.to_owned(),
+        subject: TRUSTED_SUBJECT.to_owned(),
+        audience: TRUSTED_AUDIENCE.to_owned(),
+        credential_id: "token-7".to_owned(),
+        expires_at: 900,
+    }
+}
+
+fn trusted_descriptor(
+    console_issuer: &str,
+    console_subject: &str,
+    harness_subject: &str,
+    scope: &ControlScope,
+    harness_scopes: &[&str],
+) -> OwnerCredentialDescriptor {
+    OwnerCredentialDescriptor::new(
+        console_issuer,
+        console_subject,
+        harness_subject,
+        scope.clone(),
+        harness_scopes.iter().map(|scope| (*scope).to_owned()),
+        800,
+    )
+}
+
+fn grant_database_path() -> PathBuf {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock")
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "context-console-grants-{}-{nonce}.sqlite",
+        std::process::id()
+    ))
+}
+
+fn remove_grant_database(path: &Path) {
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        let mut candidate = path.as_os_str().to_os_string();
+        candidate.push(suffix);
+        let _ = std::fs::remove_file(PathBuf::from(candidate));
+    }
+}
+
+fn trusted_http_request(method: &str, include_csrf: bool) -> context_service::HttpRequest {
+    let mut headers = vec![
+        ("host".to_owned(), HOST.to_owned()),
+        ("origin".to_owned(), ORIGIN.to_owned()),
+        (
+            "authorization".to_owned(),
+            "Bearer trusted-bearer".to_owned(),
+        ),
+    ];
+    if include_csrf {
+        headers.push((
+            "x-csrf-token".to_owned(),
+            String::from_utf8_lossy(CSRF).into_owned(),
+        ));
+    }
+    context_service::HttpRequest {
+        method: method.to_owned(),
+        target: "/v2/runs/run-1/context-control/state".to_owned(),
+        headers,
+        body: Vec::new(),
+    }
+}
+
+fn trusted_ingress(
+    path: &Path,
+    permission: FacadePermission,
+    scope: &ControlScope,
+) -> AuthenticatedIngress<FixedVerifier, SqliteSubjectGrantStore> {
+    trusted_ingress_with_claims(path, permission, scope, trusted_claims())
+}
+
+fn trusted_ingress_with_claims(
+    path: &Path,
+    permission: FacadePermission,
+    scope: &ControlScope,
+    claims: VerifiedPrincipalClaims,
+) -> AuthenticatedIngress<FixedVerifier, SqliteSubjectGrantStore> {
+    let mut grants = SqliteSubjectGrantStore::open(path).expect("open durable grants");
+    grants
+        .provision(&SubjectGrantSpec {
+            grant_id: format!("grant-{}", permission.as_str().replace('.', "-")),
+            issuer: TRUSTED_ISSUER.to_owned(),
+            subject: TRUSTED_SUBJECT.to_owned(),
+            permission,
+            scope: scope.clone(),
+            not_before: 10,
+            expires_at: 850,
+        })
+        .expect("provision test grant");
+    AuthenticatedIngress::new(
+        AuthenticatedIngressConfig::new(TRUSTED_ISSUER, TRUSTED_AUDIENCE).expect("ingress config"),
+        FixedVerifier(claims),
+        grants,
+    )
 }
 
 fn command(
@@ -2213,4 +2369,283 @@ fn http_adapter_enforces_same_origin_and_never_accepts_secret_query_fields() {
         100,
     );
     assert_eq!(body_too_large.status, 413);
+}
+
+#[test]
+fn trusted_ingress_binds_resolved_owner_identity_before_any_owner_io() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let facade = config(scope.clone());
+    let mut service =
+        HarnessBackedContextService::new_trusted(owner, facade.clone()).expect("trusted service");
+    assert!(
+        service.owner().calls.is_empty(),
+        "constructor must not call owner"
+    );
+
+    let database_path = grant_database_path();
+    let mut ingress = trusted_ingress(&database_path, FacadePermission::MetadataRead, &scope);
+    let request = trusted_http_request("GET", false);
+    let mut wrong_issuer = FixedCredentialResolver {
+        descriptor: trusted_descriptor(
+            "https://other.example/issuer",
+            TRUSTED_SUBJECT,
+            TRUSTED_SUBJECT,
+            &scope,
+            &["workflow:read"],
+        ),
+        calls: 0,
+    };
+    assert_eq!(
+        ingress.admit_http(
+            &request,
+            &facade,
+            &[FacadePermission::MetadataRead],
+            &[],
+            100,
+            &mut wrong_issuer,
+        ),
+        Err(AuthenticatedIngressError::OwnerCredentialDenied)
+    );
+    assert_eq!(wrong_issuer.calls, 1);
+    assert!(
+        service.owner().calls.is_empty(),
+        "mismatched issuer must not reach owner"
+    );
+
+    let mut wrong_subject = FixedCredentialResolver {
+        descriptor: trusted_descriptor(
+            TRUSTED_ISSUER,
+            "different-user",
+            TRUSTED_SUBJECT,
+            &scope,
+            &["workflow:read"],
+        ),
+        calls: 0,
+    };
+    assert_eq!(
+        ingress.admit_http(
+            &request,
+            &facade,
+            &[FacadePermission::MetadataRead],
+            &[],
+            100,
+            &mut wrong_subject,
+        ),
+        Err(AuthenticatedIngressError::OwnerCredentialDenied)
+    );
+    assert!(service.owner().calls.is_empty());
+
+    let mut wrong_harness_subject = FixedCredentialResolver {
+        descriptor: trusted_descriptor(
+            TRUSTED_ISSUER,
+            TRUSTED_SUBJECT,
+            "different-harness-user",
+            &scope,
+            &["workflow:read"],
+        ),
+        calls: 0,
+    };
+    assert_eq!(
+        ingress.admit_http(
+            &request,
+            &facade,
+            &[FacadePermission::MetadataRead],
+            &[],
+            100,
+            &mut wrong_harness_subject,
+        ),
+        Err(AuthenticatedIngressError::OwnerCredentialDenied)
+    );
+    assert!(
+        service.owner().calls.is_empty(),
+        "a different Harness actor must not be accepted for the Console subject"
+    );
+
+    let mut matching_resolver = FixedCredentialResolver {
+        descriptor: trusted_descriptor(
+            TRUSTED_ISSUER,
+            TRUSTED_SUBJECT,
+            TRUSTED_SUBJECT,
+            &scope,
+            &["workflow:read"],
+        ),
+        calls: 0,
+    };
+    let admitted = ingress
+        .admit_http(
+            &request,
+            &facade,
+            &[FacadePermission::MetadataRead],
+            &[],
+            100,
+            &mut matching_resolver,
+        )
+        .expect("matching principal and protected credential");
+    service.state(&admitted).expect("read owner state");
+    let capabilities = service
+        .capabilities(&admitted)
+        .expect("trusted read capabilities");
+    assert_eq!(capabilities.exact_application_preview, "unavailable");
+    for operation in [
+        "create_draft",
+        "apply_patch",
+        "create_preview",
+        "pause",
+        "commit",
+        "resume",
+    ] {
+        assert!(
+            !capabilities
+                .forwarded_operations
+                .iter()
+                .any(|value| value == operation),
+            "trusted capability response must not advertise {operation}"
+        );
+        assert!(
+            !capabilities
+                .owner_supported_operations
+                .iter()
+                .any(|value| value == operation),
+            "trusted capability response must not expose {operation} as available"
+        );
+    }
+    assert!(
+        capabilities
+            .forwarded_operations
+            .contains(&"state".to_owned())
+    );
+    assert!(
+        capabilities
+            .forwarded_operations
+            .contains(&"drafts".to_owned())
+    );
+    assert!(
+        service
+            .owner()
+            .calls
+            .iter()
+            .any(|call| call == "capabilities")
+    );
+    assert!(service.owner().calls.iter().any(|call| call == "state"));
+    drop(ingress);
+    remove_grant_database(&database_path);
+}
+
+#[test]
+fn trusted_facade_fails_closed_on_mutations_until_owner_receipts_are_integrated() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let facade = config(scope.clone());
+    let mut service =
+        HarnessBackedContextService::new_trusted(owner, facade.clone()).expect("trusted service");
+    assert!(service.owner().calls.is_empty());
+    let legacy_request = FacadeRequest::new(
+        TRUSTED_SUBJECT,
+        "trusted-bearer",
+        HOST,
+        Some(ORIGIN.to_owned()),
+        Some(CSRF),
+        100,
+    );
+    assert_eq!(
+        service
+            .state(&legacy_request)
+            .expect_err("legacy fixture requests cannot enter trusted composition")
+            .code,
+        "trusted_ingress_required"
+    );
+    assert!(service.owner().calls.is_empty());
+
+    let database_path = grant_database_path();
+    let mut ingress = trusted_ingress(&database_path, FacadePermission::Edit, &scope);
+    let http = trusted_http_request("POST", true);
+    let mut resolver = FixedCredentialResolver {
+        descriptor: trusted_descriptor(
+            TRUSTED_ISSUER,
+            TRUSTED_SUBJECT,
+            TRUSTED_SUBJECT,
+            &scope,
+            &["workflow:context:edit"],
+        ),
+        calls: 0,
+    };
+    let admitted = ingress
+        .admit_http(
+            &http,
+            &facade,
+            &[FacadePermission::Edit],
+            &[],
+            100,
+            &mut resolver,
+        )
+        .expect("edit authority may be admitted without mutation delivery");
+    let error = service
+        .create_draft(&admitted, "revision-1")
+        .expect_err("mutation delivery is not integrated");
+    assert_eq!(error.code, "owner_capability_unavailable");
+    assert!(
+        service.owner().calls.is_empty(),
+        "blocked mutation must make no owner call"
+    );
+    drop(ingress);
+    remove_grant_database(&database_path);
+}
+
+#[test]
+fn trusted_expiry_during_owner_capability_load_stops_final_read_dispatch() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic())
+        .with_capability_delay(Duration::from_millis(1100));
+    let scope = owner.scope();
+    let facade = config(scope.clone());
+    let mut service =
+        HarnessBackedContextService::new_trusted(owner, facade.clone()).expect("trusted service");
+    assert!(service.owner().calls.is_empty(), "composition is lazy");
+
+    let database_path = grant_database_path();
+    let mut ingress = trusted_ingress_with_claims(
+        &database_path,
+        FacadePermission::MetadataRead,
+        &scope,
+        VerifiedPrincipalClaims {
+            issuer: TRUSTED_ISSUER.to_owned(),
+            subject: TRUSTED_SUBJECT.to_owned(),
+            audience: TRUSTED_AUDIENCE.to_owned(),
+            credential_id: "token-short-lived".to_owned(),
+            expires_at: 101,
+        },
+    );
+    let mut resolver = FixedCredentialResolver {
+        descriptor: OwnerCredentialDescriptor::new(
+            TRUSTED_ISSUER,
+            TRUSTED_SUBJECT,
+            TRUSTED_SUBJECT,
+            scope.clone(),
+            ["workflow:read".to_owned()],
+            101,
+        ),
+        calls: 0,
+    };
+    let admitted = ingress
+        .admit_http(
+            &trusted_http_request("GET", false),
+            &facade,
+            &[FacadePermission::MetadataRead],
+            &[],
+            100,
+            &mut resolver,
+        )
+        .expect("grant is initially live");
+
+    let error = service
+        .state(&admitted)
+        .expect_err("expired authority must not dispatch the requested read");
+    assert_eq!(error.code, "metadata_grant_required");
+    assert!(service.owner().calls.contains(&"capabilities".to_owned()));
+    assert!(
+        !service.owner().calls.contains(&"state".to_owned()),
+        "the final owner state read must not start after its authority deadline"
+    );
+    drop(ingress);
+    remove_grant_database(&database_path);
 }
