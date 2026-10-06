@@ -2,10 +2,10 @@
 
 use context_service::{
     AuthenticatedIngress, AuthenticatedIngressConfig, ControlScope, CredentialResolutionError,
-    FacadePermission, HarnessFacadeConfig, HttpRequest, OwnerCredentialDescriptor,
-    PrincipalVerificationError, PrincipalVerifier, ProtectedAuthReference,
-    ProtectedOwnerCredentialResolver, ResolvedOwnerCredential, RetentionPolicy,
-    SqliteSubjectGrantStore, VerifiedPrincipal, VerifiedPrincipalClaims,
+    HarnessFacadeConfig, HttpRequest, OwnerCredentialDescriptor, PrincipalVerificationError,
+    PrincipalVerifier, ProtectedAuthReference, ProtectedOwnerCredentialResolver,
+    ResolvedOwnerCredential, RetentionPolicy, SqliteSubjectGrantStore, VerifiedPrincipal,
+    VerifiedPrincipalClaims,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -85,7 +85,7 @@ pub(super) fn request(scope: &ControlScope) -> HttpRequest {
 }
 
 #[derive(Clone)]
-struct FixedVerifier {
+pub(super) struct FixedVerifier {
     claims: VerifiedPrincipalClaims,
     calls: Arc<AtomicUsize>,
 }
