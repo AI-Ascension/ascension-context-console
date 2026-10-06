@@ -5,7 +5,7 @@ use super::super::{
 };
 use super::{
     MAX_DATABASE_BYTES, MAX_SINGLE_WRITE_GROWTH_BYTES, MAX_WAL_BYTES, REQUIRED_PAGE_SIZE,
-    bounded_file_size, check_write_headroom, find_admitted_grant,
+    bounded_file_size, find_admitted_grant,
 };
 use crate::control::Scope;
 use crate::harness_facade::FacadePermission;
