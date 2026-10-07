@@ -362,6 +362,50 @@ fn grants(scope: &ControlScope, token: &[u8], expiry: u64) -> GrantRegistry {
     grants
 }
 
+#[test]
+fn capability_summary_accepts_eight_known_permissions_including_content_write() {
+    let owner = RecordingOwner::new(ControlPlane::synthetic());
+    let scope = owner.scope();
+    let mut grants = GrantRegistry::new();
+    for (id, permission) in [
+        ("metadata", FacadePermission::MetadataRead),
+        ("content-read", FacadePermission::ContentRead),
+        ("content-write", FacadePermission::ContentWrite),
+        ("edit", FacadePermission::Edit),
+        ("objective", FacadePermission::Objective),
+        ("commit", FacadePermission::Commit),
+        ("pause", FacadePermission::Pause),
+        ("resume", FacadePermission::Resume),
+    ] {
+        grants
+            .issue(id, permission, scope.clone(), FULL_TOKEN, 10_000)
+            .expect("provision known facade permission");
+    }
+    let mut service = HarnessBackedContextService::new(
+        HarnessOwnerClient::new(
+            owner,
+            ProtectedAuthReference::new("owner-key-ref").expect("auth ref"),
+        ),
+        grants,
+        config(scope),
+    )
+    .expect("service accepts a grant registry with all eight known permissions");
+
+    let capabilities = service
+        .capabilities(&request("studio-operator", FULL_TOKEN, 100))
+        .expect("capability response validates all eight known names");
+    assert_eq!(capabilities.grant_permissions.len(), 8);
+    assert!(
+        capabilities
+            .grant_permissions
+            .contains(&"context.content.write".to_owned())
+    );
+    assert_eq!(
+        FacadePermission::ContentWrite.as_str(),
+        "context.content.write"
+    );
+}
+
 fn edit_grant(scope: &ControlScope, token: &[u8], expiry: u64) -> GrantRegistry {
     let mut grants = GrantRegistry::new();
     grants

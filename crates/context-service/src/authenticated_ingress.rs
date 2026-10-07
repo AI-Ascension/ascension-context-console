@@ -18,7 +18,9 @@ use crate::subject_grants::{AdmittedSubjectGrant, SubjectGrantStore};
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
+mod owner_invocation;
 mod validation;
+pub(crate) use owner_invocation::AuthenticatedOwnerInvocation;
 use validation::{
     bearer_from_headers, map_credential_error, map_grant_error, unique_harness_scopes,
     valid_claim_text, validate_admitted_grants, validate_http_envelope, validate_owner_credential,

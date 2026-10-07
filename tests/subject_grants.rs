@@ -111,6 +111,51 @@ fn grants_survive_reopen_and_remain_issuer_subject_scope_permission_and_time_bou
 }
 
 #[test]
+fn content_write_grant_survives_reopen_and_stays_permission_specific() {
+    let database = TestDatabase::new();
+    let grant_scope = scope();
+    let mut store = SqliteSubjectGrantStore::open(database.path()).expect("open store");
+    store
+        .provision(&grant_spec(
+            "grant-content-write",
+            "https://issuer.example",
+            "alice",
+            FacadePermission::ContentWrite,
+            &grant_scope,
+            100,
+            200,
+        ))
+        .expect("provision content-write grant");
+    drop(store);
+
+    let accepted = support::admit_with_write_csrf(
+        database.path(),
+        claims("https://issuer.example", "alice", 900),
+        grant_scope.clone(),
+        FacadePermission::ContentWrite,
+        150,
+        Arc::new(AtomicUsize::new(0)),
+    );
+    assert!(
+        accepted.is_ok(),
+        "content-write grant remains readable after reopen"
+    );
+
+    assert_eq!(
+        support::admit(
+            database.path(),
+            claims("https://issuer.example", "alice", 900),
+            grant_scope,
+            FacadePermission::ContentRead,
+            150,
+            Arc::new(AtomicUsize::new(0)),
+        ),
+        Err(AuthenticatedIngressError::GrantDenied),
+        "a content-write row must not grant content-read authority"
+    );
+}
+
+#[test]
 fn revocation_persists_across_reopen_and_repeating_it_keeps_generation() {
     let database = TestDatabase::new();
     let grant_scope = scope();

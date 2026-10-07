@@ -111,6 +111,7 @@
         "enum": [
           "context.metadata.read",
           "context.content.read",
+          "context.content.write",
           "context.edit",
           "context.objective.edit",
           "context.commit",
@@ -119,7 +120,7 @@
         ]
       },
       "uniqueItems": true,
-      "maxItems": 7
+      "maxItems": 8
     },
     "retention_mode": {
       "enum": [

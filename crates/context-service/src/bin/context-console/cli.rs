@@ -20,6 +20,7 @@ pub(super) fn run() -> Result<(), String> {
         Some("phase2-cli") => context_service::run_phase2_cli(arguments.collect()),
         Some("phase3-cli") => context_service::run_phase3_cli(arguments.collect()),
         Some("phase4-cli") => context_service::run_phase4_cli(arguments.collect()),
+        Some("owner") => context_service::run_context_owner_operator_cli(arguments.collect()),
         Some("phase3-adapter") => {
             if arguments.next().is_some() {
                 return Err("phase3-adapter: unexpected argument".to_owned());
@@ -33,7 +34,7 @@ pub(super) fn run() -> Result<(), String> {
         }
         Some("help") => {
             println!(
-                "context-console health|demo|phase2-demo|phase2-cli <command> ...|phase3-cli <command>|phase3-adapter|phase4-cli <command>|integrated-demo [port]|inspect [snapshot.json]"
+                "context-console health|demo|phase2-demo|phase2-cli <command> ...|phase3-cli <command>|phase3-adapter|phase4-cli <command>|owner <command> ...|integrated-demo [port]|inspect [snapshot.json]"
             );
             Ok(())
         }

@@ -27,16 +27,35 @@ impl HttpRequest {
         bytes: &[u8],
         enforce_declared_body_length: bool,
     ) -> Result<Self, ApiError> {
-        if bytes.is_empty() || bytes.len() > MAX_HTTP_REQUEST_BYTES {
+        Self::parse_with_limits(
+            bytes,
+            enforce_declared_body_length,
+            MAX_HTTP_REQUEST_BYTES,
+            MAX_HTTP_BODY_BYTES,
+            MAX_HTTP_REQUEST_BYTES,
+        )
+    }
+
+    pub(crate) fn parse_with_limits(
+        bytes: &[u8],
+        enforce_declared_body_length: bool,
+        max_request_bytes: usize,
+        max_body_bytes: usize,
+        max_header_bytes: usize,
+    ) -> Result<Self, ApiError> {
+        if bytes.is_empty() || bytes.len() > max_request_bytes {
             return Err(ApiError::BadRequest);
         }
         let split = bytes
             .windows(4)
             .position(|window| window == b"\r\n\r\n")
             .ok_or(ApiError::BadRequest)?;
+        if split + 4 > max_header_bytes {
+            return Err(ApiError::TooLarge);
+        }
         let (head, body) = bytes.split_at(split);
         let body = &body[4..];
-        if body.len() > MAX_HTTP_BODY_BYTES {
+        if body.len() > max_body_bytes {
             return Err(ApiError::TooLarge);
         }
         let mut lines = head.split(|byte| *byte == b'\n');
@@ -113,6 +132,9 @@ pub(crate) fn declared_content_length(headers: &[(String, String)]) -> Result<us
             continue;
         }
         if content_length.is_some() {
+            return Err(ApiError::BadRequest);
+        }
+        if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
             return Err(ApiError::BadRequest);
         }
         let length = value.parse::<usize>().map_err(|_| ApiError::BadRequest)?;

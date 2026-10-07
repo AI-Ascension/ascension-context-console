@@ -424,6 +424,7 @@ impl FacadeRequest {
 pub enum FacadePermission {
     MetadataRead,
     ContentRead,
+    ContentWrite,
     Edit,
     Objective,
     Commit,
@@ -435,6 +436,7 @@ impl FacadePermission {
     const ALL: &'static [&'static str] = &[
         "context.metadata.read",
         "context.content.read",
+        "context.content.write",
         "context.edit",
         "context.objective.edit",
         "context.commit",
@@ -446,6 +448,7 @@ impl FacadePermission {
         match self {
             Self::MetadataRead => "context.metadata.read",
             Self::ContentRead => "context.content.read",
+            Self::ContentWrite => "context.content.write",
             Self::Edit => "context.edit",
             Self::Objective => "context.objective.edit",
             Self::Commit => "context.commit",
@@ -995,6 +998,7 @@ impl FacadeError {
             GrantError::EmptyToken | GrantError::NotFound => Self::unauthorized(match permission {
                 FacadePermission::MetadataRead => "metadata_grant_required",
                 FacadePermission::ContentRead => "content_grant_required",
+                FacadePermission::ContentWrite => "content_write_grant_required",
                 FacadePermission::Edit => "edit_grant_required",
                 FacadePermission::Objective => "objective_grant_required",
                 FacadePermission::Commit => "commit_grant_required",
@@ -3099,7 +3103,7 @@ fn validate_facade_capabilities(capabilities: &FacadeCapabilities) -> FacadeResu
                 .any(|known| known == operation)
         })
         || !unique_strings(&capabilities.forwarded_operations)
-        || capabilities.grant_permissions.len() > 7
+        || capabilities.grant_permissions.len() > 8
         || !capabilities.grant_permissions.iter().all(|permission| {
             FacadePermission::ALL
                 .iter()

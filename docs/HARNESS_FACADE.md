@@ -2,8 +2,11 @@
 
 This document describes the non-demo composition added for issue #18. It is a consumer-facing
 contract and deployment note, not evidence that the companion harness owner is already wired in
-production. The concrete owner implementation remains an external dependency tracked by
-[sts2-harness#100](https://github.com/AI-Ascension/sts2-harness/issues/100).
+production. The authoritative invocation binding tracked by
+[sts2-harness#100](https://github.com/AI-Ascension/sts2-harness/issues/100) is completed.
+Scoped durable owner/capability delivery and actual Harness process acceptance remain tracked by
+[sts2-harness#391](https://github.com/AI-Ascension/sts2-harness/issues/391); this document does not
+establish that acceptance or completion of Console issue #18.
 
 ## Compatibility classification
 
@@ -56,11 +59,20 @@ project/run/episode/agent tuple:
 | --- | --- |
 | `context.metadata.read` | metadata projections and receipt reads |
 | `context.content.read` | raw eligible content, only when metadata is also granted |
+| `context.content.write` | publication and source upload through the separately admitted v2 owner adapter; requires exact Harness `workflow:content:write` |
 | `context.edit` | draft creation and ordinary CAS edits |
 | `context.objective.edit` | objective replacement in addition to `context.edit` |
 | `context.pause` | pause and held/applicable preview requests |
 | `context.commit` | held commit |
 | `context.resume` | explicit resume |
+
+The `forwarded_operations` capability list determines available routes. Recognizing a grant
+name alone does not enable publication or source upload. Content-write authority is distinct
+from draft editing and content reading and must be resolved for the exact operation.
+
+Persisting a `context.content.write` grant requires a binary that recognizes this permission
+when reopening the subject-grant database. Earlier binaries reject that row as unsupported
+stored data; rollback requires a compatible binary or an operator-reviewed compatible backup.
 
 Every request checks exact Host and configured Origin before owner forwarding. Writes additionally
 require the injected CSRF proof. Expired, revoked, missing, mismatched-scope, malformed, and
