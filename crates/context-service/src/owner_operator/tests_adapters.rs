@@ -1,7 +1,7 @@
 #![cfg(unix)]
 
 use super::config::{CONFIG_SCHEMA, OperatorConfig};
-use super::principal::{FilePrincipalVerifier, test_tag};
+use super::principal::{FilePrincipalVerifier, TestTagInput, test_tag};
 use super::slots::{FileHarnessBearerRedeemer, FileOwnerSlotResolver};
 use super::tests_files::{Fixture, write_private_at};
 use crate::authenticated_ingress::{
@@ -158,13 +158,15 @@ fn invocation() -> ContextOwnerInvocationV2 {
 fn principal_registry(expiration: u64, revoked: bool, key: &[u8; 32]) -> Vec<u8> {
     let tag = test_tag(
         key,
-        "principal.prod-1",
-        ISSUER,
-        SUBJECT,
-        AUDIENCE,
-        PRINCIPAL_ID,
-        expiration,
-        revoked,
+        TestTagInput {
+            reference: "principal.prod-1",
+            issuer: ISSUER,
+            subject: SUBJECT,
+            audience: AUDIENCE,
+            credential_id: PRINCIPAL_ID,
+            expires_at: expiration,
+            revoked,
+        },
         &TOKEN_SECRET,
     );
     serde_json::to_vec(&json!({
@@ -186,13 +188,15 @@ fn principal_registry(expiration: u64, revoked: bool, key: &[u8; 32]) -> Vec<u8>
 fn principal_registry_with_duplicate_field(expiration: u64, key: &[u8; 32]) -> Vec<u8> {
     let tag = test_tag(
         key,
-        "principal.prod-1",
-        ISSUER,
-        SUBJECT,
-        AUDIENCE,
-        PRINCIPAL_ID,
-        expiration,
-        false,
+        TestTagInput {
+            reference: "principal.prod-1",
+            issuer: ISSUER,
+            subject: SUBJECT,
+            audience: AUDIENCE,
+            credential_id: PRINCIPAL_ID,
+            expires_at: expiration,
+            revoked: false,
+        },
         &TOKEN_SECRET,
     );
     format!(

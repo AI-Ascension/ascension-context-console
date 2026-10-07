@@ -255,15 +255,3 @@ fn valid_key_id(value: &str) -> bool {
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(&byte))
 }
-
-#[cfg(test)]
-pub(super) fn test_key_material(key_id: &str, key: [u8; 32]) -> OwnerInvocationKeyMaterial {
-    let mut data = BTreeMap::new();
-    let mut data_key = [0x53; 32];
-    if data_key == key {
-        data_key[0] ^= 1;
-    }
-    data.insert(key_id.to_owned(), data_key);
-    OwnerInvocationKeyMaterial::new("test-index-v1".to_owned(), key, key_id.to_owned(), data)
-        .expect("test keys are valid and independent")
-}

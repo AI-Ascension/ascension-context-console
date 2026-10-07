@@ -224,26 +224,27 @@ fn map_read_error(error: AdapterError) -> PrincipalVerificationError {
     }
 }
 
-#[cfg(test)]
-pub(super) fn test_tag(
-    key: &[u8; 32],
-    reference: &str,
-    issuer: &str,
-    subject: &str,
-    audience: &str,
-    credential_id: &str,
-    expires_at: u64,
-    revoked: bool,
-    token: &[u8; 32],
-) -> String {
+#[cfg(all(test, unix))]
+pub(super) struct TestTagInput<'a> {
+    pub(super) reference: &'a str,
+    pub(super) issuer: &'a str,
+    pub(super) subject: &'a str,
+    pub(super) audience: &'a str,
+    pub(super) credential_id: &'a str,
+    pub(super) expires_at: u64,
+    pub(super) revoked: bool,
+}
+
+#[cfg(all(test, unix))]
+pub(super) fn test_tag(key: &[u8; 32], input: TestTagInput<'_>, token: &[u8; 32]) -> String {
     let record = Record {
-        reference: reference.to_owned(),
-        issuer: issuer.to_owned(),
-        subject: subject.to_owned(),
-        audience: audience.to_owned(),
-        credential_id: credential_id.to_owned(),
-        expires_at,
-        revoked,
+        reference: input.reference.to_owned(),
+        issuer: input.issuer.to_owned(),
+        subject: input.subject.to_owned(),
+        audience: input.audience.to_owned(),
+        credential_id: input.credential_id.to_owned(),
+        expires_at: input.expires_at,
+        revoked: input.revoked,
         tag: String::new(),
     };
     let bytes = record_mac(key, &record, token)

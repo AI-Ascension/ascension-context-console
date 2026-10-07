@@ -291,10 +291,12 @@ fn data_key_id_cannot_be_reused_with_changed_bytes() {
     let call = invocation("request-key-id-reuse", "same id different bytes");
     let auth = admission(&call, AdmissionUse::Write);
     let mut store = OwnerInvocationStore::open(temp.path(), keys.clone()).unwrap();
-    let ReservationOutcome::Ready(reservation) = store.reserve(&call, &auth, 10).unwrap() else {
-        panic!("new reservation");
-    };
-    drop(reservation);
+    {
+        let ReservationOutcome::Ready(_reservation) = store.reserve(&call, &auth, 10).unwrap()
+        else {
+            panic!("new reservation");
+        };
+    }
 
     keys.replace_existing_data_key_bytes();
     assert!(matches!(
@@ -314,10 +316,12 @@ fn index_key_id_cannot_be_reused_with_changed_bytes() {
     let call = invocation("request-index-key-id-reuse", "changed index bytes");
     let auth = admission(&call, AdmissionUse::Write);
     let mut store = OwnerInvocationStore::open(temp.path(), keys.clone()).unwrap();
-    let ReservationOutcome::Ready(reservation) = store.reserve(&call, &auth, 10).unwrap() else {
-        panic!("new reservation");
-    };
-    drop(reservation);
+    {
+        let ReservationOutcome::Ready(_reservation) = store.reserve(&call, &auth, 10).unwrap()
+        else {
+            panic!("new reservation");
+        };
+    }
     drop(store);
 
     keys.replace_index_key_bytes_without_changing_id();

@@ -59,14 +59,6 @@ mod unix {
                 .expect("secure private test directory");
             path
         }
-
-        pub(in crate::owner_operator) fn write_private(
-            &self,
-            name: &str,
-            contents: &[u8],
-        ) -> PathBuf {
-            write_private_at(&self.directory, name, contents)
-        }
     }
 
     impl Drop for Fixture {
