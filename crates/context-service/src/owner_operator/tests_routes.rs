@@ -67,7 +67,7 @@ fn sqlite_generation_zero_admits_exact_row_and_wrong_generation_is_denied_at_ing
         CredentialResolutionError, OwnerCredentialDescriptor, ProtectedOwnerCredentialResolver,
         ResolvedOwnerCredential,
     };
-    use crate::subject_grants::{SqliteSubjectGrantStore, SubjectGrantSpec, SubjectGrantStore};
+    use crate::subject_grants::{SqliteSubjectGrantStore, SubjectGrantSpec};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     struct Verifier(VerifiedPrincipalClaims);

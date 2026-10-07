@@ -20,9 +20,7 @@ use crate::harness_facade::{
 use crate::harness_owner_transport::{CredentialRedemptionError, HarnessCredentialRedeemer};
 use crate::http::HttpRequest;
 use crate::owner_invocation_store::AdmissionUse;
-use crate::protected_owner_credentials::{
-    OwnerCredentialDescriptor, ProtectedOwnerCredentialResolver, ResolvedOwnerCredential,
-};
+use crate::protected_owner_credentials::OwnerCredentialDescriptor;
 use crate::subject_grants::{AdmittedSubjectGrant, SubjectGrantError, SubjectGrantStore};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};

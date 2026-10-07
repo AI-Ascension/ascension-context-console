@@ -15,7 +15,7 @@ pub(super) struct HttpReply {
     pub body: Zeroizing<Vec<u8>>,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum FrameError {
     Deadline,
     Io,

@@ -384,8 +384,12 @@ fn concurrent_empty_store_open_binds_one_index_key_material() {
 fn private_store_rejects_hardlinked_database_and_symlinked_parent() {
     let temp = PrivateTempStore::new();
     drop(OwnerInvocationStore::open(temp.path(), provider()).unwrap());
+    let directory = temp
+        .database
+        .parent()
+        .expect("private test database has a parent");
 
-    let hardlink = temp.directory.join("linked.sqlite3");
+    let hardlink = directory.join("linked.sqlite3");
     std::fs::hard_link(temp.path(), &hardlink).unwrap();
     assert!(matches!(
         OwnerInvocationStore::open(temp.path(), provider()),
@@ -393,8 +397,8 @@ fn private_store_rejects_hardlinked_database_and_symlinked_parent() {
     ));
     std::fs::remove_file(&hardlink).unwrap();
 
-    let linked_directory = temp.directory.join("linked-directory");
-    std::os::unix::fs::symlink(&temp.directory, &linked_directory).unwrap();
+    let linked_directory = directory.join("linked-directory");
+    std::os::unix::fs::symlink(directory, &linked_directory).unwrap();
     let through_link = linked_directory.join("other.sqlite3");
     assert!(matches!(
         OwnerInvocationStore::open(&through_link, provider()),

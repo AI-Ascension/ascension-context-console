@@ -66,19 +66,27 @@ fn journal_key_provider_loads_current_and_all_retained_keys_and_fails_closed() {
     );
     assert_eq!(provider.load().err(), Some(StoreError::KeyUnavailable));
 
+    let mut capacity_entries = vec![
+        json!({"key_id":"data-v1","file_ref":"data-old.bin"}),
+        json!({"key_id":"data-v2","file_ref":"data-current.bin"}),
+    ];
+    for version in 3_u8..=9 {
+        let key_id = format!("data-v{version}");
+        let file_ref = format!("data-retained-v{version}.bin");
+        write_private_at(&state, &file_ref, &[0x40_u8 + version; 32]);
+        capacity_entries.push(json!({"key_id":key_id,"file_ref":file_ref}));
+    }
+    replace_private(
+        &state.join("journal-keys.json"),
+        "eight-key-limit.next",
+        &key_manifest(Value::Array(capacity_entries[..8].to_vec())),
+    );
+    assert!(provider.load().is_ok());
+
     replace_private(
         &state.join("journal-keys.json"),
         "too-many.next",
-        &key_manifest(
-            (0..9)
-                .map(|index| {
-                    json!({
-                        "key_id": format!("data-{index}"),
-                        "file_ref": format!("key-{index}.bin")
-                    })
-                })
-                .collect::<Vec<_>>(),
-        ),
+        &key_manifest(Value::Array(capacity_entries)),
     );
     assert_eq!(provider.load().err(), Some(StoreError::KeyUnavailable));
 

@@ -7,8 +7,8 @@ use crate::authenticated_ingress::{
 };
 use crate::control::Scope;
 use crate::harness_context_owner_wire::{
-    ConsoleOwnerIdentityV2, ConsoleOwnerScopeV2, ContextOwnerOperationV2, HarnessActorIdentityV2,
-    OwnerIdentityCorrelationV2,
+    ConsoleOwnerIdentityV2, ConsoleOwnerScopeV2, ContextOwnerInvocationV2, ContextOwnerOperationV2,
+    HarnessActorIdentityV2, OwnerIdentityCorrelationV2,
 };
 use crate::harness_facade::{
     FacadePermission, HarnessFacadeConfig, ProtectedAuthReference, RetentionPolicy,
@@ -277,22 +277,22 @@ fn unix_seconds() -> Result<u64, Box<dyn Error>> {
 fn unchanged_live_identity_and_slot_keep_the_original_pair_and_deadline()
 -> Result<(), Box<dyn Error>> {
     let mut fixture = fixture(300)?;
-    let before = fixture.admitted.admission().deadline_for(
-        &fixture.invocation,
-        AdmissionUse::ReadOnly,
-        unix_seconds()?,
-    )?;
+    let before = fixture
+        .admitted
+        .admission()
+        .deadline_for(&fixture.invocation, AdmissionUse::ReadOnly, unix_seconds()?)
+        .map_err(|_| std::io::Error::other("admission deadline unavailable"))?;
     fixture.ingress.revalidate_current_owner_identity(
         &fixture.request,
         &fixture.facade,
         &fixture.admitted,
         &mut fixture.resolver,
     )?;
-    let after = fixture.admitted.admission().deadline_for(
-        &fixture.invocation,
-        AdmissionUse::ReadOnly,
-        unix_seconds()?,
-    )?;
+    let after = fixture
+        .admitted
+        .admission()
+        .deadline_for(&fixture.invocation, AdmissionUse::ReadOnly, unix_seconds()?)
+        .map_err(|_| std::io::Error::other("admission deadline unavailable"))?;
 
     assert_eq!(before, after);
     assert_eq!(fixture.ingress.verifier.calls, 2);
@@ -395,11 +395,11 @@ fn grant_revoked_during_resolution_is_refused_after_the_wait() -> Result<(), Box
 #[test]
 fn slow_resolution_cannot_extend_the_original_admission_deadline() -> Result<(), Box<dyn Error>> {
     let mut fixture = fixture(3)?;
-    let deadline = fixture.admitted.admission().deadline_for(
-        &fixture.invocation,
-        AdmissionUse::ReadOnly,
-        unix_seconds()?,
-    )?;
+    let deadline = fixture
+        .admitted
+        .admission()
+        .deadline_for(&fixture.invocation, AdmissionUse::ReadOnly, unix_seconds()?)
+        .map_err(|_| std::io::Error::other("admission deadline unavailable"))?;
     fixture.resolver.delay =
         deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(100);
     let result = fixture.ingress.revalidate_current_owner_identity(
