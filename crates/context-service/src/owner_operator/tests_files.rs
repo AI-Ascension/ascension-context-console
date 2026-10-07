@@ -33,6 +33,9 @@ mod unix {
             fs::create_dir_all(&fixtures).expect("create designated test fixture directory");
             fs::set_permissions(&fixtures, fs::Permissions::from_mode(0o700))
                 .expect("secure test fixture directory");
+            // The default manifest-relative target contains `..`; production
+            // descriptor walking correctly rejects those path components.
+            let fixtures = fs::canonicalize(fixtures).expect("resolve test fixture directory");
             loop {
                 let suffix = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
                 let directory = fixtures.join(format!("{}-{suffix}", std::process::id()));
