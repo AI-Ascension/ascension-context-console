@@ -81,7 +81,8 @@ impl SubjectGrantStore for OperatorSubjectGrantStore {
 #[cfg(unix)]
 fn file_identity(path: &Path) -> Result<(u64, u64), SubjectGrantError> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
-    let metadata = std::fs::symlink_metadata(path).map_err(|_| SubjectGrantError::StoreUnavailable)?;
+    let metadata =
+        std::fs::symlink_metadata(path).map_err(|_| SubjectGrantError::StoreUnavailable)?;
     if metadata.file_type().is_symlink()
         || !metadata.is_file()
         || metadata.uid() != rustix::process::geteuid().as_raw()

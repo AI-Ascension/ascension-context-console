@@ -135,6 +135,7 @@ pub struct ContextControlReceipt {
     pub approved_manifest_digest: Option<String>,
 }
 
+#[path = "control/adoption.rs"]
 mod adoption;
 
 impl ContextControlReceipt {

@@ -614,7 +614,9 @@ fn publication_digest_and_receipt_keep_harness_correlation_contract() {
 fn initial_sqlite_grant_generation_zero_is_valid_only_with_live_expiry() {
     let mut value = identity();
     value.console.grant_generation = 0;
-    value.validate().expect("initial grant generation is exact row state");
+    value
+        .validate()
+        .expect("initial grant generation is exact row state");
     value.console.grant_expires_at = 0;
     assert!(value.validate().is_err());
 }
