@@ -18,7 +18,24 @@ pub(super) fn validate_http_envelope(
     facade: &HarnessFacadeConfig,
     required: &[FacadePermission],
 ) -> Result<(), AuthenticatedIngressError> {
-    if request.body.len() > MAX_FACADE_BODY_BYTES
+    validate_http_envelope_with_body_limit(request, facade, required, MAX_FACADE_BODY_BYTES)
+}
+
+pub(super) fn validate_owner_http_envelope(
+    request: &HttpRequest,
+    facade: &HarnessFacadeConfig,
+    required: &[FacadePermission],
+) -> Result<(), AuthenticatedIngressError> {
+    validate_http_envelope_with_body_limit(request, facade, required, 1024 * 1024)
+}
+
+fn validate_http_envelope_with_body_limit(
+    request: &HttpRequest,
+    facade: &HarnessFacadeConfig,
+    required: &[FacadePermission],
+    body_limit: usize,
+) -> Result<(), AuthenticatedIngressError> {
+    if request.body.len() > body_limit
         || request.headers.len() > 32
         || request.target.len() > 4096
         || request.target.contains("://")

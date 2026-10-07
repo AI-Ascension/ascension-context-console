@@ -12,7 +12,9 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, pa
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+mod operator;
 mod storage;
+pub(crate) use operator::OperatorSubjectGrantStore;
 use storage::{
     MAX_DATABASE_PAGES, MAX_JOURNAL_SIZE_BYTES, REQUIRED_PAGE_SIZE,
     check_connection_storage_bounds, check_write_headroom, checked_database_path, create_schema,

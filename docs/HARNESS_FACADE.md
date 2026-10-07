@@ -56,11 +56,20 @@ project/run/episode/agent tuple:
 | --- | --- |
 | `context.metadata.read` | metadata projections and receipt reads |
 | `context.content.read` | raw eligible content, only when metadata is also granted |
+| `context.content.write` | publication and source upload through the separately admitted v2 owner adapter; requires exact Harness `workflow:content:write` |
 | `context.edit` | draft creation and ordinary CAS edits |
 | `context.objective.edit` | objective replacement in addition to `context.edit` |
 | `context.pause` | pause and held/applicable preview requests |
 | `context.commit` | held commit |
 | `context.resume` | explicit resume |
+
+The `forwarded_operations` capability list determines available routes. Recognizing a grant
+name alone does not enable publication or source upload. Content-write authority is distinct
+from draft editing and content reading and must be resolved for the exact operation.
+
+Persisting a `context.content.write` grant requires a binary that recognizes this permission
+when reopening the subject-grant database. Earlier binaries reject that row as unsupported
+stored data; rollback requires a compatible binary or an operator-reviewed compatible backup.
 
 Every request checks exact Host and configured Origin before owner forwarding. Writes additionally
 require the injected CSRF proof. Expired, revoked, missing, mismatched-scope, malformed, and

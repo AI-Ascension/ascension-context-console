@@ -2085,13 +2085,14 @@
           },
           "grant_permissions": {
             "type": "array",
-            "maxItems": 7,
+            "maxItems": 8,
             "uniqueItems": true,
             "items": {
               "type": "string",
               "enum": [
                 "context.metadata.read",
                 "context.content.read",
+                "context.content.write",
                 "context.edit",
                 "context.objective.edit",
                 "context.commit",

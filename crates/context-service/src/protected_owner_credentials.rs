@@ -19,6 +19,7 @@ pub(crate) fn harness_scope_for(permission: FacadePermission) -> &'static str {
     match permission {
         FacadePermission::MetadataRead => "workflow:read",
         FacadePermission::ContentRead => "workflow:context:content:read",
+        FacadePermission::ContentWrite => "workflow:content:write",
         FacadePermission::Edit => "workflow:context:edit",
         FacadePermission::Objective => "workflow:context:objective:edit",
         FacadePermission::Commit | FacadePermission::Pause | FacadePermission::Resume => {
@@ -27,10 +28,11 @@ pub(crate) fn harness_scope_for(permission: FacadePermission) -> &'static str {
     }
 }
 
-const MAX_DESCRIPTOR_SCOPES: usize = 5;
+const MAX_DESCRIPTOR_SCOPES: usize = 6;
 const KNOWN_HARNESS_SCOPES: &[&str] = &[
     "workflow:read",
     "workflow:context:content:read",
+    "workflow:content:write",
     "workflow:context:edit",
     "workflow:context:objective:edit",
     "workflow:control",

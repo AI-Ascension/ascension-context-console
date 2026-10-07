@@ -20,6 +20,10 @@ context-reader = { path = "crates/context-reader" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 sha2 = "0.10.9"
+hmac = { version = "=0.13.0", features = ["zeroize"] }
+owner-seed-sha2 = { package = "sha2", version = "=0.11.0" }
+zeroize = "=1.9.0"
+rustix = { version = "=1.1.5", features = ["fs", "process"] }
 chacha20poly1305 = "0.10.1"
 getrandom = "0.2.17"
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }

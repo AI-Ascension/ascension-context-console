@@ -5,7 +5,7 @@ use context_service::{
     CredentialResolutionError, FacadePermission, FacadeRequest, HarnessFacadeConfig, HttpRequest,
     OwnerCredentialDescriptor, PrincipalVerificationError, PrincipalVerifier,
     ProtectedAuthReference, ProtectedOwnerCredentialResolver, ResolvedOwnerCredential,
-    RetentionPolicy, SqliteSubjectGrantStore, SubjectGrantSpec, VerifiedPrincipal,
+    RetentionPolicy, SecretDigest, SqliteSubjectGrantStore, SubjectGrantSpec, VerifiedPrincipal,
     VerifiedPrincipalClaims,
 };
 use std::fs;
@@ -15,6 +15,7 @@ use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
 static NEXT_DATABASE: AtomicU64 = AtomicU64::new(0);
+const WRITE_CSRF: &[u8] = b"subject-grant-content-write-csrf";
 
 pub struct TestDatabase {
     directory: PathBuf,
@@ -89,6 +90,17 @@ pub fn facade(scope: ControlScope) -> HarnessFacadeConfig {
     .expect("valid facade configuration")
 }
 
+pub fn facade_with_write_csrf(scope: ControlScope) -> HarnessFacadeConfig {
+    HarnessFacadeConfig::new(
+        scope,
+        "console.example",
+        Some("https://console.example".to_owned()),
+        Some(SecretDigest::from_secret(WRITE_CSRF).expect("write CSRF digest")),
+        RetentionPolicy::default(),
+    )
+    .expect("valid write facade configuration")
+}
+
 pub fn http_request(_scope: &ControlScope) -> HttpRequest {
     HttpRequest {
         method: "GET".to_owned(),
@@ -103,6 +115,16 @@ pub fn http_request(_scope: &ControlScope) -> HttpRequest {
         ],
         body: Vec::new(),
     }
+}
+
+pub fn http_request_with_write_csrf(scope: &ControlScope) -> HttpRequest {
+    let mut request = http_request(scope);
+    request.method = "POST".to_owned();
+    request.headers.push((
+        "x-csrf-token".to_owned(),
+        String::from_utf8_lossy(WRITE_CSRF).into_owned(),
+    ));
+    request
 }
 
 #[derive(Clone)]
@@ -181,6 +203,35 @@ pub fn admit(
     ingress.admit_http(
         &http_request(&requested_scope),
         &facade(requested_scope),
+        &[permission],
+        &[],
+        now,
+        &mut resolver,
+    )
+}
+
+pub fn admit_with_write_csrf(
+    path: &Path,
+    principal: VerifiedPrincipalClaims,
+    requested_scope: ControlScope,
+    permission: FacadePermission,
+    now: u64,
+    calls: Arc<AtomicUsize>,
+) -> Result<FacadeRequest, AuthenticatedIngressError> {
+    let store = SqliteSubjectGrantStore::open(path)
+        .map_err(|_| AuthenticatedIngressError::GrantStoreUnavailable)?;
+    let mut ingress = AuthenticatedIngress::new(
+        AuthenticatedIngressConfig::new(principal.issuer.clone(), principal.audience.clone())?,
+        FixedVerifier(principal),
+        store,
+    );
+    let mut resolver = CredentialResolver {
+        calls,
+        blocked: None,
+    };
+    ingress.admit_http(
+        &http_request_with_write_csrf(&requested_scope),
+        &facade_with_write_csrf(requested_scope),
         &[permission],
         &[],
         now,

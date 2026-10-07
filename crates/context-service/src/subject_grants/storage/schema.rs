@@ -119,7 +119,8 @@ fn validate_existing_rows(connection: &Connection) -> Result<(), SubjectGrantErr
                 (revoked = 0 AND revocation_generation != 0) OR
                 (revoked = 1 AND revocation_generation = 0) OR
                 permission NOT IN (
-                    'context.metadata.read', 'context.content.read', 'context.edit',
+                    'context.metadata.read', 'context.content.read', 'context.content.write',
+                    'context.edit',
                     'context.objective.edit', 'context.commit', 'context.pause', 'context.resume'
                 )",
             [],

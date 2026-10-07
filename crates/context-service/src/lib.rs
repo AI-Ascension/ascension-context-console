@@ -16,10 +16,16 @@ mod cli;
 mod control;
 mod demo;
 pub mod effective_limits;
+pub mod harness_context_owner_wire;
 mod harness_facade;
+mod harness_owner_transport;
 mod http;
 mod memory;
 mod owner;
+mod owner_invocation_store;
+mod owner_operator;
+#[cfg(test)]
+mod owner_test_fixtures;
 mod private_store;
 mod protected_owner_credentials;
 pub mod provider_session;
@@ -115,4 +121,9 @@ pub use telemetry::{
 /// and follows the exact control payload validation path.
 pub fn parse_control_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ControlError> {
     demo::parse_json(body)
+}
+
+/// Run the protected local context-owner service or its maintenance commands.
+pub fn run_context_owner_operator_cli(arguments: Vec<String>) -> Result<(), String> {
+    owner_operator::run_cli(arguments)
 }

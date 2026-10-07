@@ -97,6 +97,27 @@ fn malformed_negative_grant_times_and_generation_fail_closed() {
 }
 
 #[test]
+fn unknown_stored_permission_remains_corruption_after_allowlist_extension() {
+    let database = TestDatabase::new();
+    let mut store = SqliteSubjectGrantStore::open(&database.path).expect("open test store");
+    provision(&mut store);
+    store
+        .connection
+        .execute(
+            "UPDATE console_subject_grants SET permission = ?1",
+            ["context.unrecognized.permission"],
+        )
+        .expect("inject unknown permission row");
+    drop(store);
+
+    assert_eq!(
+        SqliteSubjectGrantStore::open(&database.path).err(),
+        Some(SubjectGrantError::Corrupt),
+        "the new known permission must not make arbitrary stored names acceptable"
+    );
+}
+
+#[test]
 fn database_and_wal_byte_limits_are_checked() {
     let directory = TestDatabase::new();
     let oversized = directory.directory.join("oversized.sqlite-wal");
