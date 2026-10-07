@@ -2,8 +2,11 @@
 
 This document describes the non-demo composition added for issue #18. It is a consumer-facing
 contract and deployment note, not evidence that the companion harness owner is already wired in
-production. The concrete owner implementation remains an external dependency tracked by
-[sts2-harness#100](https://github.com/AI-Ascension/sts2-harness/issues/100).
+production. The authoritative invocation binding tracked by
+[sts2-harness#100](https://github.com/AI-Ascension/sts2-harness/issues/100) is completed.
+Scoped durable owner/capability delivery and actual Harness process acceptance remain tracked by
+[sts2-harness#391](https://github.com/AI-Ascension/sts2-harness/issues/391); this document does not
+establish that acceptance or completion of Console issue #18.
 
 ## Compatibility classification
 

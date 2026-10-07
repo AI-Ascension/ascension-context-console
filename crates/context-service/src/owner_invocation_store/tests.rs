@@ -365,6 +365,52 @@ fn exact_receipt_completes_and_duplicate_returns_only_encrypted_cache() {
 }
 
 #[test]
+fn completed_record_rejects_wrong_response_variant_and_receipt_correlation() {
+    let temp = PrivateTempStore::new();
+    let mut store = OwnerInvocationStore::open(temp.path(), provider()).expect("open store");
+    let call = invocation("request-corrupt-receipt", "private note for response");
+    let auth = admission(&call, AdmissionUse::Write);
+    let ReservationOutcome::Ready(reservation) = store.reserve(&call, &auth, 10).unwrap() else {
+        panic!("new reservation");
+    };
+    let permit = store.claim_send(reservation, &auth, 11).unwrap();
+    store
+        .complete_send(permit, &receipt_bytes(&call), 12)
+        .expect("valid receipt completes");
+
+    let tag = crypto::lookup_tag(
+        store.keys.index_key(),
+        &operations::stable_locator(&call).unwrap(),
+    )
+    .unwrap();
+    let row = storage::read_row(&store.connection, &tag).unwrap().unwrap();
+    let record = record_codec::open_record_with_keys(&store.keys, &row).unwrap();
+
+    let mut wrong_variant = record.clone();
+    let Some(HarnessResponseV1::MutationReceipt(receipt)) = &wrong_variant.response else {
+        panic!("completed patch stores its mutation receipt");
+    };
+    let HarnessContextOwnerMutationResult::Draft(draft) = &receipt.result else {
+        panic!("patch receipt contains its draft result");
+    };
+    wrong_variant.response = Some(HarnessResponseV1::Draft(draft.clone()));
+    assert_eq!(
+        record_codec::validate_record(&wrong_variant),
+        Err(StoreError::StoreCorrupt)
+    );
+
+    let mut wrong_correlation = record;
+    let Some(HarnessResponseV1::MutationReceipt(receipt)) = &mut wrong_correlation.response else {
+        panic!("completed patch stores its mutation receipt");
+    };
+    receipt.request_id.push_str("-other");
+    assert_eq!(
+        record_codec::validate_record(&wrong_correlation),
+        Err(StoreError::StoreCorrupt)
+    );
+}
+
+#[test]
 fn absent_exact_receipt_stays_unknown_after_restart() {
     let temp = PrivateTempStore::new();
     let keys = provider();

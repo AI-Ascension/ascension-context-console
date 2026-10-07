@@ -138,7 +138,7 @@ fn live_write_invocation(now: u64) -> ContextOwnerInvocationV2 {
         plan_epoch: 1,
         grants: ContextBindingGrants {
             metadata_read: true,
-            content_read: false,
+            content_read: true,
             edit: true,
             control: false,
         },
@@ -325,7 +325,8 @@ fn valid_write_receipt_is_cached_before_revoked_result_is_withheld() {
     else {
         panic!("prepared exact write");
     };
-    let (address, received) = serve_once(mutation_receipt(&invocation), Duration::ZERO);
+    let response_body = mutation_receipt(&invocation);
+    let (address, received) = serve_once(framed_json_response(&response_body), Duration::ZERO);
     let transport = transport_for(address, Duration::from_secs(1));
     let mut redeemer = TestRedeemer::default();
     let mut currentness = RevokeAt::new(3, AdmissionUse::Write);
@@ -385,7 +386,8 @@ fn exact_lookup_caches_valid_receipt_before_revoked_result_is_withheld() {
         panic!("unknown write must require exact lookup");
     };
     let credential = credential(&invocation, &["workflow:read"], now + 600);
-    let (address, received) = serve_once(mutation_receipt(&invocation), Duration::ZERO);
+    let response_body = mutation_receipt(&invocation);
+    let (address, received) = serve_once(framed_json_response(&response_body), Duration::ZERO);
     let transport = transport_for(address, Duration::from_secs(1));
     let mut redeemer = TestRedeemer::default();
     let mut currentness = RevokeAt::new(3, AdmissionUse::ExactLookup);
@@ -450,7 +452,8 @@ fn read_currentness_is_checked_at_preconnect_and_after_typed_decode() {
     );
     no_socket(&listener);
 
-    let (address, received) = serve_once(source_status_bytes(), Duration::ZERO);
+    let response_body = source_status_bytes();
+    let (address, received) = serve_once(framed_json_response(&response_body), Duration::ZERO);
     let transport = transport_for(address, Duration::from_secs(1));
     let mut before_disclosure = RevokeAt::new(3, AdmissionUse::ReadOnly);
     assert_eq!(
@@ -487,4 +490,14 @@ fn source_status_bytes() -> Vec<u8> {
         active_source: None,
     })
     .expect("typed source status")
+}
+
+fn framed_json_response(body: &[u8]) -> Vec<u8> {
+    let headers = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    let mut response = headers.into_bytes();
+    response.extend_from_slice(body);
+    response
 }

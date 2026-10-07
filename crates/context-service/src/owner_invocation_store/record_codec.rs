@@ -145,12 +145,34 @@ pub(super) fn validate_record(record: &InvocationRecord) -> Result<(), StoreErro
         return Err(StoreError::StoreCorrupt);
     }
     if let Some(response) = &record.response {
-        let bytes =
+        let tagged =
             Zeroizing::new(serde_json::to_vec(response).map_err(|_| StoreError::StoreCorrupt)?);
-        if bytes.len() > MAX_HARNESS_JSON_BODY_BYTES
+        // The journal retains the closed tagged response enum, whereas the owner
+        // route sends its raw payload. Revalidate that payload against the original
+        // operation and compare the resulting variant as well as all receipt fields.
+        let payload = Zeroizing::new(
+            match response {
+                crate::harness_context_owner_wire::HarnessResponseV1::MutationReceipt(value) => {
+                    serde_json::to_vec(value)
+                }
+                crate::harness_context_owner_wire::HarnessResponseV1::PublicationReceipt(value) => {
+                    serde_json::to_vec(value)
+                }
+                crate::harness_context_owner_wire::HarnessResponseV1::SourcePublication(value) => {
+                    serde_json::to_vec(value)
+                }
+                crate::harness_context_owner_wire::HarnessResponseV1::ControlReceipt(value) => {
+                    serde_json::to_vec(value)
+                }
+                _ => return Err(StoreError::StoreCorrupt),
+            }
+            .map_err(|_| StoreError::StoreCorrupt)?,
+        );
+        if tagged.len() > MAX_HARNESS_JSON_BODY_BYTES
+            || payload.len() > MAX_HARNESS_JSON_BODY_BYTES
             || record
                 .invocation
-                .decode_response(&bytes)
+                .decode_response(&payload)
                 .map_err(|_| StoreError::StoreCorrupt)?
                 != *response
         {
