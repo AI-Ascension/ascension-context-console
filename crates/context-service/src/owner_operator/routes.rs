@@ -1,7 +1,9 @@
 use crate::authenticated_ingress::AuthenticatedIngressError;
 use crate::harness_context_owner_wire::{ContextOwnerInvocationV2, HarnessHttpMethod};
 use crate::harness_facade::{HarnessFacadeConfig, RetentionPolicy, SecretDigest};
-use crate::harness_owner_transport::{HarnessTransportError, LiveCurrentnessError};
+use crate::harness_owner_transport::{
+    HarnessTransportError, InvocationSendContext, LiveCurrentnessError,
+};
 use crate::owner_invocation_store::{
     AdmissionUse, ReservationOutcome, required_console_permissions,
 };
@@ -147,16 +149,15 @@ fn handle(
     };
     let now = trusted_unix_seconds()
         .map_err(|_| response_error(503, br#"{"error":"clock_unavailable"}"#))?;
+    let send_context = InvocationSendContext::borrowed(
+        &invocation,
+        admitted.admission(),
+        admitted.credential(),
+        deadline,
+    );
     let response = match route {
         RouteUse::Invoke if use_kind == AdmissionUse::ReadOnly => transport
-            .send_read_once(
-                &invocation,
-                admitted.admission(),
-                admitted.credential(),
-                redeemer,
-                &mut currentness,
-                deadline,
-            )
+            .send_read_once(&send_context, redeemer, &mut currentness)
             .map_err(map_transport_error)?,
         RouteUse::Invoke => {
             config
@@ -177,12 +178,9 @@ fn handle(
                 .send_reserved_write(
                     journal,
                     reservation,
-                    admitted.admission(),
-                    &invocation,
-                    admitted.credential(),
+                    &send_context,
                     redeemer,
                     &mut currentness,
-                    deadline,
                 )
                 .map_err(map_transport_error)?
         }
@@ -205,12 +203,9 @@ fn handle(
                 .send_reserved_lookup(
                     journal,
                     reservation,
-                    &invocation,
-                    admitted.admission(),
-                    admitted.credential(),
+                    &send_context,
                     redeemer,
                     &mut currentness,
-                    deadline,
                 )
                 .map_err(map_transport_error)?
             {
@@ -246,7 +241,7 @@ fn handle(
             if deadline <= Instant::now() {
                 return Err((409, br#"{"error":"request_deadline_expired"}"#));
             }
-            response
+            *response
         }
     };
     let body = super::http::serialize_bounded(&response)

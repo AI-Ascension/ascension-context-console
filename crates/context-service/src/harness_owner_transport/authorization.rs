@@ -1,17 +1,74 @@
 use super::{
-    AdmissionUse, ContextOwnerEndpointV1, ContextOwnerInvocationV2, HarnessCredentialRedeemer,
-    HarnessHttpMethod, HarnessOwnerTransport, HarnessResponseV1, HarnessTransportError,
-    LiveInvocationCurrentness, MAX_BEARER_BYTES, MAX_HARNESS_JSON_BODY_BYTES, MAX_PATH_BYTES,
-    MAX_QUERY_ITEMS, OneUseHarnessBearer, ProtectedAuthReference, TrustedInvocationAdmission,
+    AdmissionUse, ContextOwnerEndpointV1, ContextOwnerInvocationV2, HarnessHttpMethod,
+    HarnessOwnerTransport, HarnessResponseV1, HarnessTransportError, LiveInvocationCurrentness,
+    MAX_BEARER_BYTES, MAX_HARNESS_JSON_BODY_BYTES, MAX_PATH_BYTES, MAX_QUERY_ITEMS,
+    OneUseHarnessBearer, ProtectedAuthReference,
 };
 use crate::harness_context_owner_wire::ContextOwnerOperationV2;
 use crate::owner_invocation_store::{
     OneUseLookupPermit, OneUseSendPermit, OwnerInvocationKeyProvider, OwnerInvocationStore,
-    lookup_invocation,
+    TrustedInvocationAdmission, lookup_invocation,
 };
 use crate::protected_owner_credentials::ResolvedOwnerCredential;
 use std::time::Instant;
 use zeroize::Zeroizing;
+
+/// Borrows the exact invocation authority and carries the caller's absolute request deadline.
+/// Bundling these existing values creates no admission or credential authority.
+#[derive(Clone, Copy)]
+pub(crate) struct InvocationSendContext<'a> {
+    pub(super) invocation: &'a ContextOwnerInvocationV2,
+    pub(super) admission: &'a TrustedInvocationAdmission,
+    pub(super) credential: &'a ResolvedOwnerCredential,
+    pub(super) request_deadline: Instant,
+}
+
+pub(super) struct ClaimedInvocationSendContext<'a> {
+    pub(super) request: InvocationSendContext<'a>,
+    pub(super) claimed_at: u64,
+}
+
+impl<'a> InvocationSendContext<'a> {
+    pub(crate) fn borrowed(
+        invocation: &'a ContextOwnerInvocationV2,
+        admission: &'a TrustedInvocationAdmission,
+        credential: &'a ResolvedOwnerCredential,
+        request_deadline: Instant,
+    ) -> Self {
+        Self {
+            invocation,
+            admission,
+            credential,
+            request_deadline,
+        }
+    }
+
+    pub(super) fn with_deadline(&self, deadline: Instant) -> Self {
+        Self {
+            request_deadline: self.request_deadline.min(deadline),
+            ..*self
+        }
+    }
+
+    pub(super) fn after_claim(&self, claimed_at: u64) -> ClaimedInvocationSendContext<'a> {
+        ClaimedInvocationSendContext {
+            request: *self,
+            claimed_at,
+        }
+    }
+
+    pub(super) fn for_invocation<'b>(
+        &'b self,
+        invocation: &'b ContextOwnerInvocationV2,
+    ) -> InvocationSendContext<'b> {
+        InvocationSendContext {
+            invocation,
+            admission: self.admission,
+            credential: self.credential,
+            request_deadline: self.request_deadline,
+        }
+    }
+}
 
 pub(super) fn validate_bearer(token: &[u8]) -> Result<(), HarnessTransportError> {
     if token.is_empty()
@@ -200,20 +257,18 @@ impl HarnessOwnerTransport {
         store: &mut OwnerInvocationStore<K>,
         permit: OneUseLookupPermit,
         bearer: OneUseHarnessBearer,
-        admission: &TrustedInvocationAdmission,
-        credential: &ResolvedOwnerCredential,
+        claimed: ClaimedInvocationSendContext<'_>,
         currentness: &mut dyn LiveInvocationCurrentness,
-        claimed_at: u64,
-        request_deadline: Instant,
     ) -> Result<Option<HarnessResponseV1>, HarnessTransportError> {
         let admitted_invocation = permit.original_invocation().clone();
         let lookup_invocation = permit.invocation().clone();
         let endpoint = permit.endpoint().clone();
         let reference = permit.protected_reference().clone();
+        let request = claimed.request.for_invocation(&admitted_invocation);
+        let claimed_at = claimed.claimed_at;
         let validate_sealed = |now| {
             super::validate_live_admission(
-                admission,
-                &admitted_invocation,
+                &request,
                 AdmissionUse::ExactLookup,
                 &bearer,
                 &reference,
@@ -224,7 +279,8 @@ impl HarnessOwnerTransport {
             Ok(now) => now,
             Err(error) => return Err(mark_lookup_unknown(store, permit, claimed_at, error)),
         };
-        let preflight = admission
+        let preflight = request
+            .admission
             .validate_for(&admitted_invocation, AdmissionUse::ExactLookup, now)
             .map_err(|_| HarnessTransportError::CredentialDenied)
             .and_then(|()| {
@@ -247,17 +303,11 @@ impl HarnessOwnerTransport {
         if let Err(error) = preflight {
             return Err(mark_lookup_unknown(store, permit, now, error));
         }
-        let request_deadline = match super::admitted_deadline(
-            admission,
-            &admitted_invocation,
-            AdmissionUse::ExactLookup,
-            now,
-            request_deadline,
-        ) {
-            Ok(deadline) => deadline,
+        let request = match super::admitted_deadline(&request, AdmissionUse::ExactLookup, now) {
+            Ok(deadline) => request.with_deadline(deadline),
             Err(error) => return Err(mark_lookup_unknown(store, permit, now, error)),
         };
-        if let Err(error) = super::ensure_request_live(request_deadline) {
+        if let Err(error) = super::ensure_request_live(request.request_deadline) {
             return Err(mark_lookup_unknown(store, permit, now, error));
         }
         let reply = match super::framing::exchange_with_authorization(
@@ -265,17 +315,14 @@ impl HarnessOwnerTransport {
             &endpoint,
             Some(permit.body()),
             &bearer.token,
-            request_deadline,
+            request.request_deadline,
             || {
                 super::authorize_connection(
-                    admission,
-                    &admitted_invocation,
+                    &request,
                     AdmissionUse::ExactLookup,
                     &bearer,
                     &reference,
-                    credential,
                     currentness,
-                    request_deadline,
                 )
             },
         ) {
@@ -289,7 +336,7 @@ impl HarnessOwnerTransport {
             Ok(now) => now,
             Err(error) => return Err(mark_lookup_unknown(store, permit, claimed_at, error)),
         };
-        if let Err(error) = super::ensure_request_live(request_deadline) {
+        if let Err(error) = super::ensure_request_live(request.request_deadline) {
             return Err(mark_lookup_unknown(store, permit, response_at, error));
         }
         if let Err(error) = validate_sealed(response_at) {
@@ -305,16 +352,14 @@ impl HarnessOwnerTransport {
                 return Err(HarnessTransportError::Store(store_error));
             }
             super::validate_live_authority(
-                admission,
-                &admitted_invocation,
+                &request,
                 AdmissionUse::ExactLookup,
                 &bearer,
                 &reference,
-                credential,
                 currentness,
                 super::trusted_unix_seconds()?,
             )?;
-            super::ensure_request_live(request_deadline)?;
+            super::ensure_request_live(request.request_deadline)?;
             return Err(error);
         }
         let completed_at = match super::trusted_unix_seconds() {
@@ -324,25 +369,23 @@ impl HarnessOwnerTransport {
         if let Err(error) = validate_sealed(completed_at) {
             return Err(mark_lookup_unknown(store, permit, completed_at, error));
         }
-        if let Err(error) = super::ensure_request_live(request_deadline) {
+        if let Err(error) = super::ensure_request_live(request.request_deadline) {
             return Err(mark_lookup_unknown(store, permit, completed_at, error));
         }
-        let response = super::persist_before_deadline(request_deadline, || {
+        let response = super::persist_before_deadline(request.request_deadline, || {
             store
                 .complete_lookup(permit, &reply.body, completed_at)
                 .map_err(HarnessTransportError::Store)
         })?;
         super::validate_live_authority(
-            admission,
-            &admitted_invocation,
+            &request,
             AdmissionUse::ExactLookup,
             &bearer,
             &reference,
-            credential,
             currentness,
             super::trusted_unix_seconds()?,
         )?;
-        super::ensure_request_live(request_deadline)?;
+        super::ensure_request_live(request.request_deadline)?;
         Ok(response)
     }
 }

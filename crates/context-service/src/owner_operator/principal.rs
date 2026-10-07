@@ -216,9 +216,11 @@ fn unix_now() -> Option<u64> {
 fn map_read_error(error: AdapterError) -> PrincipalVerificationError {
     match error {
         AdapterError::Invalid | AdapterError::Denied => PrincipalVerificationError::Invalid,
-        AdapterError::UnsupportedPlatform
-        | AdapterError::Unavailable
-        | AdapterError::KeyUnavailable => PrincipalVerificationError::Unavailable,
+        #[cfg(not(unix))]
+        AdapterError::UnsupportedPlatform => PrincipalVerificationError::Unavailable,
+        AdapterError::Unavailable | AdapterError::KeyUnavailable => {
+            PrincipalVerificationError::Unavailable
+        }
     }
 }
 

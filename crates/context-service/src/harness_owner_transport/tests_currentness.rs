@@ -1,5 +1,7 @@
 use super::tests::{TestRedeemer, credential, serve_once, source_status_invocation, transport_for};
-use super::{HarnessTransportError, LiveCurrentnessError, LiveInvocationCurrentness};
+use super::{
+    HarnessTransportError, InvocationSendContext, LiveCurrentnessError, LiveInvocationCurrentness,
+};
 use crate::harness_context_owner_wire::*;
 use crate::owner_invocation_store::{
     AdmissionUse, OwnerInvocationKeyMaterial, OwnerInvocationKeyProvider, OwnerInvocationStore,
@@ -256,12 +258,14 @@ fn revoked_write_before_claim_stays_prepared_and_preconnect_revocation_never_res
         transport.send_reserved_write(
             &mut store,
             reservation,
-            &admission,
-            &invocation,
-            &credential,
+            &InvocationSendContext::borrowed(
+                &invocation,
+                &admission,
+                &credential,
+                Instant::now() + Duration::from_secs(2),
+            ),
             &mut redeemer,
             &mut before_claim,
-            Instant::now() + Duration::from_secs(2),
         ),
         Err(HarnessTransportError::CredentialDenied)
     );
@@ -283,12 +287,14 @@ fn revoked_write_before_claim_stays_prepared_and_preconnect_revocation_never_res
         transport.send_reserved_write(
             &mut store,
             reservation,
-            &admission,
-            &invocation,
-            &credential,
+            &InvocationSendContext::borrowed(
+                &invocation,
+                &admission,
+                &credential,
+                Instant::now() + Duration::from_secs(2),
+            ),
             &mut redeemer,
             &mut after_claim,
-            Instant::now() + Duration::from_secs(2),
         ),
         Err(HarnessTransportError::CredentialDenied)
     );
@@ -327,12 +333,14 @@ fn valid_write_receipt_is_cached_before_revoked_result_is_withheld() {
         transport.send_reserved_write(
             &mut store,
             reservation,
-            &admission,
-            &invocation,
-            &credential,
+            &InvocationSendContext::borrowed(
+                &invocation,
+                &admission,
+                &credential,
+                Instant::now() + Duration::from_secs(2),
+            ),
             &mut redeemer,
             &mut currentness,
-            Instant::now() + Duration::from_secs(2),
         ),
         Err(HarnessTransportError::CredentialDenied)
     );
@@ -347,8 +355,9 @@ fn valid_write_receipt_is_cached_before_revoked_result_is_withheld() {
     assert!(matches!(
         store.reserve(&invocation, &cached, now + 1),
         Ok(ReservationOutcome::Cached(
-            HarnessResponseV1::MutationReceipt(_)
+            response,
         ))
+        if matches!(response.as_ref(), HarnessResponseV1::MutationReceipt(_))
     ));
 }
 
@@ -384,12 +393,14 @@ fn exact_lookup_caches_valid_receipt_before_revoked_result_is_withheld() {
         transport.send_reserved_lookup(
             &mut store,
             reservation,
-            &invocation,
-            &lookup,
-            &credential,
+            &InvocationSendContext::borrowed(
+                &invocation,
+                &lookup,
+                &credential,
+                Instant::now() + Duration::from_secs(2),
+            ),
             &mut redeemer,
             &mut currentness,
-            Instant::now() + Duration::from_secs(2),
         ),
         Err(HarnessTransportError::CredentialDenied)
     );
@@ -404,8 +415,9 @@ fn exact_lookup_caches_valid_receipt_before_revoked_result_is_withheld() {
     assert!(matches!(
         store.reserve(&invocation, &cached, now + 4),
         Ok(ReservationOutcome::Cached(
-            HarnessResponseV1::MutationReceipt(_)
+            response,
         ))
+        if matches!(response.as_ref(), HarnessResponseV1::MutationReceipt(_))
     ));
 }
 
@@ -425,12 +437,14 @@ fn read_currentness_is_checked_at_preconnect_and_after_typed_decode() {
     let mut before_connect = RevokeAt::new(2, AdmissionUse::ReadOnly);
     assert_eq!(
         transport.send_read_once(
-            &invocation,
-            &admission,
-            &credential,
+            &InvocationSendContext::borrowed(
+                &invocation,
+                &admission,
+                &credential,
+                Instant::now() + Duration::from_secs(2),
+            ),
             &mut redeemer,
             &mut before_connect,
-            Instant::now() + Duration::from_secs(2),
         ),
         Err(HarnessTransportError::CredentialDenied)
     );
@@ -441,12 +455,14 @@ fn read_currentness_is_checked_at_preconnect_and_after_typed_decode() {
     let mut before_disclosure = RevokeAt::new(3, AdmissionUse::ReadOnly);
     assert_eq!(
         transport.send_read_once(
-            &invocation,
-            &admission,
-            &credential,
+            &InvocationSendContext::borrowed(
+                &invocation,
+                &admission,
+                &credential,
+                Instant::now() + Duration::from_secs(2),
+            ),
             &mut redeemer,
             &mut before_disclosure,
-            Instant::now() + Duration::from_secs(2),
         ),
         Err(HarnessTransportError::CredentialDenied)
     );

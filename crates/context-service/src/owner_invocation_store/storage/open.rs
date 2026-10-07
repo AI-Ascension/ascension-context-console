@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use super::super::StoreError;
 #[cfg(unix)]
 use super::core::{
-    MAX_AUXILIARY_BYTES, MAX_DATABASE_BYTES, MAX_DATABASE_PAGES, MAX_WAL_BYTES, REQUIRED_PAGE_SIZE,
+    MAX_AUXILIARY_BYTES, MAX_DATABASE_PAGES, MAX_WAL_BYTES, REQUIRED_PAGE_SIZE,
     check_storage_bounds,
 };
 #[cfg(unix)]

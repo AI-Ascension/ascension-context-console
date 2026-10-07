@@ -197,7 +197,7 @@ fn serve(service: &mut OperatorService) -> Result<(), &'static str> {
             }
             Err(error) => {
                 let (status, body) = super::routes::read_error(error);
-                let _ = super::http::write_response(&mut stream, status, &body, deadline);
+                let _ = super::http::write_response(&mut stream, status, body, deadline);
             }
         }
     }
@@ -255,6 +255,7 @@ fn config_input_arguments(arguments: &[String]) -> Result<(PathBuf, PathBuf), St
 fn map_config_error(error: AdapterError) -> &'static str {
     match error {
         AdapterError::Invalid | AdapterError::Denied => "operator configuration is invalid",
+        #[cfg(not(unix))]
         AdapterError::UnsupportedPlatform => "owner operator is unsupported on this platform",
         AdapterError::Unavailable | AdapterError::KeyUnavailable => {
             "operator protected files are unavailable"

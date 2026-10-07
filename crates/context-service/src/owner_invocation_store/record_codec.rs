@@ -15,17 +15,7 @@ pub(super) fn open_record_with_keys(
     keys: &OwnerInvocationKeyMaterial,
     row: &StoredRow,
 ) -> Result<InvocationRecord, StoreError> {
-    let plaintext = decrypt(
-        keys,
-        keys.index_key_id(),
-        &row.tag,
-        &row.entry_id,
-        row.state as i64,
-        row.sequence,
-        &row.data_key_id,
-        &row.nonce,
-        &row.ciphertext,
-    )?;
+    let plaintext = decrypt(keys, keys.index_key_id(), row)?;
     let record: InvocationRecord =
         serde_json::from_slice(&plaintext).map_err(|_| StoreError::StoreCorrupt)?;
     if record.state != row.state

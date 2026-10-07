@@ -29,6 +29,6 @@ pub use mutations::{
 pub use records::{ContextDraft, ContextItem, ContextItemRef, ContextNote};
 pub use views::{
     HarnessContextOwnerDraftEnvelope, HarnessContextOwnerDraftListView,
-    HarnessContextOwnerItemView, HarnessContextOwnerItemsView, HarnessContextOwnerPreviewEnvelope,
+    HarnessContextOwnerItemsView, HarnessContextOwnerPreviewEnvelope,
     HarnessContextOwnerRevisionEnvelope, HarnessContextOwnerRevisionPage,
 };

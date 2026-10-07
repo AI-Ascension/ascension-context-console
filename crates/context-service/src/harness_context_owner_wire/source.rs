@@ -2,9 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::boundary::{
-    ContextBindingSource, ContextBoundary, ContextEffectiveLimits, ContextOwnerBinding,
-};
+use super::boundary::{ContextBindingSource, ContextBoundary};
 use super::digest::sha256_hex;
 use super::drafts::{ContextDraft, ContextItem};
 use super::validation::{
@@ -178,41 +176,4 @@ impl ContextOwnerSourceStatus {
         }
         Ok(())
     }
-}
-
-/// The association route returns the complete binding. This type is used for the separately
-/// exposed effective-limits projection if an operator chooses to request it.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct ContextOwnerControlLimits {
-    pub schema_version: String,
-    pub owner_id: String,
-    pub owner_version: String,
-    pub catalog_digest: String,
-    pub max_control_events: u64,
-}
-
-impl ContextOwnerControlLimits {
-    pub fn validate(&self) -> Result<(), OwnerWireError> {
-        validate_schema(
-            &self.schema_version,
-            "ascension.harness.context-owner-control-limits.v1",
-        )?;
-        validate_identifier("control_limits_owner_id", &self.owner_id)?;
-        validate_identifier("control_limits_owner_version", &self.owner_version)?;
-        validate_digest("control_limits_catalog_digest", &self.catalog_digest)?;
-        if self.max_control_events == 0 || self.max_control_events > 4096 {
-            return Err(OwnerWireError::OutOfBounds("max_control_events"));
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct ContextOwnerRenderLimitsWitness {
-    pub owner_id: String,
-    pub owner_version: String,
-    pub binding: ContextOwnerBinding,
-    pub effective_limits: ContextEffectiveLimits,
 }

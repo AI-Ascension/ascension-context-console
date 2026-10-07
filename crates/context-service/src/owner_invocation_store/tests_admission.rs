@@ -169,18 +169,8 @@ fn authenticated_unknown_persisted_record_fields_fail_closed() {
     let row = super::super::storage::read_row(&store.connection, &tag)
         .unwrap()
         .unwrap();
-    let plaintext = super::super::crypto::decrypt(
-        &store.keys,
-        store.keys.index_key_id(),
-        &row.tag,
-        &row.entry_id,
-        row.state as i64,
-        row.sequence,
-        &row.data_key_id,
-        &row.nonce,
-        &row.ciphertext,
-    )
-    .unwrap();
+    let plaintext =
+        super::super::crypto::decrypt(&store.keys, store.keys.index_key_id(), &row).unwrap();
     let original: serde_json::Value = serde_json::from_slice(&plaintext).unwrap();
     let mut variants = Vec::new();
     let mut unknown_record = original.clone();

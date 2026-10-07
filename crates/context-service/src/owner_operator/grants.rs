@@ -86,8 +86,10 @@ impl SubjectGrantStore for GuardedGrantStore {
 fn map_file_error(error: AdapterError) -> SubjectGrantError {
     match error {
         AdapterError::Invalid | AdapterError::Denied => SubjectGrantError::Invalid,
-        AdapterError::UnsupportedPlatform
-        | AdapterError::Unavailable
-        | AdapterError::KeyUnavailable => SubjectGrantError::StoreUnavailable,
+        #[cfg(not(unix))]
+        AdapterError::UnsupportedPlatform => SubjectGrantError::StoreUnavailable,
+        AdapterError::Unavailable | AdapterError::KeyUnavailable => {
+            SubjectGrantError::StoreUnavailable
+        }
     }
 }

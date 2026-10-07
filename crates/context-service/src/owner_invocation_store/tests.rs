@@ -361,7 +361,7 @@ fn exact_receipt_completes_and_duplicate_returns_only_encrypted_cache() {
     else {
         panic!("completed exact request should return cache");
     };
-    assert!(matches!(cached, HarnessResponseV1::MutationReceipt(_)));
+    assert!(matches!(*cached, HarnessResponseV1::MutationReceipt(_)));
 }
 
 #[test]

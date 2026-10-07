@@ -5,6 +5,7 @@ const MAX_PRIVATE_FILE_BYTES: usize = 128 * 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum AdapterError {
+    #[cfg(not(unix))]
     UnsupportedPlatform,
     Invalid,
     Unavailable,

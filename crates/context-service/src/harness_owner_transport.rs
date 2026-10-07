@@ -26,11 +26,13 @@ mod framing;
 #[path = "harness_owner_transport/journal.rs"]
 mod journal;
 
-use authorization::{validate_bearer, validate_bearer_binding, validate_closed_endpoint};
-use errors::management_error;
-pub(crate) use errors::{
-    CredentialRedemptionError, HarnessTransportError, SanitizedManagementClass,
+pub(crate) use authorization::InvocationSendContext;
+use authorization::{
+    ClaimedInvocationSendContext, validate_bearer, validate_bearer_binding,
+    validate_closed_endpoint,
 };
+use errors::management_error;
+pub(crate) use errors::{CredentialRedemptionError, HarnessTransportError};
 
 #[cfg(test)]
 #[path = "harness_owner_transport/tests.rs"]
@@ -185,63 +187,59 @@ impl HarnessOwnerTransport {
     /// Console principal/grants and original protected credential.
     pub(crate) fn send_read_once<R: HarnessCredentialRedeemer>(
         &self,
-        invocation: &ContextOwnerInvocationV2,
-        admission: &TrustedInvocationAdmission,
-        credential: &ResolvedOwnerCredential,
+        request: &InvocationSendContext<'_>,
         redeemer: &mut R,
         currentness: &mut dyn LiveInvocationCurrentness,
-        request_deadline: Instant,
     ) -> Result<HarnessResponseV1, HarnessTransportError> {
-        let request_deadline = framing::operation_deadline(self.config.deadline, request_deadline)?;
-        ensure_request_live(request_deadline)?;
+        let request = request.with_deadline(framing::operation_deadline(
+            self.config.deadline,
+            request.request_deadline,
+        )?);
+        ensure_request_live(request.request_deadline)?;
         let now = trusted_unix_seconds()?;
-        admission
-            .validate_for(invocation, AdmissionUse::ReadOnly, now)
+        request
+            .admission
+            .validate_for(request.invocation, AdmissionUse::ReadOnly, now)
             .map_err(|_| HarnessTransportError::CredentialDenied)?;
-        let endpoint = invocation
+        let endpoint = request
+            .invocation
             .endpoint()
             .map_err(|_| HarnessTransportError::InvalidInvocation)?;
-        let body = invocation
+        let body = request
+            .invocation
             .harness_body()
             .map_err(|_| HarnessTransportError::InvalidInvocation)?;
         if endpoint.method != HarnessHttpMethod::Get || body.is_some() {
             return Err(HarnessTransportError::UnsupportedOperation);
         }
-        ensure_request_live(request_deadline)?;
+        ensure_request_live(request.request_deadline)?;
         let bearer = self.redeem_for_invocation(
-            invocation,
-            credential,
+            request.invocation,
+            request.credential,
             redeemer,
             AdmissionUse::ReadOnly,
             trusted_unix_seconds()?,
         )?;
         let now = trusted_unix_seconds()?;
-        admission
-            .validate_for(invocation, AdmissionUse::ReadOnly, now)
+        request
+            .admission
+            .validate_for(request.invocation, AdmissionUse::ReadOnly, now)
             .map_err(|_| HarnessTransportError::CredentialDenied)?;
         validate_bearer_binding(
             &bearer,
-            invocation,
+            request.invocation,
             AdmissionUse::ReadOnly,
-            credential.reference(),
+            request.credential.reference(),
             now,
         )?;
         revalidate_currentness(
+            &request,
             currentness,
-            admission,
-            invocation,
-            credential,
             AdmissionUse::ReadOnly,
             trusted_unix_seconds()?,
         )?;
-        ensure_request_live(request_deadline)?;
-        let effective_deadline = admitted_deadline(
-            admission,
-            invocation,
-            AdmissionUse::ReadOnly,
-            now,
-            request_deadline,
-        )?;
+        ensure_request_live(request.request_deadline)?;
+        let effective_deadline = admitted_deadline(&request, AdmissionUse::ReadOnly, now)?;
         ensure_request_live(effective_deadline)?;
         let reply = framing::exchange_with_authorization(
             &self.config,
@@ -251,53 +249,46 @@ impl HarnessOwnerTransport {
             effective_deadline,
             || {
                 authorize_connection(
-                    admission,
-                    invocation,
+                    &request,
                     AdmissionUse::ReadOnly,
                     &bearer,
-                    credential.reference(),
-                    credential,
+                    request.credential.reference(),
                     currentness,
-                    request_deadline,
                 )
             },
         )?;
         let response_at = trusted_unix_seconds()?;
         ensure_request_live(effective_deadline)?;
         validate_live_admission(
-            admission,
-            invocation,
+            &request,
             AdmissionUse::ReadOnly,
             &bearer,
-            credential.reference(),
+            request.credential.reference(),
             response_at,
         )?;
         if reply.status != 200 {
-            let error = management_error(reply.status, &reply.body, &invocation.operation);
+            let error = management_error(reply.status, &reply.body, &request.invocation.operation);
             validate_live_authority(
-                admission,
-                invocation,
+                &request,
                 AdmissionUse::ReadOnly,
                 &bearer,
-                credential.reference(),
-                credential,
+                request.credential.reference(),
                 currentness,
                 trusted_unix_seconds()?,
             )?;
             ensure_request_live(effective_deadline)?;
             return Err(error);
         }
-        let response = invocation
+        let response = request
+            .invocation
             .decode_response(&reply.body)
             .map_err(|_| HarnessTransportError::InvalidOwnerResponse)?;
         ensure_request_live(effective_deadline)?;
         validate_live_authority(
-            admission,
-            invocation,
+            &request,
             AdmissionUse::ReadOnly,
             &bearer,
-            credential.reference(),
-            credential,
+            request.credential.reference(),
             currentness,
             trusted_unix_seconds()?,
         )?;
@@ -333,41 +324,33 @@ fn trusted_unix_seconds() -> Result<u64, HarnessTransportError> {
 }
 
 fn authorize_connection(
-    admission: &TrustedInvocationAdmission,
-    invocation: &ContextOwnerInvocationV2,
+    request: &InvocationSendContext<'_>,
     use_kind: AdmissionUse,
     bearer: &OneUseHarnessBearer,
     reference: &ProtectedAuthReference,
-    credential: &ResolvedOwnerCredential,
     currentness: &mut dyn LiveInvocationCurrentness,
-    request_deadline: Instant,
 ) -> Result<Instant, HarnessTransportError> {
     let checked_at = trusted_unix_seconds()?;
-    validate_live_admission(
-        admission, invocation, use_kind, bearer, reference, checked_at,
-    )?;
+    validate_live_admission(request, use_kind, bearer, reference, checked_at)?;
     let now = trusted_unix_seconds()?;
-    revalidate_currentness(
-        currentness,
-        admission,
-        invocation,
-        credential,
-        use_kind,
-        now,
-    )?;
-    admitted_deadline(admission, invocation, use_kind, now, request_deadline)
+    revalidate_currentness(request, currentness, use_kind, now)?;
+    admitted_deadline(request, use_kind, now)
 }
 
 fn revalidate_currentness(
+    request: &InvocationSendContext<'_>,
     currentness: &mut dyn LiveInvocationCurrentness,
-    admission: &TrustedInvocationAdmission,
-    invocation: &ContextOwnerInvocationV2,
-    credential: &ResolvedOwnerCredential,
     use_kind: AdmissionUse,
     now: u64,
 ) -> Result<(), HarnessTransportError> {
     currentness
-        .revalidate(admission, invocation, credential, use_kind, now)
+        .revalidate(
+            request.admission,
+            request.invocation,
+            request.credential,
+            use_kind,
+            now,
+        )
         .map_err(|error| match error {
             LiveCurrentnessError::Unavailable => HarnessTransportError::CredentialUnavailable,
             LiveCurrentnessError::Denied => HarnessTransportError::CredentialDenied,
@@ -375,50 +358,40 @@ fn revalidate_currentness(
 }
 
 fn validate_live_authority(
-    admission: &TrustedInvocationAdmission,
-    invocation: &ContextOwnerInvocationV2,
+    request: &InvocationSendContext<'_>,
     use_kind: AdmissionUse,
     bearer: &OneUseHarnessBearer,
     reference: &ProtectedAuthReference,
-    credential: &ResolvedOwnerCredential,
     currentness: &mut dyn LiveInvocationCurrentness,
     now: u64,
 ) -> Result<(), HarnessTransportError> {
-    validate_live_admission(admission, invocation, use_kind, bearer, reference, now)?;
+    validate_live_admission(request, use_kind, bearer, reference, now)?;
     let currentness_at = trusted_unix_seconds()?;
-    revalidate_currentness(
-        currentness,
-        admission,
-        invocation,
-        credential,
-        use_kind,
-        currentness_at,
-    )
+    revalidate_currentness(request, currentness, use_kind, currentness_at)
 }
 
 fn validate_live_admission(
-    admission: &TrustedInvocationAdmission,
-    invocation: &ContextOwnerInvocationV2,
+    request: &InvocationSendContext<'_>,
     use_kind: AdmissionUse,
     bearer: &OneUseHarnessBearer,
     reference: &ProtectedAuthReference,
     now: u64,
 ) -> Result<(), HarnessTransportError> {
-    admission
-        .validate_for(invocation, use_kind, now)
+    request
+        .admission
+        .validate_for(request.invocation, use_kind, now)
         .map_err(|_| HarnessTransportError::CredentialDenied)?;
-    validate_bearer_binding(bearer, invocation, use_kind, reference, now)
+    validate_bearer_binding(bearer, request.invocation, use_kind, reference, now)
 }
 
 fn admitted_deadline(
-    admission: &TrustedInvocationAdmission,
-    invocation: &ContextOwnerInvocationV2,
+    request: &InvocationSendContext<'_>,
     use_kind: AdmissionUse,
     now: u64,
-    request_deadline: Instant,
 ) -> Result<Instant, HarnessTransportError> {
-    let deadline = admission
-        .deadline_for(invocation, use_kind, now)
+    let deadline = request
+        .admission
+        .deadline_for(request.invocation, use_kind, now)
         .map_err(|_| HarnessTransportError::CredentialDenied)?;
-    Ok(deadline.min(request_deadline))
+    Ok(deadline.min(request.request_deadline))
 }

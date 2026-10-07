@@ -32,7 +32,8 @@ struct ManagementErrorEnvelope {
 struct ManagementErrorBody {
     class: SanitizedManagementClass,
     code: SecretText,
-    message: SecretText,
+    #[serde(rename = "message")]
+    _message: SecretText,
 }
 
 #[derive(Deserialize)]

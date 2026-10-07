@@ -102,9 +102,9 @@ fn parse_permission(value: &str) -> Option<FacadePermission> {
 fn map_file_error(error: AdapterError) -> &'static str {
     match error {
         AdapterError::Invalid | AdapterError::Denied => "grant input is invalid",
-        AdapterError::UnsupportedPlatform
-        | AdapterError::Unavailable
-        | AdapterError::KeyUnavailable => "operator state is unavailable",
+        #[cfg(not(unix))]
+        AdapterError::UnsupportedPlatform => "operator state is unavailable",
+        AdapterError::Unavailable | AdapterError::KeyUnavailable => "operator state is unavailable",
     }
 }
 

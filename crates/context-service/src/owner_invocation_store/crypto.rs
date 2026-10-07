@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use zeroize::Zeroizing;
 
 use super::StoreError;
-use super::record::{LookupFamily, StableLocator};
+use super::record::StableLocator;
+use super::storage::StoredRow;
 
 type HmacSha256 = Hmac<Sha256>;
 const AAD_DOMAIN: &[u8] = b"ascension.console18.owner-invocation-store.v1\0";
@@ -41,7 +42,7 @@ impl OwnerInvocationKeyMaterial {
         let mut duplicate_data_key = false;
         for key in data_keys.values() {
             let key_bytes: &[u8; 32] = key;
-            if prior_keys.iter().any(|prior| *prior == key_bytes) {
+            if prior_keys.contains(&key_bytes) {
                 duplicate_data_key = true;
                 break;
             }
@@ -181,30 +182,31 @@ pub(super) fn encrypt(
 pub(super) fn decrypt(
     keys: &OwnerInvocationKeyMaterial,
     index_key_id: &str,
-    tag: &[u8; 32],
-    entry_id: &[u8; 16],
-    state: i64,
-    sequence: u64,
-    data_key_id: &str,
-    nonce: &[u8; 24],
-    ciphertext: &[u8],
+    row: &StoredRow,
 ) -> Result<Zeroizing<Vec<u8>>, StoreError> {
     use chacha20poly1305::aead::{Aead, KeyInit, Payload};
     use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 
-    if index_key_id != keys.index_key_id() || ciphertext.is_empty() {
+    if index_key_id != keys.index_key_id() || row.ciphertext.is_empty() {
         return Err(StoreError::StoreCorrupt);
     }
     let key = keys
-        .data_key(data_key_id)
+        .data_key(&row.data_key_id)
         .ok_or(StoreError::KeyUnavailable)?;
-    let aad = associated_data(index_key_id, tag, entry_id, state, sequence, data_key_id)?;
+    let aad = associated_data(
+        index_key_id,
+        &row.tag,
+        &row.entry_id,
+        row.state as i64,
+        row.sequence,
+        &row.data_key_id,
+    )?;
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
     let plaintext = cipher
         .decrypt(
-            XNonce::from_slice(nonce),
+            XNonce::from_slice(&row.nonce),
             Payload {
-                msg: ciphertext,
+                msg: &row.ciphertext,
                 aad: &aad,
             },
         )

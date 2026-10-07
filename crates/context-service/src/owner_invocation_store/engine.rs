@@ -12,7 +12,7 @@ use super::engine_helpers::{
     advance, ensure_response_headroom, map_admission_error, push_attempt,
     validate_admission_current,
 };
-use super::operations::{admission_matches, lookup_invocation, stable_locator};
+use super::operations::{lookup_invocation, stable_locator};
 use super::record::{
     AdmissionUse, EntryState, InvocationRecord, LookupFamily, TrustedInvocationAdmission,
 };
@@ -23,7 +23,6 @@ use super::storage::{
     MAX_ROWS, check_storage_bounds, check_write_headroom, initialize_index_id, insert_row,
     map_sql_error, open_database, read_row, row_count, update_row, validate_schema,
 };
-use super::transitions;
 
 pub(crate) struct OwnerInvocationStore<K: OwnerInvocationKeyProvider> {
     pub(super) connection: Connection,
@@ -35,7 +34,7 @@ pub(crate) struct OwnerInvocationStore<K: OwnerInvocationKeyProvider> {
 pub(crate) enum ReservationOutcome {
     Ready(ExactReservation),
     LookupRequired(ExactReservation),
-    Cached(HarnessResponseV1),
+    Cached(Box<HarnessResponseV1>),
 }
 
 pub(crate) struct ExactReservation {
@@ -110,7 +109,9 @@ impl<K: OwnerInvocationKeyProvider> OwnerInvocationStore<K> {
             check_exact_match(&record, invocation, admission)?;
             let outcome = match record.state {
                 EntryState::Completed if admission.use_kind == AdmissionUse::CachedRead => {
-                    ReservationOutcome::Cached(record.response.ok_or(StoreError::StoreCorrupt)?)
+                    ReservationOutcome::Cached(Box::new(
+                        record.response.ok_or(StoreError::StoreCorrupt)?,
+                    ))
                 }
                 EntryState::Completed => return Err(StoreError::Denied),
                 EntryState::Prepared if admission.use_kind == AdmissionUse::Write => {
@@ -332,6 +333,7 @@ impl<K: OwnerInvocationKeyProvider> OwnerInvocationStore<K> {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn check_storage(&self) -> Result<(), StoreError> {
         check_storage_bounds(&self.connection, &self.database_path)
     }

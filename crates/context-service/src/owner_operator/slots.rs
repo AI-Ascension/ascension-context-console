@@ -404,17 +404,21 @@ fn map_resolution_error(error: AdapterError) -> CredentialResolutionError {
     match error {
         AdapterError::Invalid => CredentialResolutionError::Invalid,
         AdapterError::Denied => CredentialResolutionError::Denied,
-        AdapterError::UnsupportedPlatform
-        | AdapterError::Unavailable
-        | AdapterError::KeyUnavailable => CredentialResolutionError::Unavailable,
+        #[cfg(not(unix))]
+        AdapterError::UnsupportedPlatform => CredentialResolutionError::Unavailable,
+        AdapterError::Unavailable | AdapterError::KeyUnavailable => {
+            CredentialResolutionError::Unavailable
+        }
     }
 }
 
 fn map_redemption_error(error: AdapterError) -> CredentialRedemptionError {
     match error {
         AdapterError::Invalid | AdapterError::Denied => CredentialRedemptionError::Denied,
-        AdapterError::UnsupportedPlatform
-        | AdapterError::Unavailable
-        | AdapterError::KeyUnavailable => CredentialRedemptionError::Unavailable,
+        #[cfg(not(unix))]
+        AdapterError::UnsupportedPlatform => CredentialRedemptionError::Unavailable,
+        AdapterError::Unavailable | AdapterError::KeyUnavailable => {
+            CredentialRedemptionError::Unavailable
+        }
     }
 }
