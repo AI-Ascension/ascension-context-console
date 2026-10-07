@@ -13,9 +13,9 @@ pub(super) const MAX_AUXILIARY_BYTES: u64 = 1024 * 1024;
 pub(super) const MAX_TOTAL_STORE_BYTES: u64 =
     MAX_DATABASE_BYTES + MAX_WAL_BYTES + 2 * MAX_AUXILIARY_BYTES;
 const MAX_SINGLE_WRITE_GROWTH_BYTES: u64 = 8 * 1024 * 1024;
-pub(super) const MAX_CIPHERTEXT_BYTES: usize = 6 * 1024 * 1024;
-pub(super) const MAX_ROWS: usize = 16;
-pub(super) struct StoredRow {
+pub(in crate::owner_invocation_store) const MAX_CIPHERTEXT_BYTES: usize = 6 * 1024 * 1024;
+pub(in crate::owner_invocation_store) const MAX_ROWS: usize = 16;
+pub(in crate::owner_invocation_store) struct StoredRow {
     pub tag: [u8; 32],
     pub entry_id: [u8; 16],
     pub state: EntryState,
@@ -24,7 +24,9 @@ pub(super) struct StoredRow {
     pub nonce: [u8; 24],
     pub ciphertext: Vec<u8>,
 }
-pub(super) fn row_count(connection: &Connection) -> Result<usize, StoreError> {
+pub(in crate::owner_invocation_store) fn row_count(
+    connection: &Connection,
+) -> Result<usize, StoreError> {
     let count: i64 = connection
         .query_row("SELECT COUNT(*) FROM owner_invocations", [], |row| {
             row.get(0)
@@ -33,7 +35,7 @@ pub(super) fn row_count(connection: &Connection) -> Result<usize, StoreError> {
     usize::try_from(count).map_err(|_| StoreError::StoreCorrupt)
 }
 
-pub(super) fn read_row(
+pub(in crate::owner_invocation_store) fn read_row(
     connection: &Connection,
     lookup_tag: &[u8; 32],
 ) -> Result<Option<StoredRow>, StoreError> {
@@ -116,7 +118,10 @@ pub(super) fn read_row(
     }))
 }
 
-pub(super) fn insert_row(transaction: &Transaction<'_>, row: &StoredRow) -> Result<(), StoreError> {
+pub(in crate::owner_invocation_store) fn insert_row(
+    transaction: &Transaction<'_>,
+    row: &StoredRow,
+) -> Result<(), StoreError> {
     transaction
         .execute(
             "INSERT INTO owner_invocations
@@ -136,7 +141,10 @@ pub(super) fn insert_row(transaction: &Transaction<'_>, row: &StoredRow) -> Resu
     Ok(())
 }
 
-pub(super) fn update_row(transaction: &Transaction<'_>, row: &StoredRow) -> Result<(), StoreError> {
+pub(in crate::owner_invocation_store) fn update_row(
+    transaction: &Transaction<'_>,
+    row: &StoredRow,
+) -> Result<(), StoreError> {
     let changed = transaction
         .execute(
             "UPDATE owner_invocations SET state = ?1, sequence = ?2, data_key_id = ?3,
@@ -158,7 +166,7 @@ pub(super) fn update_row(transaction: &Transaction<'_>, row: &StoredRow) -> Resu
     Ok(())
 }
 
-pub(super) fn check_storage_bounds(
+pub(in crate::owner_invocation_store) fn check_storage_bounds(
     connection: &Connection,
     database_path: &Path,
 ) -> Result<(), StoreError> {
@@ -183,7 +191,10 @@ pub(super) fn check_storage_bounds(
     Ok(())
 }
 
-pub(super) fn check_write_headroom(connection: &Connection, path: &Path) -> Result<(), StoreError> {
+pub(in crate::owner_invocation_store) fn check_write_headroom(
+    connection: &Connection,
+    path: &Path,
+) -> Result<(), StoreError> {
     check_storage_bounds(connection, path)?;
     let database = bounded_size(path, MAX_DATABASE_BYTES)?;
     let wal = bounded_size(&with_suffix(path, "-wal"), MAX_WAL_BYTES)?;
@@ -195,7 +206,7 @@ pub(super) fn check_write_headroom(connection: &Connection, path: &Path) -> Resu
     Ok(())
 }
 
-pub(super) fn map_sql_error(error: rusqlite::Error) -> StoreError {
+pub(in crate::owner_invocation_store) fn map_sql_error(error: rusqlite::Error) -> StoreError {
     match error {
         rusqlite::Error::SqliteFailure(code, _) if code.code == rusqlite::ErrorCode::DiskFull => {
             StoreError::StorageLimit

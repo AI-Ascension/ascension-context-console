@@ -6,7 +6,7 @@ use super::super::crypto::{OwnerInvocationKeyMaterial, index_key_verifier, verif
 use super::core::{
     MAX_CIPHERTEXT_BYTES, MAX_ROWS, check_storage_bounds, check_write_headroom, map_sql_error,
 };
-pub(super) fn initialize_index_id(
+pub(in crate::owner_invocation_store) fn initialize_index_id(
     connection: &mut Connection,
     path: &Path,
     keys: &OwnerInvocationKeyMaterial,
@@ -86,7 +86,9 @@ pub(super) fn initialize_index_id(
     transaction.commit().map_err(map_sql_error)
 }
 
-pub(super) fn validate_schema(connection: &Connection) -> Result<bool, StoreError> {
+pub(in crate::owner_invocation_store) fn validate_schema(
+    connection: &Connection,
+) -> Result<bool, StoreError> {
     let mut statement = connection
         .prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
         .map_err(|_| StoreError::StoreUnavailable)?;

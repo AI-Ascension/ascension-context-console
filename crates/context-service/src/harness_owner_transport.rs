@@ -27,6 +27,7 @@ mod framing;
 mod journal;
 
 use authorization::{validate_bearer, validate_bearer_binding, validate_closed_endpoint};
+use errors::management_error;
 pub(crate) use errors::{
     CredentialRedemptionError, HarnessTransportError, SanitizedManagementClass,
 };

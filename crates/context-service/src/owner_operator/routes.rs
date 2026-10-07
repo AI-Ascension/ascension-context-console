@@ -39,6 +39,10 @@ impl RouteSelectionError {
     }
 }
 
+fn response_error(status: u16, body: &'static [u8]) -> (u16, &'static [u8]) {
+    (status, body)
+}
+
 pub(super) fn select_route(method: &str, target: &str) -> Result<RouteUse, RouteSelectionError> {
     if method != "POST" {
         return Err(RouteSelectionError::MethodNotAllowed);
@@ -83,23 +87,23 @@ fn handle(
     service
         ._process_lock
         .check_current()
-        .map_err(|_| (503, br#"{"error":"operator_lock_unavailable"}"#))?;
+        .map_err(|_| response_error(503, br#"{"error":"operator_lock_unavailable"}"#))?;
     let route = select_route(&request.0.method, &request.0.target)
         .map_err(RouteSelectionError::http_error)?;
     let invocation: ContextOwnerInvocationV2 =
         crate::harness_context_owner_wire::decode_bounded_json(&request.0.body)
-            .map_err(|_| (400, br#"{"error":"invalid_invocation"}"#))?;
+            .map_err(|_| response_error(400, br#"{"error":"invalid_invocation"}"#))?;
     invocation
         .validate()
-        .map_err(|_| (400, br#"{"error":"invalid_invocation"}"#))?;
+        .map_err(|_| response_error(400, br#"{"error":"invalid_invocation"}"#))?;
     validate_configured_identity(service, &invocation)?;
     let use_kind = select_use(&invocation, route)?;
-    let facade = facade_for_request(&service.config).map_err(|error| error)?;
+    let facade = facade_for_request(&service.config)?;
     service
         .config
         .root
         .verify_current_root()
-        .map_err(|_| (503, br#"{"error":"operator_state_unavailable"}"#))?;
+        .map_err(|_| response_error(503, br#"{"error":"operator_state_unavailable"}"#))?;
     let admitted = service
         .ingress
         .admit_owner_invocation(
@@ -117,7 +121,7 @@ fn handle(
         .config
         .root
         .verify_current_root()
-        .map_err(|_| (503, br#"{"error":"operator_state_unavailable"}"#))?;
+        .map_err(|_| response_error(503, br#"{"error":"operator_state_unavailable"}"#))?;
 
     let OperatorService {
         config,
@@ -141,7 +145,8 @@ fn handle(
         journal_identity: *journal_identity,
         process_lock: _process_lock,
     };
-    let now = trusted_unix_seconds().map_err(|_| (503, br#"{"error":"clock_unavailable"}"#))?;
+    let now = trusted_unix_seconds()
+        .map_err(|_| response_error(503, br#"{"error":"clock_unavailable"}"#))?;
     let response = match route {
         RouteUse::Invoke if use_kind == AdmissionUse::ReadOnly => transport
             .send_read_once(
@@ -157,14 +162,14 @@ fn handle(
             config
                 .root
                 .verify_database_files(journal_name, Some(*journal_identity))
-                .map_err(|_| (503, br#"{"error":"operator_journal_unavailable"}"#))?;
+                .map_err(|_| response_error(503, br#"{"error":"operator_journal_unavailable"}"#))?;
             let reserved = journal
                 .reserve(&invocation, admitted.admission(), now)
                 .map_err(map_store_error)?;
             config
                 .root
                 .verify_database_files(journal_name, Some(*journal_identity))
-                .map_err(|_| (503, br#"{"error":"operator_journal_unavailable"}"#))?;
+                .map_err(|_| response_error(503, br#"{"error":"operator_journal_unavailable"}"#))?;
             let ReservationOutcome::Ready(reservation) = reserved else {
                 return Err((409, br#"{"error":"exact_recovery_required"}"#));
             };
@@ -185,14 +190,14 @@ fn handle(
             config
                 .root
                 .verify_database_files(journal_name, Some(*journal_identity))
-                .map_err(|_| (503, br#"{"error":"operator_journal_unavailable"}"#))?;
+                .map_err(|_| response_error(503, br#"{"error":"operator_journal_unavailable"}"#))?;
             let reserved = journal
                 .reserve(&invocation, admitted.admission(), now)
                 .map_err(map_store_error)?;
             config
                 .root
                 .verify_database_files(journal_name, Some(*journal_identity))
-                .map_err(|_| (503, br#"{"error":"operator_journal_unavailable"}"#))?;
+                .map_err(|_| response_error(503, br#"{"error":"operator_journal_unavailable"}"#))?;
             let ReservationOutcome::LookupRequired(reservation) = reserved else {
                 return Err((409, br#"{"error":"exact_recovery_not_ready"}"#));
             };
@@ -217,14 +222,14 @@ fn handle(
             config
                 .root
                 .verify_database_files(journal_name, Some(*journal_identity))
-                .map_err(|_| (503, br#"{"error":"operator_journal_unavailable"}"#))?;
+                .map_err(|_| response_error(503, br#"{"error":"operator_journal_unavailable"}"#))?;
             let reserved = journal
                 .reserve(&invocation, admitted.admission(), now)
                 .map_err(map_store_error)?;
             config
                 .root
                 .verify_database_files(journal_name, Some(*journal_identity))
-                .map_err(|_| (503, br#"{"error":"operator_journal_unavailable"}"#))?;
+                .map_err(|_| response_error(503, br#"{"error":"operator_journal_unavailable"}"#))?;
             let ReservationOutcome::Cached(response) = reserved else {
                 return Err((409, br#"{"error":"cached_result_unavailable"}"#));
             };
@@ -235,7 +240,7 @@ fn handle(
                     admitted.credential(),
                     AdmissionUse::CachedRead,
                     trusted_unix_seconds()
-                        .map_err(|_| (503, br#"{"error":"clock_unavailable"}"#))?,
+                        .map_err(|_| response_error(503, br#"{"error":"clock_unavailable"}"#))?,
                 )
                 .map_err(map_currentness_error)?;
             if deadline <= Instant::now() {
@@ -245,14 +250,15 @@ fn handle(
         }
     };
     let body = super::http::serialize_bounded(&response)
-        .map_err(|_| (413, br#"{"error":"response_too_large"}"#))?;
+        .map_err(|_| response_error(413, br#"{"error":"response_too_large"}"#))?;
     currentness
         .check(
             admitted.admission(),
             &invocation,
             admitted.credential(),
             use_kind,
-            trusted_unix_seconds().map_err(|_| (503, br#"{"error":"clock_unavailable"}"#))?,
+            trusted_unix_seconds()
+                .map_err(|_| response_error(503, br#"{"error":"clock_unavailable"}"#))?,
         )
         .map_err(map_currentness_error)?;
     if deadline <= Instant::now() {
@@ -261,7 +267,7 @@ fn handle(
     config
         .root
         .verify_current_root()
-        .map_err(|_| (503, br#"{"error":"operator_state_unavailable"}"#))?;
+        .map_err(|_| response_error(503, br#"{"error":"operator_state_unavailable"}"#))?;
     let _ = super::http::write_response(stream, 200, &body, deadline);
     Ok(())
 }
@@ -276,7 +282,7 @@ fn select_use(
         RouteUse::Invoke => {
             let endpoint = invocation
                 .endpoint()
-                .map_err(|_| (400, br#"{"error":"invalid_invocation"}"#))?;
+                .map_err(|_| response_error(400, br#"{"error":"invalid_invocation"}"#))?;
             let candidate = if endpoint.method == HarnessHttpMethod::Get {
                 AdmissionUse::ReadOnly
             } else {
@@ -284,7 +290,7 @@ fn select_use(
             };
             required_console_permissions(&invocation.operation, candidate)
                 .map(|_| candidate)
-                .map_err(|_| (403, br#"{"error":"operation_not_enabled"}"#))
+                .map_err(|_| response_error(403, br#"{"error":"operation_not_enabled"}"#))
         }
     }
 }
@@ -315,9 +321,9 @@ fn facade_for_request(
     let csrf = config
         .root
         .read_file(&config.csrf_secret_ref, 4 * 1024)
-        .map_err(|_| (503, br#"{"error":"operator_csrf_unavailable"}"#))?;
+        .map_err(|_| response_error(503, br#"{"error":"operator_csrf_unavailable"}"#))?;
     let digest = SecretDigest::from_secret(&csrf)
-        .map_err(|_| (503, br#"{"error":"operator_csrf_unavailable"}"#))?;
+        .map_err(|_| response_error(503, br#"{"error":"operator_csrf_unavailable"}"#))?;
     HarnessFacadeConfig::new(
         config.scope.clone(),
         config.expected_host.clone(),
@@ -325,7 +331,7 @@ fn facade_for_request(
         Some(digest),
         RetentionPolicy::default(),
     )
-    .map_err(|_| (503, br#"{"error":"operator_configuration_invalid"}"#))
+    .map_err(|_| response_error(503, br#"{"error":"operator_configuration_invalid"}"#))
 }
 
 fn map_ingress_error(error: AuthenticatedIngressError) -> (u16, &'static [u8]) {

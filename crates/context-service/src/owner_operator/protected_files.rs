@@ -123,7 +123,7 @@ impl PrivateRoot {
             let fd = match openat(
                 self.directory.as_fd(),
                 LOCK_NAME,
-                flags | OFlags::CREAT | OFlags::EXCL,
+                flags | OFlags::CREATE | OFlags::EXCL,
                 Mode::RUSR | Mode::WUSR,
             ) {
                 Ok(fd) => {
@@ -260,7 +260,7 @@ pub(super) fn open_absolute(path: &Path, regular: bool) -> Result<std::fs::File,
             OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW
         };
         let next = std::fs::File::from(
-            openat(current.as_fd(), name, flags, Mode::empty())
+            openat(current.as_fd(), *name, flags, Mode::empty())
                 .map_err(|_| AdapterError::Unavailable)?,
         );
         if last {

@@ -18,7 +18,9 @@ use super::schema::validate_schema;
 const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 #[cfg(unix)]
 const JOURNAL_SIZE_LIMIT: i64 = 8 * 1024 * 1024;
-pub(super) fn open_database(path: &Path) -> Result<(rusqlite::Connection, PathBuf), StoreError> {
+pub(in crate::owner_invocation_store) fn open_database(
+    path: &Path,
+) -> Result<(rusqlite::Connection, PathBuf), StoreError> {
     #[cfg(unix)]
     {
         open_database_unix(path)

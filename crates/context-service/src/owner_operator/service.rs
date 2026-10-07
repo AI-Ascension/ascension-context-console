@@ -10,7 +10,7 @@ use super::config::OperatorConfig;
 use super::grants::GuardedGrantStore;
 use super::principal::FilePrincipalVerifier;
 use super::process_lock::{OperatorProcessLock, acquire, cli_error};
-use super::protected_files::{AdapterError, read_private_file};
+use super::protected_files::AdapterError;
 use super::provision;
 use super::slots::{FileHarnessBearerRedeemer, FileOwnerSlotResolver};
 
@@ -225,7 +225,8 @@ fn rotate_journal_keys(config: &OperatorConfig) -> Result<(), String> {
     config
         .root
         .verify_database_files(&name, Some(identity))
-        .map_err(map_config_error)
+        .map(|_| ())
+        .map_err(|error| map_config_error(error).to_owned())
 }
 
 fn config_argument(arguments: &[String]) -> Result<PathBuf, String> {

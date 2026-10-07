@@ -24,7 +24,7 @@ impl PrivateRoot {
             let fd = match openat(
                 directory.as_fd(),
                 name,
-                flags | OFlags::CREAT | OFlags::EXCL,
+                flags | OFlags::CREATE | OFlags::EXCL,
                 Mode::RUSR | Mode::WUSR,
             ) {
                 Ok(fd) => {
