@@ -1,0 +1,9 @@
+{
+  "repository": "AI-Ascension/sts2-harness",
+  "revision": "748c7b4b6100eda6e87366c719daec0ff9e864ba",
+  "gateway_repository": "AI-Ascension/sts2-gateway",
+  "gateway_revision": "34464acc443fe4f683581668cdacd249d09f76cd",
+  "mcp_repository": "AI-Ascension/sts2-mcp-server",
+  "mcp_revision": "f7db2d4ac5346a9124fff0f1e121fc3a7979d3f4",
+  "scope": "Separate held-edit/preview/commit/resume process regression against the merged Harness pause repair. Synthetic Mod and local bounded provider bridge only; no native game, external provider or deployment acceptance."
+}

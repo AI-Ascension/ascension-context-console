@@ -1,0 +1,15 @@
+[package]
+name = "console-held-owner-fixture"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "console-held-owner-fixture"
+path = "../provider-policy-production-fixture/src/main.rs"
+
+[dependencies]
+serde_json = "=1.0.151"
+sts2-harness = { path = "../../harness/crates/harness" }
