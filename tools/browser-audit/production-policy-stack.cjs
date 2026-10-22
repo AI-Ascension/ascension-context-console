@@ -709,7 +709,7 @@ function emergencyCleanup() {
   }
 }
 
-async function startProductionPolicyStack() {
+async function startProductionPolicyStack(sourceLock = lock) {
   if (children.size !== 0) {
     throw new Error("the previous production fixture still owns a process group");
   }
@@ -738,7 +738,7 @@ async function startProductionPolicyStack() {
   allocatedPorts = new Set();
   gatewayLeaseActive = false;
   try {
-    return await startProductionPolicyStackInner();
+    return await startProductionPolicyStackInner(sourceLock);
   } catch (error) {
     await closeCurrentStack();
     if (children.size !== 0 || modServer?.listening || proxyServer?.listening
@@ -779,7 +779,7 @@ async function verifyFailedStartupCleanup() {
   }
 }
 
-async function startProductionPolicyStackInner() {
+async function startProductionPolicyStackInner(lock) {
   if (closing) throw new Error("production fixture startup was interrupted");
   if (lock.repository !== "AI-Ascension/sts2-harness"
     || lock.gateway_repository !== "AI-Ascension/sts2-gateway"
@@ -857,6 +857,15 @@ async function startProductionPolicyStackInner() {
 
   return {
     baseUrl: `http://127.0.0.1:${proxyPort}`,
+    ownerAddress: `127.0.0.1:${ownerPort}`,
+    ownerHeaders: { authorization: `Bearer ${token}` },
+    // Process-only control for the isolated Console ingress witness. The
+    // browser's /__restart route still verifies its policy migration first.
+    restartOwner: async () => {
+      await stopChild(harness);
+      harness = startChild(harnessBinary, ["serve-workflow"], serviceEnvironment, "serve-workflow.log", harnessRoot);
+      await waitForWorkflow();
+    },
     browserEnvironment: {
       PATH: process.env.PATH || "/usr/bin:/bin",
       TMPDIR: fixtureRoot,
