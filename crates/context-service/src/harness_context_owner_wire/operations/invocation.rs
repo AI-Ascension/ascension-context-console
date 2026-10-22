@@ -91,9 +91,18 @@ impl ContextOwnerInvocationV2 {
                 check_effective_limits_binding(&value, binding)?;
                 HarnessResponseV1::EffectiveLimits(value)
             }
-            ContextOwnerOperationV2::EligibleItems { .. } => {
+            ContextOwnerOperationV2::EligibleItems { query, .. } => {
                 let value: HarnessContextOwnerItemsView = decode_bounded_json(bytes)?;
                 value.validate()?;
+                // Metadata-only admission carries no content-read grant. An owner response
+                // cannot expand that request's disclosure scope by returning retained bytes.
+                if query.include_content != Some(true)
+                    && value.items.iter().any(|item| item.content.is_some())
+                {
+                    return Err(OwnerWireError::CorrelationMismatch(
+                        "items_content_selection",
+                    ));
+                }
                 check_owner_scope(&value.owner_id, run_id, &self.identity)?;
                 check_boundary_scope(&value.boundary, &self.identity)?;
                 if let Some(binding) = expected_binding
