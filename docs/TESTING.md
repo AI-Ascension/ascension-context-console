@@ -43,6 +43,18 @@ zero Mod/provider effects for the tested operations. They do not accept the broa
 preview/commit/resume sequence or establish a fresh current binding after an owner restart. See
 [the reproduction guide](../tools/owner-process-recovery/README.md); issue #18 remains open.
 
+`tools/held-owner-preview/recovery.test.cjs` adds a separate process witness pinned by
+`contracts/held-owner-preview.lock.json` to the merged Harness pause repair. It pauses the actual
+owner at the Decide cursor, prepares a trusted held render without provider or Mod effects,
+checks separately granted content/objective access, edits a draft, verifies deterministic preview,
+commits a new revision and explicitly resumes. It then rejects a stale boundary and recovers an
+already-committed Pause receipt after independent Console and Harness restarts without repeating
+the original control write. The [held-preview workflow](../.github/workflows/held-owner-preview.yml)
+builds the exact pinned owner, Gateway, MCP and dedicated helper before running this regression.
+The local Node 24.16.0 witness records zero provider and Mod effects before and after the complete
+sequence. This covers the synthetic downstream/process boundary; native game execution, external
+provider acceptance and a fresh current binding after an owner restart remain separate evidence.
+
 The target `phase2_durable` tests cover encrypted journal reopen, wrong-key/tamper rejection,
 transaction rollback with outbox atomicity, additive schema repair with retained Phase 1 bytes,
 legacy active-state refusal, and immutable snapshot backup.
