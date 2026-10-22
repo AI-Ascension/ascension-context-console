@@ -87,7 +87,14 @@ jobs:
           cache-dependency-path: tools/browser-audit/package-lock.json
       - name: Build synthetic demo before readiness timer
         run: cargo build --locked --package context-service --bin context-console
+      - name: Bound browser system-package downloads
+        # The Azure mirror exhausted the production journey's 45-minute job budget.
+        # Keep Ubuntu signature verification and use its official HTTPS archive.
+        run: |
+          sudo find /etc/apt -maxdepth 2 -type f \( -name '*.list' -o -name '*.sources' -o -name apt-mirrors.txt \) -exec sed -i -E 's@https?://azure\.archive\.ubuntu\.com/@https://archive.ubuntu.com/@g' {} +
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-ci-network > /dev/null
       - name: Install locked browser dependencies
+        timeout-minutes: 15
         working-directory: tools/browser-audit
         run: |
           npm ci
@@ -165,7 +172,13 @@ jobs:
           cache: npm
           cache-dependency-path: tools/browser-audit/package-lock.json
 
+      - name: Bound browser system-package downloads
+        # Playwright's install-deps invokes apt itself, so configure its bounded retries.
+        run: |
+          sudo find /etc/apt -maxdepth 2 -type f \( -name '*.list' -o -name '*.sources' -o -name apt-mirrors.txt \) -exec sed -i -E 's@https?://azure\.archive\.ubuntu\.com/@https://archive.ubuntu.com/@g' {} +
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-ci-network > /dev/null
       - name: Install Playwright and browser engines
+        timeout-minutes: 15
         working-directory: tools/browser-audit
         run: |
           npm ci

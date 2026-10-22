@@ -3,6 +3,9 @@ use std::collections::BTreeMap;
 use super::validation::{bounded_json_bytes, decode_bounded_json, validate_json_shape};
 use super::*;
 
+#[path = "tests/items_disclosure.rs"]
+mod items_disclosure;
+
 const BINDING_DIGEST: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const DEFINITION_DIGEST: &str = "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f";
 const SOURCE_DIGEST: &str = "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf";

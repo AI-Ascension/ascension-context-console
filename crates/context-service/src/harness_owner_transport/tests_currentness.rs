@@ -14,6 +14,9 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[path = "tests_currentness/metadata_disclosure.rs"]
+mod metadata_disclosure;
+
 struct TestKeys;
 
 impl OwnerInvocationKeyProvider for TestKeys {
