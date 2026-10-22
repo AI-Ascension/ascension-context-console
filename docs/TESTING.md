@@ -31,6 +31,18 @@ reference fencing, secret-query rejection, and receipt recovery/idempotent repla
 The owner is synthetic; the test does not claim the external harness lifecycle or provider/native
 gate.
 
+`tools/owner-process-recovery/recovery.test.cjs` starts independent compiled Console and Harness
+processes on the exact tuple in `contracts/owner-process-recovery.lock.json`. It exercises protected
+private-file identity, current grants, the actual draft/revision list decoders, and durable draft
+and pause receipt recovery after a committed reply is lost and both processes restart separately.
+Recovery preserves the original receipt and never repeats the write; cached disclosure still
+requires current principal and metadata-grant authority. It also checks ingress denials before
+owner dispatch and scans the encrypted journal and operator output for private test bytes.
+Gateway/MCP processes use a synthetic Mod and a bounded local provider bridge. These checks assert
+zero Mod/provider effects for the tested operations. They do not accept the broader held
+preview/commit/resume sequence or establish a fresh current binding after an owner restart. See
+[the reproduction guide](../tools/owner-process-recovery/README.md); issue #18 remains open.
+
 The target `phase2_durable` tests cover encrypted journal reopen, wrong-key/tamper rejection,
 transaction rollback with outbox atomicity, additive schema repair with retained Phase 1 bytes,
 legacy active-state refusal, and immutable snapshot backup.
