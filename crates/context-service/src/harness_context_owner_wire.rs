@@ -81,3 +81,7 @@ pub use validation::{
 #[cfg(test)]
 #[path = "harness_context_owner_wire/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "harness_context_owner_wire/list_schemas_tests.rs"]
+mod list_schemas_tests;
