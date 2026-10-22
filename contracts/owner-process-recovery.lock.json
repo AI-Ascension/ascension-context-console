@@ -1,0 +1,9 @@
+{
+  "repository": "AI-Ascension/sts2-harness",
+  "revision": "3a641cc6669818e4709c3a58a68ef41302d8860a",
+  "gateway_repository": "AI-Ascension/sts2-gateway",
+  "gateway_revision": "34464acc443fe4f683581668cdacd249d09f76cd",
+  "mcp_repository": "AI-Ascension/sts2-mcp-server",
+  "mcp_revision": "f7db2d4ac5346a9124fff0f1e121fc3a7979d3f4",
+  "scope": "Independent Console operator and Harness processes; verified private-file ingress, durable draft/control writes, lost replies, exact receipt lookup after restart, and current authorization before cached results. Synthetic Mod and local bounded provider bridge only; no native game or external provider evidence."
+}
