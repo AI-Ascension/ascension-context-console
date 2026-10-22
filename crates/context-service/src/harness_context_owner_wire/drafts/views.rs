@@ -204,10 +204,9 @@ pub struct HarnessContextOwnerDraftListView {
 
 impl HarnessContextOwnerDraftListView {
     pub fn validate(&self) -> Result<(), OwnerWireError> {
-        validate_schema(
-            &self.schema_version,
-            "ascension.harness.context-owner-drafts.v1",
-        )?;
+        // The producer uses the draft schema for both a single envelope and
+        // its list view; the enclosing typed operation distinguishes them.
+        validate_schema(&self.schema_version, CONTEXT_OWNER_DRAFT_SCHEMA_V1)?;
         validate_identifier("draft_list_owner_id", &self.owner_id)?;
         validate_identifier("draft_list_run_id", &self.workflow_run_id)?;
         if self.drafts.len() > MAX_HARNESS_PUBLICATIONS {
@@ -240,10 +239,7 @@ pub struct HarnessContextOwnerRevisionPage {
 
 impl HarnessContextOwnerRevisionPage {
     pub fn validate(&self) -> Result<(), OwnerWireError> {
-        validate_schema(
-            &self.schema_version,
-            "ascension.harness.context-owner-revisions.v1",
-        )?;
+        validate_schema(&self.schema_version, CONTEXT_OWNER_REVISION_SCHEMA_V1)?;
         validate_identifier("revision_page_owner_id", &self.owner_id)?;
         validate_identifier("revision_page_run_id", &self.workflow_run_id)?;
         if self.revisions.len() > MAX_HARNESS_PAGE_SIZE as usize {
